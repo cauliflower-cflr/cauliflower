@@ -37,6 +37,6 @@ private:
     std::vector<T> it;
 };
 
-}//end namespace cflr
+} // end namespace cflr
 
 #endif /* __UTILITIES_H__ */

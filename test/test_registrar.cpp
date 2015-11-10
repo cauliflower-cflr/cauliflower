@@ -1,10 +1,3 @@
-/* 
- *                        test_string_registrar.cpp
- * 
- * Author: Nic H.
- * Date: 2015-Nov-10
- */
-
 #include <string>
 #include <set>
 
