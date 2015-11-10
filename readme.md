@@ -10,6 +10,7 @@ Architecture
 ------------
 
 Modular as possible:
+
  * Problem <templated>: definition of the problem templated by evaluation specification
  * Relation: a group of ADTs
  * ADT: generic template for the abstract datatype:
