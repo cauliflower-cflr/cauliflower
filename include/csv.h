@@ -906,6 +906,25 @@ namespace io{
 
         }
 
+        // Modified by Nic H.
+        template<typename R, unsigned I, typename...Ts>
+        struct callback_tuple_writer{
+            inline static void write(R& reader, std::tuple<Ts...>& into){
+                reader.parse_helper(sizeof...(Ts)-I, std::get<sizeof...(Ts)-I>(into));
+                callback_tuple_writer<R, I-1, Ts...>::write(reader, into);
+            }
+        };
+        template<typename R, typename...Ts>
+        struct callback_tuple_writer<R, 0, Ts...>{
+            inline static void write(R& reader, std::tuple<Ts...>& into){
+                // do nothing
+            }
+        };
+        template<typename R, typename...Ts>
+        inline void callback_parse_help(R& reader, std::tuple<Ts...>& into){
+            callback_tuple_writer<R, sizeof...(Ts), Ts...>::write(reader, into);
+        }
+
         template<unsigned column_count,
                 class trim_policy = trim_chars<' ', '\t'>,
                 class quote_policy = no_quote_escape<','>,
@@ -1008,7 +1027,8 @@ namespace io{
                         return in.get_file_line();
                 }
 
-        private:
+        // Nic H, changed these to public so i didnt have to declare ungodly template metas as friend
+        public:
                 void parse_helper(std::size_t r){}
 
                 template<class T, class ...ColType>
@@ -1029,7 +1049,6 @@ namespace io{
                         parse_helper(r+1, cols...);
                 }
 
-       
         public:
                 template<class ...ColType>
                 bool read_row(ColType& ...cols){
@@ -1051,6 +1070,37 @@ namespace io{
                                                 (line, row, col_order);
                
                                         parse_helper(0, cols...);
+                                }catch(error::with_file_name&err){
+                                        err.set_file_name(in.get_truncated_file_name());
+                                        throw;
+                                }
+                        }catch(error::with_file_line&err){
+                                err.set_file_line(in.get_file_line());
+                                throw;
+                        }
+
+                        return true;
+                }
+
+                // Modified by Nic H. on 2015-11-10
+                // A uniform-type-fixed-array version of the normal read_row
+                template<typename...Ts>
+                bool read_row_tuple(std::tuple<Ts...>& into){
+                        try{
+                                try{
+       
+                                        char*line;
+                                        do{
+                                                line = in.next_line();
+                                                if(!line)
+                                                        return false;
+                                        }while(comment_policy::is_comment(line));
+                                       
+                                        detail::parse_line<trim_policy, quote_policy>
+                                                (line, row, col_order);
+
+                                        // call the custom parse helper
+                                        callback_parse_help(*this, into);
                                 }catch(error::with_file_name&err){
                                         err.set_file_name(in.get_truncated_file_name());
                                         throw;
