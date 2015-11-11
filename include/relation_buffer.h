@@ -61,12 +61,12 @@ struct buffer_helper<TReg, TArr, 0, Tups...>{
 template<typename...Ts>
 struct relation_buffer{
 
-    static const unsigned Cols = sizeof...(Ts);
-    static_assert(Cols >= 2, "Relations must have at least binary cardinality");
+    static const unsigned cardinality = sizeof...(Ts);
+    static_assert(cardinality >= 2, "Relations must have at least binary cardinality");
 
     typedef std::tuple<Ts...> outer_type; // The external representation
     typedef typename t_apply_ptr<registrar, Ts...>::value reg_type; // The group of registrars
-    typedef std::array<ident, Cols> value_type; // The internal representation
+    typedef std::array<ident, cardinality> value_type; // The internal representation
 
     reg_type registrars;
     std::vector<value_type> data;
@@ -79,7 +79,7 @@ struct relation_buffer{
     }
 
     void add(const outer_type& row){
-        std::array<ident, Cols> tmp;
+        std::array<ident, cardinality> tmp;
         template_internals
             ::buffer_helper<reg_type, value_type, sizeof...(Ts), Ts...>
             ::register_tuple(row, registrars, tmp);
@@ -99,7 +99,7 @@ struct relation_buffer{
     }
 
     bool from_csv(const std::string& csv_path){
-        io::CSVReader<Cols, io::trim_chars<>,
+        io::CSVReader<cardinality, io::trim_chars<>,
             io::no_quote_escape<','>, io::throw_on_overflow,
             io::empty_line_comment> in(csv_path);
         try{

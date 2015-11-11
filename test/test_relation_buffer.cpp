@@ -15,7 +15,6 @@ BOOST_AUTO_TEST_SUITE( relation_buffer_test )
 
     BOOST_AUTO_TEST_CASE( int_buffer ){
         typedef relation_buffer<int, int> i2;
-        typedef relation_buffer<int, int, int> i3;
         registrar<int> reg;
         i2 buf(i2::reg_type{&reg, &reg});
         buf.add(i2::outer_type{5, 6});
@@ -28,6 +27,7 @@ BOOST_AUTO_TEST_SUITE( relation_buffer_test )
         BOOST_CHECK(reg.get(buf[2][0]) == 6);
         BOOST_CHECK(reg.get(buf[2][1]) == 5);
 
+        typedef relation_buffer<int, int, int> i3;
         i3 buf2{i3::reg_type{&reg, &reg, &reg}};
         buf2.add(i3::outer_type{4, 5, 6});
         buf2.add(i3::outer_type{6, 7, 4});
@@ -54,6 +54,24 @@ BOOST_AUTO_TEST_SUITE( relation_buffer_test )
         BOOST_CHECK(a.size() == 1);
         BOOST_CHECK(b.size() == 2);
         BOOST_CHECK(c.size() == 3);
+
+        typedef relation_buffer<int, char, string> ics;
+        registrar<int> ri;
+        registrar<char> rc;
+        registrar<string> rs;
+        ics buf2(ics::reg_type{&ri, &rc, &rs});
+        buf2.add(ics::outer_type{42, 'X', "Hello World!"});
+        BOOST_CHECK(ri.size() == 1);
+        BOOST_CHECK(rc.size() == 1);
+        BOOST_CHECK(rs.size() == 1);
+        buf2.add(ics::outer_type{42, '.', "Hello World!"});
+        BOOST_CHECK(ri.size() == 1);
+        BOOST_CHECK(rc.size() == 2);
+        BOOST_CHECK(rs.size() == 1);
+        
+        stringstream ss;
+        buf2.to_csv(ss);
+        BOOST_CHECK(ss.str() == "42,X,Hello World!\n42,.,Hello World!\n");
     }
 
     template<typename T, typename Tup, unsigned I>
