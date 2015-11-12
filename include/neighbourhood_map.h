@@ -10,6 +10,7 @@
 #ifndef __NEIGHBOURHOOD_MAP_H__
 #define __NEIGHBOURHOOD_MAP_H__
 
+#include <iostream>
 // #include <map>
 // #include <set>
 
@@ -93,6 +94,16 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
     }
     iterator end() const {
         return iterator();
+    }
+
+    void dump(std::ostream& os) const {
+        for(const auto& m : forwards){
+            os << m.first << " ->";
+            for(const auto& s : m.second){
+                os << " " << s;
+            }
+            os << std::endl;
+        }
     }
 
 };

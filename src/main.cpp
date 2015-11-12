@@ -11,6 +11,7 @@
 
 #include "adt.h"
 #include "neighbourhood_map.h"
+#include "relation.h"
 #include "relation_buffer.h"
 
 using namespace std;
@@ -33,18 +34,15 @@ int main(){
     b_buf.to_csv(cout);
     cout << endl << "---------------------------" << endl;
 
-    cflr::neighbourhood_map<map<ident, set<ident>>, set<ident>> m;
-    cout << m.empty() << (m.begin() == m.end() ? " ended": " going") << endl;
-    m.initialise_import();
-    m.import(0, 0);
-    m.import(0, 4);
-    m.import(2, 4);
-    m.finalise_import();
-    cout << m.empty() << (m.begin() == m.end() ? " ended": " going") << endl;
-    for(auto i=m.begin(); i!=m.end(); ++i){
-        cout << " - " << i->first << i->second << endl;
-    }
-    cout << m.empty() << (m.begin() == m.end() ? " ended": " going") << endl;
+    // Convert to relations
+    typedef cflr::neighbourhood_map<map<ident, set<ident>>,set<ident>> nmap;
+    relation<nmap> a_rel(a_buf.field_volume());
+    relation<nmap> b_rel(b_buf.field_volume());
+    relation<nmap> s_rel(1);
+    a_rel.import_buffer(a_buf);
+    b_rel.import_buffer(b_buf);
+    a_rel.dump(cout);
+    b_rel.dump(cout);
 
     // Show result
     cout << endl << "S:" << endl;

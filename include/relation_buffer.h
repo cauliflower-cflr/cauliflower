@@ -42,6 +42,12 @@ struct buffer_helper{
         buffer_helper<TReg, TArr, I-1, Tups...>::stream_tuple(os, tup);
         os << "," << std::get<I>(tup);
     }
+    static inline unsigned field_volume(const TReg& regs){
+        return buffer_helper<TReg, TArr, I-1, Tups...>::field_volume(regs)*std::get<I+1>(regs)->size();
+    }
+    static inline unsigned field_volume_index(const TReg& regs, const TArr& arr){
+        return buffer_helper<TReg, TArr, I-1, Tups...>::field_volume_index(regs, arr)*std::get<I+1>(regs)->size() + arr[I+1];
+    }
 };
 template<typename TReg, typename TArr, typename...Tups>
 struct buffer_helper<TReg, TArr, 0, Tups...>{
@@ -54,6 +60,12 @@ struct buffer_helper<TReg, TArr, 0, Tups...>{
     // Obviously it is an error to call this when sizeof...(Ts) == 0
     static inline void stream_tuple(std::ostream& os, const std::tuple<Tups...>& tup){
         os << std::get<0>(tup);
+    }
+    static inline unsigned field_volume(const TReg& regs){
+        return 1;
+    }
+    static inline unsigned field_volume_index(const TReg& regs, const TArr& arr){
+        return 0;
     }
 };
 } // end namespace template_internals
@@ -78,6 +90,17 @@ struct relation_buffer{
         return data.size();
     }
 
+    size_t field_volume() const {
+        return template_internals
+            ::buffer_helper<reg_type, value_type, sizeof...(Ts)-2, Ts...>
+            ::field_volume(registrars);
+    }
+    size_t index_volume(size_t idx) const {
+        return template_internals
+            ::buffer_helper<reg_type, value_type, sizeof...(Ts)-2, Ts...>
+            ::field_volume_index(registrars, data[idx]);
+    }
+
     void add(const outer_type& row){
         std::array<ident, cardinality> tmp;
         template_internals
@@ -94,8 +117,16 @@ struct relation_buffer{
         return ret;
     }
 
-    value_type& operator[](const size_t i){
+    const value_type& operator[](const size_t i) const {
         return data[i];
+    }
+
+    typename std::vector<value_type>::const_iterator begin() const {
+        return data.cbegin();
+    }
+
+    typename std::vector<value_type>::const_iterator end() const {
+        return data.cend();
     }
 
     bool from_csv(const std::string& csv_path){

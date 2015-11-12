@@ -12,7 +12,43 @@
 #ifndef __RELATION_H__
 #define __RELATION_H__
 
+#include <iostream>
+#include <vector>
+
+#include"relation_buffer.h"
+
 namespace cflr{
+
+template<typename A>
+struct relation {
+
+    std::vector<A> adts;
+
+    relation() : adts() {}
+    relation(unsigned fv) : adts(fv, A()) {}
+
+    template<typename...Ts>
+    void import_buffer(const relation_buffer<Ts...>& buf){
+        // assert(adts.size() == buf.field_volumne());
+        for(auto& a : adts) a.initialise_import();
+        unsigned size = buf.size();
+        for(unsigned i=0; i<size; i++){
+            adts[buf.index_volume(i)].import(buf[i][0], buf[i][1]);
+        }
+        for(auto& a : adts) a.finalise_import();
+    }
+
+    void dump(std::ostream& os) const {
+        unsigned idx=0;
+        for(const auto& a : adts){
+            os << idx << ":" << std::endl;
+            a.dump(os);
+            ++idx;
+        }
+    }
+
+};
+
 } // end namespace cflr
 
 #endif /* __RELATION_H__ */
