@@ -5,8 +5,12 @@
  * Date: 2015-Nov-10
  */
 
+#include <map>
+#include <set>
 #include <iostream>
 
+#include "adt.h"
+#include "neighbourhood_map.h"
 #include "relation_buffer.h"
 
 using namespace std;
@@ -28,6 +32,19 @@ int main(){
     cout << endl << "b:" << endl;
     b_buf.to_csv(cout);
     cout << endl << "---------------------------" << endl;
+
+    cflr::neighbourhood_map<map<ident, set<ident>>, set<ident>> m;
+    cout << m.empty() << (m.begin() == m.end() ? " ended": " going") << endl;
+    m.initialise_import();
+    m.import(0, 0);
+    m.import(0, 4);
+    m.import(2, 4);
+    m.finalise_import();
+    cout << m.empty() << (m.begin() == m.end() ? " ended": " going") << endl;
+    for(auto i=m.begin(); i!=m.end(); ++i){
+        cout << " - " << i->first << i->second << endl;
+    }
+    cout << m.empty() << (m.begin() == m.end() ? " ended": " going") << endl;
 
     // Show result
     cout << endl << "S:" << endl;

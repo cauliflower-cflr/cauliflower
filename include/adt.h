@@ -12,7 +12,24 @@
 #ifndef __ADT_H__
 #define __ADT_H__
 
+#include "utilities.h"
+
 namespace cflr{
+
+template<typename Self, typename Iter>
+struct adt{
+    typedef Iter iterator;
+    // Queries
+    virtual bool empty() = 0;
+    // Methods for importing data
+    virtual void initialise_import() = 0;
+    virtual void import(ident, ident) = 0;
+    virtual void finalise_import() = 0;
+    // Methods for exporting data
+    virtual iterator begin() const = 0;
+    virtual iterator end() const = 0;
+};
+
 } // end namespace cflr
 
 #endif /* __ADT_H__ */
