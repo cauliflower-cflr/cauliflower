@@ -11,6 +11,7 @@
 
 #include "adt.h"
 #include "neighbourhood_map.h"
+#include "problem.h"
 #include "relation.h"
 #include "relation_buffer.h"
 
@@ -43,6 +44,14 @@ int main(){
     b_rel.import_buffer(b_buf);
     a_rel.dump(cout);
     b_rel.dump(cout);
+    typedef problem<
+        label<>,
+        label<>,
+        label<>,
+        rule<2>,
+        rule<2, fwd<0>, fwd<2>, fwd<1>>
+        > prob;
+    cout << prob::label_count << " : " << prob::rule_count << endl;
 
     // Show result
     cout << endl << "S:" << endl;

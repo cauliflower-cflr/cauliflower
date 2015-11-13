@@ -19,7 +19,6 @@
 #include "csv.h"
 #include "logger.h"
 #include "utilities.h"
-#include "utility_templates.h"
 
 namespace cflr{
 
@@ -77,7 +76,7 @@ struct relation_buffer{
     static_assert(cardinality >= 2, "Relations must have at least binary cardinality");
 
     typedef std::tuple<Ts...> outer_type; // The external representation
-    typedef typename t_apply_ptr<registrar, Ts...>::value reg_type; // The group of registrars
+    typedef std::tuple<registrar<Ts>*...> reg_type; // The group of registrars
     typedef std::array<ident, cardinality> value_type; // The internal representation
 
     reg_type registrars;
