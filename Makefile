@@ -12,7 +12,7 @@ INCLUDES=-I include/
 #CXXFLAGS=$(INCLUDES) -Wl,-rpath -Wl,/usr/local/lib -std=c++11 -Wall -g
 CXXFLAGS=$(INCLUDES) -std=c++11 -Wall -O3
 CXXLIBS=#-llog4cplus
-TEST_ARGS=--report_level=detailed
+TEST_ARGS=--report_format=xml --report_level=detailed
 
 # Build directories
 BIN_DIR=bin
@@ -37,7 +37,10 @@ BINS=$(patsubst %,$(BIN_DIR)/%,$(TARGETS))
 all: $(OBJS) $(BINS)
 
 test: all
-	$(BIN_DIR)/$(TEST) $(TEST_ARGS)
+	$(BIN_DIR)/$(TEST) $(TEST_ARGS) 2>TMP_XML
+	@python test/testvis.py < TMP_XML
+	@rm TMP_XML
+
 
 $(BIN_DIR)/$(MAIN): $(OBJ_DIR)/$(SRC_DIR)/$(MAIN).o $(OBJ_S)
 	@[ -d $(BIN_DIR) ] || mkdir -p $(BIN_DIR)
