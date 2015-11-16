@@ -40,6 +40,7 @@ int main(){
     relation<nmap> a_rel(a_buf.field_volume());
     relation<nmap> b_rel(b_buf.field_volume());
     relation<nmap> s_rel(1);
+    nmap eps = nmap::identity(5);
     a_rel.import_buffer(a_buf);
     b_rel.import_buffer(b_buf);
     a_rel.dump(cout);
@@ -49,10 +50,12 @@ int main(){
         label<>,
         label<>,
         rule<2>,
-        rule<2, fwd<0>, fwd<2>, fwd<1>>
+        rule<2, fwd<0>, fwd<2>, fwd<1>>,
+        rule<2, fwd<2>, fwd<1>>
         > prob;
+    prob::compose_delta_rule<0>(eps);
+    prob::compose_delta_rule<1>(eps);
     cout << prob::label_count << " : " << prob::rule_count << endl << endl;
-    nmap eps = nmap::identity(5);
     s_rel.adts[0].union_copy(eps);
     s_rel.adts[0].dump(cout);
     for(unsigned i=0; i<4; i++){
@@ -62,7 +65,6 @@ int main(){
         cout << endl;
         s_rel.adts[0].dump(cout);
     }
-
     s_rel.adts[0].difference(eps);
 
     // Show result

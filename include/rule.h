@@ -35,12 +35,26 @@ struct rule_dep_helper<rule_deps<Rds...>> {
     typedef rule_deps<Rds...> dependencies;
 };
 
+template <unsigned E, typename C> struct iterative;
+template<unsigned E, unsigned I, unsigned...Rest>
+struct iterative<E, rule_deps<I, Rest...>>{
+    // potentially inefficient because no early-exit
+    static const bool contains = E == I || iterative<E, rule_deps<Rest...>>::contains;
+};
+template<unsigned E>
+struct iterative<E, rule_deps<>>{
+    static const bool contains = false;
+};
+
 } // end namespace template_internals
 
 template<unsigned L, typename...Rs> struct rule {
     typedef typename template_internals::rule_dep_helper<template_internals::rule_deps<>, Rs...>::dependencies dependencies;
+    template<unsigned I>
+    static inline constexpr bool depends_on(){
+        return template_internals::iterative<I, typename rule<L, Rs...>::dependencies>::contains;
+    }
 };
-
 
 // -// epsilon rule
 // -template<unsigned LI, unsigned...LFs>
