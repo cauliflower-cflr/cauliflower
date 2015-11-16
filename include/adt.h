@@ -28,6 +28,11 @@ struct adt{
     // Methods for exporting data
     virtual iterator begin() const = 0;
     virtual iterator end() const = 0;
+    // Relational Methods
+    virtual void union_copy(const Self&) = 0;
+    virtual void union_absorb(Self&) = 0;
+    virtual void compose(const Self&, Self&) const = 0;
+    virtual void difference(const Self&) = 0;
 };
 
 } // end namespace cflr

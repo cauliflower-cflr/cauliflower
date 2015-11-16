@@ -51,6 +51,8 @@ struct neighbourhood_iterator{
         if(s_cur == m_cur->second.end()){
             m_cur++;
             advance();
+        } else {
+            cur = {m_cur->first, *s_cur};
         }
         return *this;
     }
@@ -96,6 +98,50 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         return iterator();
     }
 
+    void union_copy(const neighbourhood_map<M, S>& other){
+        for(const auto& m : other.forwards){
+            for(const auto& s : m.second){
+                import(m.first, s);
+            }
+        }
+    }
+    void union_absorb(neighbourhood_map<M, S>& other){
+        union_copy(other);
+    }
+
+    void compose(const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into) const{
+        auto end = other.forwards.end();
+        for(const auto& pvt : backwards){
+            auto oth = other.forwards.find(pvt.first);
+            if (oth != end) {
+                for(ident from : pvt.second){
+                    for(ident to : oth->second){
+                        into.import(from, to);
+                    }
+                }
+            }
+        }
+    }
+
+    void difference(const neighbourhood_map<M, S>& other){
+        auto end = forwards.end();
+        for(const auto& oth : other.forwards){
+            auto ms = forwards.find(oth.first);
+            if(ms != end){
+                for(ident to : oth.second){
+                    auto fnd = ms->second.find(to);
+                    if(fnd != ms->second.end()){
+                        auto bck = backwards.find(to);
+                        ms->second.erase(fnd);
+                        bck->second.erase(oth.first);
+                        if(ms->second.empty()) forwards.erase(ms);
+                        if(bck->second.empty()) backwards.erase(bck);
+                    }
+                }
+            }
+        }
+    }
+
     void dump(std::ostream& os) const {
         for(const auto& m : forwards){
             os << m.first << " ->";
@@ -104,6 +150,14 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
             }
             os << std::endl;
         }
+    }
+
+    static neighbourhood_map<M, S> identity(unsigned max_ident){
+        neighbourhood_map<M, S> ret;
+        for(ident i=0; i<max_ident; i++){
+            ret.forwards.insert({i, S({i})});
+        }
+        return ret;
     }
 
 };

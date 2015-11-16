@@ -47,6 +47,9 @@ struct buffer_helper{
     static inline unsigned field_volume_index(const TReg& regs, const TArr& arr){
         return buffer_helper<TReg, TArr, I-1, Tups...>::field_volume_index(regs, arr)*std::get<I+1>(regs)->size() + arr[I+1];
     }
+    // static inline void field_index_to_volume(unsigned amt, const TReg& regs, TArr& arr){
+    //     arr[I+1] = amt/buffer_helper<TReg, TArr, I, Tups...>::field_volume(TReg&)
+    // }
 };
 template<typename TReg, typename TArr, typename...Tups>
 struct buffer_helper<TReg, TArr, 0, Tups...>{
@@ -65,6 +68,9 @@ struct buffer_helper<TReg, TArr, 0, Tups...>{
     }
     static inline unsigned field_volume_index(const TReg& regs, const TArr& arr){
         return 0;
+    }
+    static inline void field_index_to_volume(unsigned idx, const TReg& regs, TArr& arr){
+        // do nothing
     }
 };
 } // end namespace template_internals
@@ -106,6 +112,14 @@ struct relation_buffer{
             ::buffer_helper<reg_type, value_type, sizeof...(Ts), Ts...>
             ::register_tuple(row, registrars, tmp);
         data.push_back(tmp);
+    }
+    void add_internal(ident from, ident to, size_t volume){
+        value_type add;
+        add[0] = from;
+        add[1] = to;
+        template_internals::buffer_helper<reg_type, value_type, sizeof...(Ts)-2, Ts...>
+            ::field_index_to_volume(volume, registrars, add);
+        data.push_back(add);
     }
 
     outer_type retrieve(size_t idx) const {

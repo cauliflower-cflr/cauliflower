@@ -21,7 +21,26 @@ template<unsigned> struct ngate {};
 template<unsigned> struct rev {};
 template<unsigned> struct fwd {};
 //rule base type
-template<unsigned, typename...> struct rule {};
+
+namespace template_internals {
+
+template <unsigned...> struct  rule_deps {};
+template<typename Rd, typename...Ds> struct rule_dep_helper;
+template<unsigned...Rds, unsigned I, typename...Ds>
+struct rule_dep_helper<rule_deps<Rds...>, fwd<I>, Ds...> {
+    typedef typename rule_dep_helper<template_internals::rule_deps<Rds..., I>, Ds...>::dependencies dependencies;
+};
+template<unsigned...Rds>
+struct rule_dep_helper<rule_deps<Rds...>> {
+    typedef rule_deps<Rds...> dependencies;
+};
+
+} // end namespace template_internals
+
+template<unsigned L, typename...Rs> struct rule {
+    typedef typename template_internals::rule_dep_helper<template_internals::rule_deps<>, Rs...>::dependencies dependencies;
+};
+
 
 // -// epsilon rule
 // -template<unsigned LI, unsigned...LFs>

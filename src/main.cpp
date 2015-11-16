@@ -51,9 +51,22 @@ int main(){
         rule<2>,
         rule<2, fwd<0>, fwd<2>, fwd<1>>
         > prob;
-    cout << prob::label_count << " : " << prob::rule_count << endl;
+    cout << prob::label_count << " : " << prob::rule_count << endl << endl;
+    nmap eps = nmap::identity(5);
+    s_rel.adts[0].union_copy(eps);
+    s_rel.adts[0].dump(cout);
+    for(unsigned i=0; i<4; i++){
+        nmap tmp;
+        a_rel.adts[0].compose(s_rel.adts[0], tmp);
+        tmp.compose(b_rel.adts[0], s_rel.adts[0]);
+        cout << endl;
+        s_rel.adts[0].dump(cout);
+    }
+
+    s_rel.adts[0].difference(eps);
 
     // Show result
+    s_rel.export_buffer(s_buf);
     cout << endl << "S:" << endl;
     s_buf.to_csv(cout);
     cout << endl;

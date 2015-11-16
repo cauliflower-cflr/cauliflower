@@ -38,6 +38,19 @@ struct relation {
         for(auto& a : adts) a.finalise_import();
     }
 
+    template<typename...Ts>
+    void export_buffer(relation_buffer<Ts...>& buf) const {
+        unsigned vol = 0;
+        for(const A& adt : adts){
+            auto i = adt.begin();
+            auto e = adt.end();
+            for(; i!=e; ++i){
+                buf.add_internal(i->first, i->second, vol);
+            }
+            ++vol;
+        }
+    }
+
     void dump(std::ostream& os) const {
         unsigned idx=0;
         for(const auto& a : adts){
