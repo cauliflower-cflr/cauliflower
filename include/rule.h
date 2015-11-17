@@ -11,16 +11,16 @@
 #ifndef __RULE_H__
 #define __RULE_H__
 
+#include <iostream> // TODO remove me
+
 #include "label.h"
 
 namespace cflr{
 
-//the significand templates
 template<unsigned, unsigned> struct isect {};
 template<unsigned> struct ngate {};
 template<unsigned> struct rev {};
 template<unsigned> struct fwd {};
-//rule base type
 
 namespace template_internals {
 
@@ -46,6 +46,18 @@ struct iterative<E, rule_deps<>>{
     static const bool contains = false;
 };
 
+template<bool, unsigned, typename, unsigned, typename...> struct evaluate_helper;
+template<unsigned I, typename Adt, unsigned L, typename...Rs>
+struct evaluate_helper<false, I, Adt, L, Rs...>{
+    static inline void evaluate(const Adt& delta) {}
+};
+template<unsigned I, typename Adt, unsigned L, typename...Rs>
+struct evaluate_helper<true, I, Adt, L, Rs...>{
+    static inline void evaluate(const Adt& delta) {
+        std::cout << "CDR " << I << std::endl;
+    }
+};
+
 } // end namespace template_internals
 
 template<unsigned L, typename...Rs> struct rule {
@@ -54,25 +66,11 @@ template<unsigned L, typename...Rs> struct rule {
     static inline constexpr bool depends_on(){
         return template_internals::iterative<I, typename rule<L, Rs...>::dependencies>::contains;
     }
+    template<unsigned I, typename Adt>
+    static inline void evaluate_delta(const Adt& delta){
+        template_internals::evaluate_helper<depends_on<I>(), I, Adt, L, Rs...>::evaluate(delta);
+    }
 };
-
-// -// epsilon rule
-// -template<unsigned LI, unsigned...LFs>
-// -struct rule<label<LI, LFs...>> {
-// -};
-// -// sequence rule
-// -template<unsigned LI, unsigned...LFs, unsigned R1I, unsigned...R1Fs, typename...Rest>
-// -struct rule<label<LI, LFs...>, label<R1I, R1Fs...>, Rest...> {
-// -};
-// -// intersection rule
-// -template<unsigned LI, unsigned...LFs, unsigned RAI, unsigned...RAFs, unsigned RBI, unsigned...RBFs>
-// -struct rule<label<LI, LFs...>, isect<label<RAI, RAFs...>, label<RBI, RBFs...>>> {
-// -};
-// -// negation rule
-// -template<unsigned LI, unsigned...LFs, unsigned RI, unsigned...RFs>
-// -struct rule<label<LI, LFs...>, ngate<label<RI, RFs...>>> {
-// -};
-// -// transitive-rule (Future Work)
 
 } // end namespace cflr
 

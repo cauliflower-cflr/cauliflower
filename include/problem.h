@@ -34,16 +34,9 @@ template<unsigned L, typename...Rs, typename...Ts>
 struct problem_helper<rule<L, Rs...>, Ts...>{
     static const unsigned label_count = problem_helper<Ts...>::label_count;
     static const unsigned rule_count = 1 + problem_helper<Ts...>::rule_count;
-    //uses enable_if to flag rules that depend on I
-    template<unsigned I, typename Adt, typename std::enable_if<rule<L, Rs...>::template depends_on<I>()>::type* = nullptr >
+    template<unsigned I, typename Adt>
     static inline void compose_delta_rule(const Adt& delta){
-        //using if_t = typename std::enable_if<rule<L, Rs...>::template depends_on<I>(), Adt>::type;
-        std::cout << "CDR " << I << std::endl;
-        problem_helper<Ts...>::template compose_delta_rule<I>(delta);
-    }
-    // For rules that do not depend on I
-    template<unsigned I, typename Adt, typename std::enable_if<!rule<L, Rs...>::template depends_on<I>()>::type* = nullptr >
-    static inline void compose_delta_rule(const Adt& delta){
+        rule<L, Rs...>::template evaluate_delta<I>(delta);
         problem_helper<Ts...>::template compose_delta_rule<I>(delta);
     }
 };
