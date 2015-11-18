@@ -107,11 +107,11 @@ namespace template_internals {
     private:
         typedef typename problem_rules_dependant_h<tlist<Rest...>, Idx>::result sub_result;
     public:
-        typedef typename if_tm<
+        typedef typename std::conditional<
             ucontains_tm<typename rule_dependencies<Rule>::result, Idx>::result,
             typename cat_tm<tlist<Rule>, sub_result>::result,
             sub_result
-            >::result result;
+            >::type result;
     };
     template<unsigned Idx> struct problem_rules_dependant_h<tlist<>, Idx> {
         typedef tlist<> result;

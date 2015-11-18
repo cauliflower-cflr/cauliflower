@@ -27,6 +27,12 @@ template<typename...Ts> struct tlist {
     static const unsigned size = sizeof...(Ts);
 };
 
+/// as_tm, convert a tlist to be wrapped by a different template
+template<typename, template<typename...>class> struct as_tm;
+template<typename...Ts, template<typename...> class As> struct as_tm<tlist<Ts...>, As> {
+    typedef As<Ts...> result;
+};
+
 /// index_tm, store the element/type of the list at index Idx in index_tm::result
 /// workds for both ulist and tlist
 template<typename, unsigned> struct index_tm;
@@ -69,16 +75,6 @@ template<typename...As, typename...Bs> struct cat_tm<tlist<As...>, tlist<Bs...>>
 template<unsigned...As, unsigned...Bs> struct cat_tm<ulist<As...>, ulist<Bs...>> {
     typedef ulist<As..., Bs...> result;
 };
-
-/// if_tm, defines ::result to be the first type, if the bool==true, otherwise the second
-template<bool, typename, typename> struct if_tm;
-template<typename A, typename B> struct if_tm<true, A, B> {
-    typedef A result;
-};
-template<typename A, typename B> struct if_tm<false, A, B> {
-    typedef B result;
-};
-
 
 /// project_tm, project a new list be selecting the elements of the first list
 /// indexed by the second (a ulist)

@@ -37,7 +37,7 @@ BINS=$(patsubst %,$(BIN_DIR)/%,$(TARGETS))
 all: $(OBJS) $(BINS)
 
 test: all
-	$(BIN_DIR)/$(TEST) $(TEST_ARGS) 2>TMP_XML
+	-$(BIN_DIR)/$(TEST) $(TEST_ARGS) 2>TMP_XML
 	@python test/testvis.py < TMP_XML
 	@rm TMP_XML
 

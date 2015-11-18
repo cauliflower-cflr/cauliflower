@@ -19,6 +19,7 @@
 #include "csv.h"
 #include "logger.h"
 #include "utilities.h"
+#include "utility_templates.h"
 
 namespace cflr{
 
@@ -168,6 +169,52 @@ struct relation_buffer{
         }
     }
 
+};
+
+namespace template_internals {
+template<typename, unsigned> struct rg_select_h;
+template<unsigned If, unsigned...IfRest, unsigned It> struct rg_select_h<ulist<If, IfRest...>, It> {
+    template<typename Tf, typename Tt> static inline void select(Tf& from, Tt& to){
+        std::get<It>(to) = &(std::get<If>(from));
+        rg_select_h<ulist<IfRest...>, It+1>::select(from, to);
+    }
+};
+template<unsigned It> struct rg_select_h<ulist<>, It> {
+    template<typename Tf, typename Tt> static inline void select(Tf& from, Tt& to){
+        // do nothing
+    }
+};
+template<typename Ul, typename...Ts> struct rg_select_return {
+    typedef typename as_tm<typename project_tm<tlist<registrar<Ts>*...>, Ul>::result, std::tuple>::result type;
+};
+template<unsigned cur> struct rg_volumes_h {
+    template<typename t, unsigned len> static inline void volumes(const t& group, std::array<size_t, len>& arr){
+        arr[len-cur] = std::get<len-cur>(group).size();
+        rg_volumes_h<cur-1>::template volumes<t, len>(group, arr);
+    }
+};
+template<> struct rg_volumes_h<0> {
+    template<typename t, unsigned len> static inline void volumes(const t& group, std::array<size_t, len>& arr){}
+};
+}
+
+/// registrar_group, used to store the group of all registrars used by a probelem
+/// There are utility functions for projecting a subset of the registrars to a new tuple
+template<typename...Ts> struct registrar_group {
+    typedef std::tuple<registrar<Ts>...> group_t;
+    typedef std::array<size_t, sizeof...(Ts)> volume_t;
+    group_t group;
+    template<unsigned...Is> 
+    inline typename template_internals::rg_select_return<ulist<Is...>, Ts...>::type select(){ 
+        typename template_internals::rg_select_return<ulist<Is...>, Ts...>::type ret;
+        template_internals::rg_select_h<ulist<Is...>, 0>::select(group, ret);
+        return ret;
+    }
+    inline volume_t volumes(){
+        volume_t ret;
+        template_internals::rg_volumes_h<sizeof...(Ts)>::template volumes<group_t, sizeof...(Ts)>(group, ret);
+        return ret;
+    }
 };
 
 } // end namespace cflr

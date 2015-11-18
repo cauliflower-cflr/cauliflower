@@ -104,6 +104,39 @@ BOOST_AUTO_TEST_SUITE( relation_buffer_test )
         BOOST_CHECK(pass);
     }
 
+    BOOST_AUTO_TEST_CASE( registrar_groups ){
+        typedef registrar_group<int, int, int> rg_t;
+        typedef relation_buffer<int, int> bi2;
+        rg_t group;
+        bi2 b01(group.select<0, 1>());
+        b01.add(bi2::outer_type{99, 100});
+        BOOST_CHECK(std::get<0>(group.group).size() == 1);
+        BOOST_CHECK(std::get<1>(group.group).size() == 1);
+        bi2 b10(group.select<1, 0>());
+        b10.add(bi2::outer_type{99, 99});
+        BOOST_CHECK(std::get<0>(group.group).size() == 1);
+        BOOST_CHECK(std::get<1>(group.group).size() == 2);
+        BOOST_CHECK(std::get<2>(group.group).size() == 0);
+        bi2 b00(group.select<0, 0>());
+        b10.add(bi2::outer_type{42, 42});
+        BOOST_CHECK(std::get<0>(group.group).size() == 2);
+        typedef relation_buffer<int, int, int, int> bi4;
+        bi4 b0222(group.select<0, 2, 2, 2>());
+        b0222.add(bi4::outer_type{1001, 1002, 1003, 1004});
+        array<size_t, 3> arr = group.volumes();
+        BOOST_CHECK(arr[0] = 3);
+        BOOST_CHECK(arr[1] = 2);
+        BOOST_CHECK(arr[2] = 3);
+
+        // these tests will fail to compile if something is wrong
+        typedef registrar_group<int, char, string, char> rg_t2;
+        rg_t2 rg;
+        relation_buffer<int, string> a(rg.select<0, 2>());
+        relation_buffer<string, int> b(rg.select<2, 0>());
+        relation_buffer<string, char> c(rg.select<2, 1>());
+        relation_buffer<string, char> d(rg.select<2, 3>());
+    }
+
     BOOST_AUTO_TEST_CASE( multiple_domains ){
         typedef relation_buffer<string, string, string> s3;
         registrar<string> a;
