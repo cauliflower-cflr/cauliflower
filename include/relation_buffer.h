@@ -187,14 +187,14 @@ template<unsigned It> struct rg_select_h<ulist<>, It> {
 template<typename Ul, typename...Ts> struct rg_select_return {
     typedef typename as_tm<typename project_tm<tlist<registrar<Ts>*...>, Ul>::result, std::tuple>::result type;
 };
-template<unsigned cur> struct rg_volumes_h {
-    template<typename t, unsigned len> static inline void volumes(const t& group, std::array<size_t, len>& arr){
-        arr[len-cur] = std::get<len-cur>(group).size();
-        rg_volumes_h<cur-1>::template volumes<t, len>(group, arr);
+template<unsigned Cur> struct rg_volumes_h {
+    template<typename T, unsigned Len> static inline void volumes(const T& group, std::array<size_t, Len>& arr){
+        arr[Len-Cur] = std::get<Len-Cur>(group).size();
+        rg_volumes_h<Cur-1>::template volumes<T, Len>(group, arr);
     }
 };
 template<> struct rg_volumes_h<0> {
-    template<typename t, unsigned len> static inline void volumes(const t& group, std::array<size_t, len>& arr){}
+    template<typename T, unsigned Len> static inline void volumes(const T& group, std::array<size_t, Len>& arr){}
 };
 }
 

@@ -15,6 +15,7 @@
 //#include "problem.h"
 #include "relation.h"
 #include "relation_buffer.h"
+#include "semi_naive.h"
 #include "utility_templates.h"
 
 namespace cflr {
@@ -49,7 +50,9 @@ typedef problem<
     label<>,
     rule<clause<2>>,
     rule<clause<2>, clause<0>, clause<2>, clause<1>>> prob;
+typedef cflr::neighbourhood_map<map<ident, set<ident>>,set<ident>> nmap;
 typedef registrar_group<int> registrars_t;
+typedef semi_naive<nmap, prob> solver_t;
 
 int main(){
     // Init
@@ -71,11 +74,14 @@ int main(){
         cout << " v" << i << ": " << volumes[i] << endl;
     }
 
-    //- // Convert to relations
-    //- typedef cflr::neighbourhood_map<map<ident, set<ident>>,set<ident>> nmap;
-    //- relation<nmap> a_rel(a_buf.field_volume());
-    //- relation<nmap> b_rel(b_buf.field_volume());
-    //- relation<nmap> s_rel(1);
+    // Convert to relations
+    solver_t::relations_t rels = relation_group_initialiser<nmap, problem_labels<prob>::result>::init(volumes);
+    rels[0].import_buffer(a_buf);
+    rels[1].import_buffer(b_buf);
+    rels[0].dump(cout);
+    rels[1].dump(cout);
+    rels[2].dump(cout);
+    solver_t::solve(volumes, rels);
     //- nmap eps = nmap::identity(5);
     //- a_rel.import_buffer(a_buf);
     //- b_rel.import_buffer(b_buf);

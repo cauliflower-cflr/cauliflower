@@ -42,7 +42,7 @@ struct relation {
 
     std::vector<A> adts;
 
-    relation() : adts() {}
+    relation() = delete;
     relation(unsigned fv) : adts(fv, A()) {}
 
     template<typename...Ts>
@@ -78,6 +78,38 @@ struct relation {
         }
     }
 
+};
+
+namespace template_internals {
+    /// lbl_volume_h, derive the cardinality of a lable from the domain volumes
+    template<typename> struct lbl_volume_h;
+    template<unsigned I, unsigned... Is> struct lbl_volume_h<ulist<I, Is...>> {
+        template<typename Vol> static inline size_t total(const Vol& volume){
+            return volume[I]*lbl_volume_h<ulist<Is...>>::total(volume);
+        }
+    };
+    template<> struct lbl_volume_h<ulist<>> {
+        template<typename Vol> static inline size_t total(const Vol& volume){
+            return 1;
+        }
+    };
+}
+
+/// relation_group_initialiser, returns the array of relations initialised with the correct volume
+template<typename, typename> struct relation_group_initialiser;
+template<typename A, typename L, typename...Ls> struct relation_group_initialiser<A, tlist<L, Ls...>> {
+    template<typename Vol, typename...Args>
+    static inline std::array<relation<A>, 1+sizeof...(Args)+sizeof...(Ls)>
+    init(const Vol& volume, Args...args){
+        return relation_group_initialiser<A, tlist<Ls...>>::init(volume, args..., template_internals::lbl_volume_h<L>::total(volume));
+    }
+};
+template<typename A> struct relation_group_initialiser<A, tlist<>> {
+    template<typename Vol, typename...Args>
+    static inline std::array<relation<A>, sizeof...(Args)>
+    init(const Vol& volume, Args...args){
+        return {relation<A>(args)...};
+    }
 };
 
 } // end namespace cflr
