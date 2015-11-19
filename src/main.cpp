@@ -47,8 +47,8 @@ typedef problem<
     label<>,
     label<>,
     label<>,
-    rule<2>,
-    rule<2, fwd<0>, fwd<2>, fwd<1>>> prob;
+    rule<clause<2>>,
+    rule<clause<2>, clause<0>, clause<2>, clause<1>>> prob;
 typedef registrar_group<int> registrars_t;
 
 int main(){

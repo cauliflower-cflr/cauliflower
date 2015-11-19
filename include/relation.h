@@ -15,9 +15,27 @@
 #include <iostream>
 #include <vector>
 
-#include"relation_buffer.h"
+#include "relation_buffer.h"
+#include "utility_templates.h"
 
 namespace cflr{
+
+/// relation_volume_index, given two arrays, the first is the volumes of the identifiers
+/// (i.e. the number of identifiers in each domain), the second is the current identifiers
+/// of interest, compute the index into an ADT array of a relation characterised by the
+/// domains listed in the ulist: parameter 1
+template<typename, unsigned> struct relation_volume_index;
+template<unsigned I, unsigned...Rest, unsigned Len> struct relation_volume_index<ulist<I, Rest...>, Len> {
+    static inline size_t index(const std::array<size_t, Len>& volume, const std::array<size_t, Len>& cur){
+        return relation_volume_index<ulist<Rest...>, Len>::index(volume, cur)*volume[I] + cur[I];
+    }
+};
+template<unsigned Len> struct relation_volume_index<ulist<>, Len> {
+    static inline size_t index(const std::array<size_t, Len>& volume, const std::array<size_t, Len>& cur){
+        return 0;
+    }
+};
+
 
 template<typename A>
 struct relation {

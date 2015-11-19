@@ -24,7 +24,7 @@ template<unsigned...Fs> using label = ulist<Fs...>;
 /// this structure uses indices to avoid duplicating label information, where
 /// an index refers to the offset amongst the labels in the problem
 /// The valid components for the body are defined in namespace: cflr::rule_clauses
-template<unsigned, typename...> struct rule {};
+template<typename, typename...> struct rule {};
 
 /// problem, collecting the labels and rules relevant to evaluate a 
 /// CFL-R solution.  The labels and rules do not need to be grouped,
@@ -34,15 +34,15 @@ template<typename...Ts> using problem = tlist<Ts...>;
 namespace rule_clauses {
 
 /// fwd, chains a label in the forwards direction
-template<unsigned> struct fwd {};
+template<unsigned, unsigned...> struct clause {};
 
-/// rev, chains a label in the reverse direction
-template<unsigned> struct rev {};
+/// rev, chains a clause in the reverse direction
+template<typename> struct rev {};
 
-/// neg, chains a negated label in either direction
+/// neg, chains a negated clause in either direction
 template<typename> struct neg {};
 
-/// ist, chains the intersection of two labels in either direction
+/// ist, chains the intersection of two clauses in either direction
 template<typename, typename> struct ist {};
 
 } // end namespace rule_clauses
@@ -54,7 +54,7 @@ namespace template_internals {
     template<typename RG, unsigned...LFs, typename...Ts> struct problem_rules_h<RG, label<LFs...>, Ts...>{
         typedef typename problem_rules_h<RG, Ts...>::result result;
     };
-    template<typename...Rules, unsigned L, typename...Rs, typename...Ts> struct problem_rules_h<tlist<Rules...>, rule<L, Rs...>, Ts...> {
+    template<typename...Rules, typename L, typename...Rs, typename...Ts> struct problem_rules_h<tlist<Rules...>, rule<L, Rs...>, Ts...> {
         typedef typename problem_rules_h<tlist<Rules..., rule<L, Rs...>>, Ts...>::result result;
     };
     template<typename RG> struct problem_rules_h<RG> {
@@ -72,7 +72,7 @@ namespace template_internals {
     template<typename...Labels, unsigned...LFs, typename...Ts> struct problem_labels_h<tlist<Labels...>, label<LFs...>, Ts...>{
         typedef typename problem_labels_h<tlist<Labels..., label<LFs...>>, Ts...>::result result;
     };
-    template<typename Cur, unsigned L, typename...Rs, typename...Ts> struct problem_labels_h<Cur, rule<L, Rs...>, Ts...> {
+    template<typename Cur, typename L, typename...Rs, typename...Ts> struct problem_labels_h<Cur, rule<L, Rs...>, Ts...> {
         typedef typename problem_labels_h<Cur, Ts...>::result result;
     };
     template<typename RG> struct problem_labels_h<RG> {
@@ -87,14 +87,14 @@ template<typename...Ts> struct problem_labels<problem<Ts...>>{
 template<typename> struct rule_dependencies;
 namespace template_internals {
     template<typename, typename...> struct rule_dependencies_h;
-    template<unsigned...Cur, unsigned F, typename...Rest> struct rule_dependencies_h<ulist<Cur...>, rule_clauses::fwd<F>, Rest...>{
-        typedef typename rule_dependencies_h<ulist<Cur..., F>, Rest...>::result result;
+    template<unsigned...Cur, unsigned R, unsigned...RFs, typename...Rest> struct rule_dependencies_h<ulist<Cur...>, rule_clauses::clause<R, RFs...>, Rest...>{
+        typedef typename rule_dependencies_h<ulist<Cur..., R>, Rest...>::result result;
     };
     template<unsigned...Cur> struct rule_dependencies_h<ulist<Cur...>> {
         typedef ulist<Cur...> result;
     };
 }
-template<unsigned L, typename...Rs> struct rule_dependencies<rule<L, Rs...>>{
+template<typename L, typename...Rs> struct rule_dependencies<rule<L, Rs...>>{
     typedef typename template_internals::rule_dependencies_h<ulist<>, Rs...>::result result;
 };
 
