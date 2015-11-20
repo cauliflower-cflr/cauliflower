@@ -52,7 +52,7 @@ typedef problem<
     rule<clause<2>, clause<0>, clause<2>, clause<1>>> prob;
 typedef cflr::neighbourhood_map<map<ident, set<ident>>,set<ident>> nmap;
 typedef registrar_group<int> registrars_t;
-typedef semi_naive<nmap, prob> solver_t;
+typedef semi_naive<nmap, registrars_t::size, prob> solver_t;
 
 int main(){
     // Init
@@ -70,9 +70,6 @@ int main(){
     b_buf.to_csv(cout);
     cout << endl << "---------------------------" << endl;
     registrars_t::volume_t volumes = regs.volumes();
-    for(unsigned i=0; i < tuple_size<registrars_t::volume_t>::value; i++){
-        cout << " v" << i << ": " << volumes[i] << endl;
-    }
 
     // Convert to relations
     solver_t::relations_t rels = relation_group_initialiser<nmap, problem_labels<prob>::result>::init(volumes);
@@ -82,6 +79,10 @@ int main(){
     rels[1].dump(cout);
     rels[2].dump(cout);
     solver_t::solve(volumes, rels);
+
+    cout << endl << solver_t::rules_t::size << endl;
+    cout << solver_t::rules_eps_t::size << endl;
+    cout << solver_t::rules_reg_t::size << endl;
     //- nmap eps = nmap::identity(5);
     //- a_rel.import_buffer(a_buf);
     //- b_rel.import_buffer(b_buf);
@@ -101,10 +102,10 @@ int main(){
     //- }
     //- s_rel.adts[0].difference(eps);
 
-    //- // Show result
-    //- s_rel.export_buffer(s_buf);
-    //- cout << endl << "S:" << endl;
-    //- s_buf.to_csv(cout);
-    //- cout << endl;
+    // Show result
+    rels[2].export_buffer(s_buf);
+    cout << endl << "S:" << endl;
+    s_buf.to_csv(cout);
+    cout << endl;
 }
 

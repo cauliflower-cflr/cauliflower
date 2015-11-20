@@ -67,13 +67,19 @@ template<unsigned...Us, unsigned Con> struct ucontains_tm<ulist<Us...>, Con> {
     static const bool result = tcontains_tm<tlist<template_internals::u_t<Us>...>, template_internals::u_t<Con>>::result;
 };
 
-/// cat_tm, concatenate two lists
-template<typename, typename> struct cat_tm;
-template<typename...As, typename...Bs> struct cat_tm<tlist<As...>, tlist<Bs...>> {
-    typedef tlist<As..., Bs...> result;
+/// cat_tm, concatenate multiple lists
+template<typename...> struct cat_tm;
+template<typename...T1s, typename...T2s, typename...Rest> struct cat_tm<tlist<T1s...>, tlist<T2s...>, Rest...> {
+    typedef typename cat_tm<tlist<T1s..., T2s...>, Rest...>::result result;
 };
-template<unsigned...As, unsigned...Bs> struct cat_tm<ulist<As...>, ulist<Bs...>> {
-    typedef ulist<As..., Bs...> result;
+template<typename...T1s> struct cat_tm<tlist<T1s...>> {
+    typedef tlist<T1s...> result;
+};
+template<unsigned...I1s, unsigned...I2s, typename...Rest> struct cat_tm<ulist<I1s...>, ulist<I2s...>, Rest...> {
+    typedef typename cat_tm<ulist<I1s..., I2s...>, Rest...>::result result;
+};
+template<unsigned...I1s> struct cat_tm<ulist<I1s...>> {
+    typedef ulist<I1s...> result;
 };
 
 /// project_tm, project a new list be selecting the elements of the first list

@@ -200,9 +200,11 @@ template<> struct rg_volumes_h<0> {
 
 /// registrar_group, used to store the group of all registrars used by a probelem
 /// There are utility functions for projecting a subset of the registrars to a new tuple
+/// TODO, this should be a tlist
 template<typename...Ts> struct registrar_group {
+    static const unsigned size = sizeof...(Ts);
     typedef std::tuple<registrar<Ts>...> group_t;
-    typedef std::array<size_t, sizeof...(Ts)> volume_t;
+    typedef std::array<size_t, size> volume_t;
     group_t group;
     template<unsigned...Is> 
     inline typename template_internals::rg_select_return<ulist<Is...>, Ts...>::type select(){ 
@@ -212,7 +214,7 @@ template<typename...Ts> struct registrar_group {
     }
     inline volume_t volumes(){
         volume_t ret;
-        template_internals::rg_volumes_h<sizeof...(Ts)>::template volumes<group_t, sizeof...(Ts)>(group, ret);
+        template_internals::rg_volumes_h<size>::template volumes<group_t, size>(group, ret);
         return ret;
     }
 };

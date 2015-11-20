@@ -98,6 +98,24 @@ template<typename L, typename...Rs> struct rule_dependencies<rule<L, Rs...>>{
     typedef typename template_internals::rule_dependencies_h<ulist<>, Rs...>::result result;
 };
 
+/// rules_splitter, split the rules into the epsilon/non-empty subsets
+template<typename> struct rules_splitter;
+template<typename RH, typename...RB, typename...Rest> struct rules_splitter<tlist<rule<RH, RB...>, Rest...>> {
+    private:
+        typedef rules_splitter<tlist<Rest...>> sub;
+    public:
+        typedef typename std::conditional<sizeof...(RB) == 0,
+                typename cat_tm<tlist<rule<RH>>, typename sub::epsilons>::result,
+                typename sub::epsilons>::type epsilons;
+        typedef typename std::conditional<sizeof...(RB) != 0,
+                typename cat_tm<tlist<rule<RH, RB...>>, typename sub::non_emptys>::result,
+                typename sub::non_emptys>::type non_emptys;
+};
+template<> struct rules_splitter<tlist<>> {
+    typedef tlist<> epsilons;
+    typedef tlist<> non_emptys;
+};
+
 /// problem_rules_dependant, get the subset of rules in a problem which are dependant
 /// on the index label
 template<typename, unsigned> struct problem_rules_dependant;
