@@ -98,6 +98,14 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         return iterator();
     }
 
+    neighbourhood_map<M, S> deep_copy(neighbourhood_map<M, S>& into) const {
+        //TODO use std::copy
+        auto e = end();
+        for(auto i = begin(); i != e; ++i){
+            into.import(i->first, i->second);
+        }
+    }
+
     void union_copy(const neighbourhood_map<M, S>& other){
         for(const auto& m : other.forwards){
             for(const auto& s : m.second){

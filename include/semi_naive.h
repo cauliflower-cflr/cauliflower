@@ -62,6 +62,18 @@ template<typename A> struct epsilon_union<A, tlist<>> {
     template<typename Rel> static inline void update(const A& eps, Rel& rels) {}
 };
 
+/// delta_copy, creates the initial delta relations by deep-copying the input
+template<typename A, unsigned I> struct delta_copy{
+    template<typename Arr, typename...Cur> static inline Arr init(const Arr& base, Cur...cur){
+        return delta_copy<A, I-1>::init(base, I-1, cur...);
+    }
+};
+template<typename A> struct delta_copy<A, 0>{
+    template<typename Arr, typename...Cur> static inline Arr init(const Arr& base, Cur...cur){
+        return {relation<A>(base[cur].adts.size())...};
+    }
+};
+
 } // end namespace template_internals
 
 template<typename, unsigned, typename> struct semi_naive;
@@ -81,8 +93,14 @@ template<typename A, unsigned Vl, typename...Ts> struct semi_naive<A, Vl, proble
         // create an epsilon relation which is used to union with all the epsilon rules
         const A eps = A::identity(largest_vertex_domain);
 
-        //union the epsilon into all epsilon productions
+        // union the epsilon into all epsilon productions
         epsilon_union<A, rules_eps_t>::update(eps, rels);
+
+        // initialise delta relations from inputs
+        relations_t delta = delta_copy<A, lbls_t::size>::init(rels);
+        for(auto& da : delta){
+            std::cout << " []" << da.adts.size() << std::endl;
+        }
     }
 };
 
