@@ -98,7 +98,7 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         return iterator();
     }
 
-    neighbourhood_map<M, S> deep_copy(neighbourhood_map<M, S>& into) const {
+    void deep_copy(neighbourhood_map<M, S>& into) const {
         //TODO use std::copy
         auto e = end();
         for(auto i = begin(); i != e; ++i){

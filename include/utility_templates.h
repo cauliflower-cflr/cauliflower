@@ -82,6 +82,15 @@ template<unsigned...I1s> struct cat_tm<ulist<I1s...>> {
     typedef ulist<I1s...> result;
 };
 
+/// tmap_tm, generate a new tlist by mapping values of the
+template<template<typename> class, typename> struct tmap_tm;
+template<template<typename> class Map, typename T, typename...Ts> struct tmap_tm<Map, tlist<T, Ts...>> {
+    typedef typename cat_tm<tlist<typename Map<T>::result>, typename tmap_tm<Map, tlist<Ts...>>::result>::result result;
+};
+template<template<typename> class Map> struct tmap_tm<Map, tlist<>> {
+    typedef tlist<> result;
+};
+
 /// project_tm, project a new list be selecting the elements of the first list
 /// indexed by the second (a ulist)
 template<typename, typename> struct project_tm;

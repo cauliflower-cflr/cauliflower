@@ -49,6 +49,9 @@ typedef problem<
     label<>,
     label<>,
     rule<clause<2>>,
+    //rule<clause<2>, clause<0>, clause<2>, clause<1>>,
+    //rule<clause<0>, clause<2>>,
+    //rule<clause<1>, clause<0>>> prob;
     rule<clause<2>, clause<0>, clause<2>, clause<1>>> prob;
 typedef cflr::neighbourhood_map<map<ident, set<ident>>,set<ident>> nmap;
 typedef registrar_group<int> registrars_t;

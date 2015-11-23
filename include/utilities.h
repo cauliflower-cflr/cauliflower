@@ -37,6 +37,15 @@ private:
     std::vector<T> it;
 };
 
+/// dependency_info, generate the dependency ordering, given a list of dependencies
+/// this is runtme information (template subsystem cant handle Tarjan's)
+struct dependency_info {
+    typedef std::pair<unsigned, unsigned> dep_t;
+    typedef std::vector<std::pair<unsigned, unsigned>> dep_list_t;
+    typedef std::vector<std::vector<unsigned>> dep_res_t;
+    static dep_res_t find_dependencies(const dep_list_t&);
+};
+
 } // end namespace cflr
 
 #endif /* __UTILITIES_H__ */

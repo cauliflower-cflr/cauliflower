@@ -74,6 +74,34 @@ template<typename A> struct delta_copy<A, 0>{
     }
 };
 
+/// list_dependencies, write the list of rule dependencies into a dependency_info::dep_list_t
+template<typename> struct list_dependencies;
+template<unsigned RHL, unsigned...RHFs, typename...RB, typename...Rest> struct list_dependencies<tlist<rule<rule_clauses::clause<RHL, RHFs...>, RB...>, Rest...>> {
+    static inline void list(dependency_info::dep_list_t& lst) {
+        //swaps the leading rule for a ulist<head>, ulist<>body...
+        list_dependencies<tlist<ulist<RHL>, typename rule_dependencies<rule<rule_clauses::clause<RHL, RHFs...>, RB...>>::result, Rest...>>::list(lst);
+    }
+};
+template<unsigned D, unsigned I, unsigned...Is, typename...Rest> struct list_dependencies<tlist<ulist<D>, ulist<I, Is...>, Rest...>> {
+    static inline void list(dependency_info::dep_list_t& lst) {
+        lst.push_back({D, I});
+        list_dependencies<tlist<ulist<D>, ulist<Is...>, Rest...>>::list(lst);
+    }
+};
+template<unsigned D, typename...Rest> struct list_dependencies<tlist<ulist<D>, ulist<>, Rest...>> {
+    static inline void list(dependency_info::dep_list_t& lst) {
+        list_dependencies<tlist<Rest...>>::list(lst);
+    }
+};
+template<typename RH, typename...RB, typename...Rest> struct list_dependencies<tlist<rule<RH, RB...>, Rest...>> {
+    static inline void list(dependency_info::dep_list_t& lst) {
+        list_dependencies<tlist<rule_dependencies<rule<RH, RB...>>, Rest...>>::list(lst);
+    }
+};
+template<> struct list_dependencies<tlist<>> {
+    static inline void list(dependency_info::dep_list_t& lst) {}
+};
+
 } // end namespace template_internals
 
 template<typename, unsigned, typename> struct semi_naive;
@@ -87,6 +115,7 @@ template<typename A, unsigned Vl, typename...Ts> struct semi_naive<A, Vl, proble
     typedef std::array<relation<A>, lbls_t::size> relations_t;
     static void solve(const vol_t& vol, relations_t& rels){
         using namespace template_internals;
+
         // find the domain with largest volume that is not a label volume
         const size_t largest_vertex_domain = volume_max<Vl, typename non_field_domains<Vl, lbls_t>::result>::max(vol);
 
@@ -97,10 +126,18 @@ template<typename A, unsigned Vl, typename...Ts> struct semi_naive<A, Vl, proble
         epsilon_union<A, rules_eps_t>::update(eps, rels);
 
         // initialise delta relations from inputs
-        relations_t delta = delta_copy<A, lbls_t::size>::init(rels);
-        for(auto& da : delta){
-            std::cout << " []" << da.adts.size() << std::endl;
+        relations_t deltas = delta_copy<A, lbls_t::size>::init(rels);
+        for(unsigned r=0; r<lbls_t::size; ++r){
+            unsigned a_size = rels[r].adts.size();
+            for(unsigned a=0; a<a_size; ++a){
+                rels[r].adts[a].deep_copy(deltas[r].adts[a]);
+            }
         }
+
+        // find the dependency ordering
+        dependency_info::dep_list_t deps;
+        list_dependencies<rules_reg_t>::list(deps);
+        dependency_info::dep_res_t res = dependency_info::find_dependencies(deps);
     }
 };
 
