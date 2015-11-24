@@ -91,6 +91,14 @@ template<template<typename> class Map> struct tmap_tm<Map, tlist<>> {
     typedef tlist<> result;
 };
 
+/// range_tm, generate a ulist of all the indices up to (but not including) I
+template<unsigned I> struct range_tm {
+    typedef typename cat_tm<typename range_tm<I-1>::result, ulist<I-1>>::result result;
+};
+template<> struct range_tm<0> {
+    typedef ulist<> result;
+};
+
 /// project_tm, project a new list be selecting the elements of the first list
 /// indexed by the second (a ulist)
 template<typename, typename> struct project_tm;

@@ -43,7 +43,7 @@ struct relation {
     std::vector<A> adts;
 
     relation() = delete;
-    relation(unsigned fv) : adts(fv, A()) {}
+    relation(unsigned fv) : adts(fv) {}
 
     template<typename...Ts>
     void import_buffer(const relation_buffer<Ts...>& buf){
@@ -67,6 +67,26 @@ struct relation {
             }
             ++vol;
         }
+    }
+
+    // for performance reasons, this method doesnt check each ADT, but retains a list of
+    // which ones aren't
+    // TODO book-keep for this check
+    bool empty() const {
+        for(const auto& a : adts){
+            if(!a.empty()) return false;
+        }
+        return true;
+    }
+
+    inline size_t volume() const {
+        return adts.size();
+    }
+
+    // swap my contents with another relational adt, idiomatic C++ says to interface with
+    // the swap operator
+    void swap_contents(relation<A>& other) {
+        std::swap(adts, other.adts);
     }
 
     void dump(std::ostream& os) const {

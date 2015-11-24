@@ -83,19 +83,31 @@ template<typename...Ts> struct problem_labels<problem<Ts...>>{
     typedef typename template_internals::problem_labels_h<tlist<>, Ts...>::result result;
 };
 
+/// clause_labels, return the list of labels needed by this clause
+template<typename> struct clause_labels;
+template<unsigned L, unsigned...Fs> struct clause_labels<rule_clauses::clause<L, Fs...>> {
+    typedef ulist<L> result;
+};
+
 /// rule_dependencies, group the dependencies of a rule into a ulist
 template<typename> struct rule_dependencies;
+template<typename L, typename...Rs> struct rule_dependencies<rule<L, Rs...>>{
+    typedef typename cat_tm<typename clause_labels<Rs>::result...>::result result;
+};
+
+/// rule_occurances, count the number of times a label L is used by the rule body (not head)
+template<typename, unsigned> struct rule_occurances;
 namespace template_internals {
-    template<typename, typename...> struct rule_dependencies_h;
-    template<unsigned...Cur, unsigned R, unsigned...RFs, typename...Rest> struct rule_dependencies_h<ulist<Cur...>, rule_clauses::clause<R, RFs...>, Rest...>{
-        typedef typename rule_dependencies_h<ulist<Cur..., R>, Rest...>::result result;
+    template<typename, unsigned> struct rule_occurances_h;
+    template<unsigned I, unsigned...Rest, unsigned L> struct rule_occurances_h<ulist<I, Rest...>, L> {
+        static const unsigned result = (I == L ? 1 : 0) + rule_occurances_h<ulist<Rest...>, L>::result;
     };
-    template<unsigned...Cur> struct rule_dependencies_h<ulist<Cur...>> {
-        typedef ulist<Cur...> result;
+    template<unsigned L> struct rule_occurances_h<ulist<>, L> {
+        static const unsigned result = 0;
     };
 }
-template<typename L, typename...Rs> struct rule_dependencies<rule<L, Rs...>>{
-    typedef typename template_internals::rule_dependencies_h<ulist<>, Rs...>::result result;
+template<typename R, unsigned L> struct rule_occurances {
+    static const unsigned result = template_internals::rule_occurances_h<typename rule_dependencies<R>::result, L>::result;
 };
 
 /// rules_splitter, split the rules into the epsilon/non-empty subsets

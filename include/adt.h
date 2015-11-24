@@ -20,7 +20,7 @@ template<typename Self, typename Iter>
 struct adt{
     typedef Iter iterator;
     // Queries
-    virtual bool empty() = 0;
+    virtual bool empty() const = 0;
     // Methods for importing data
     virtual void initialise_import() = 0;
     virtual void import(ident, ident) = 0;

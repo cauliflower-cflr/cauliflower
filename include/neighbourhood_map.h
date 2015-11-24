@@ -78,7 +78,7 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
     M forwards;
     M backwards;
 
-    bool empty(){
+    bool empty() const {
         return forwards.empty();
     }
 

@@ -75,6 +75,8 @@ template<typename A> struct delta_copy<A, 0>{
 };
 
 /// list_dependencies, write the list of rule dependencies into a dependency_info::dep_list_t
+/// trialing this evaluation mechanic, partially preprocess the front element of the tlist
+/// TODO thats a horrible idea, fix it
 template<typename> struct list_dependencies;
 template<unsigned RHL, unsigned...RHFs, typename...RB, typename...Rest> struct list_dependencies<tlist<rule<rule_clauses::clause<RHL, RHFs...>, RB...>, Rest...>> {
     static inline void list(dependency_info::dep_list_t& lst) {
@@ -102,11 +104,99 @@ template<> struct list_dependencies<tlist<>> {
     static inline void list(dependency_info::dep_list_t& lst) {}
 };
 
+/// eval_clause, return 
+
+/// eval_body, find the solution to a compose chain, using the delta at occurance Occ
+template<typename, unsigned, unsigned, int, typename...> struct eval_body;
+template<typename A, unsigned Len, unsigned Lbl, int Occ, typename RCur, typename RNxt, typename...Rest> struct eval_body<A, Len, Lbl, Occ, RCur, RNxt, Rest...> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta, A& res, A& tmp1, A& tmp2){
+
+    }
+};
+template<typename A, unsigned Len, unsigned Lbl, int Occ, typename RCur> struct eval_body<A, Len, Lbl, Occ, RCur> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta, A& res, A& tmp1, A& tmp2){
+
+    }
+};
+
+/// eval_rule, main component of the rule evaluation, which creates the temporaries and
+/// assigns them to the relation/delta of the rule head
+/// Occ marks the specific occurance of the delta relation
+/// cur_delta is only used when Occ == 0, otherwise the rel[Lbl] is used
+/// TODO fields
+template<typename, unsigned, unsigned, unsigned, typename> struct eval_rule;
+template<typename A, unsigned Len, unsigned Lbl, unsigned Occ, unsigned HL, unsigned...HFs, typename...Bs> struct eval_rule<A, Len, Lbl, Occ, rule<rule_clauses::clause<HL, HFs...>, Bs...>> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta){ // NOT INLINE
+        std::cout << "EVAL " << Lbl << " occ " << Occ << " into " << HL << std::endl;
+        A res;
+        A tmp1;
+        A tmp2;
+        eval_body<A, Len, Lbl, static_cast<int>(Occ), Bs...>::eval(rels, deltas, cur_delta, res, tmp1, tmp2);
+        res.difference(rels[HL].adts[0]);
+        deltas[HL].adts[0].union_copy(res);
+        rels[HL].adts[0].union_absorb(res);
+    }
+};
+
+/// eval_rule_occ, evaluate the result of the rule for a certain occurance of the delta
+template<typename A, unsigned Len, unsigned Lbl, unsigned Occ, typename Rule> struct eval_rule_occ {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta){
+        eval_rule<A, Len, Lbl, Occ-1, Rule>::eval(rels, deltas, cur_delta);
+        eval_rule_occ<A, Len, Lbl, Occ-1, Rule>::eval(rels, deltas, cur_delta);
+    }
+};
+template<typename A, unsigned Len, unsigned Lbl, typename Rule> struct eval_rule_occ<A, Len, Lbl, 0, Rule> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta) {}
+};
+
+/// eval_rules, use the delta relation Lbl to evaluate all the rules in the list
+/// i.e. only provide rules dependant on Lbl to this template
+template<typename, unsigned, unsigned, typename> struct eval_rules;
+template<typename A, unsigned Len, unsigned Lbl, typename Rule, typename...Rest> struct eval_rules<A, Len, Lbl, tlist<Rule, Rest...>> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta){
+        eval_rule_occ<A, Len, Lbl, rule_occurances<Rule, Lbl>::result, Rule>::eval(rels, deltas, cur_delta);
+        eval_rules<A, Len, Lbl, tlist<Rest...>>::eval(rels, deltas, cur_delta);
+    }
+};
+template<typename A, unsigned Len, unsigned Lbl> struct eval_rules<A, Len, Lbl, tlist<>> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline void eval(rel_t& rels, rel_t& deltas, const relation<A>& cur_delta) {}
+};
+
+
+/// eval_if_delta, run through each relation index in the ulist, and if the delta for that relation
+/// is non-empty, evaluate it, otherwise evaluate the next rule
+template<typename A, unsigned Len, typename Ls, typename Rs> struct eval_if_delta;
+template<typename A, unsigned Len, unsigned L, unsigned...LRest, typename Rs> struct eval_if_delta<A, Len, ulist<L, LRest...>, Rs> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline unsigned eval(rel_t& rels, rel_t& deltas, unsigned early_exit){
+        if(early_exit == L) return Len; // nothing has been used, return an index outside the range of labels
+        else if(!deltas[L].empty()){
+            relation<A> cur_delta(deltas[L].volume());
+            cur_delta.swap_contents(deltas[L]);
+            eval_rules<A, Len, L, typename problem_rules_dependant<Rs, L>::result >::eval(rels, deltas, cur_delta);
+            early_exit = L;
+        }
+        return eval_if_delta<A, Len, ulist<LRest...>, Rs>::eval(rels, deltas, early_exit);
+    }
+};
+template<typename A, unsigned Len, typename Rs> struct eval_if_delta<A, Len, ulist<>, Rs> {
+    typedef std::array<relation<A>, Len> rel_t;
+    static inline unsigned eval(rel_t& rels, rel_t& deltas, unsigned early_exit){
+        return early_exit; // got to the end of the list, return the last thing we used
+    }
+};
+
 } // end namespace template_internals
 
 template<typename, unsigned, typename> struct semi_naive;
 template<typename A, unsigned Vl, typename...Ts> struct semi_naive<A, Vl, problem<Ts...>> {
-    typedef A adt_t;
     typedef std::array<size_t, Vl> vol_t;
     typedef typename problem_labels<problem<Ts...>>::result lbls_t;
     typedef typename problem_rules<problem<Ts...>>::result rules_t;
@@ -135,9 +225,18 @@ template<typename A, unsigned Vl, typename...Ts> struct semi_naive<A, Vl, proble
         }
 
         // find the dependency ordering
-        dependency_info::dep_list_t deps;
-        list_dependencies<rules_reg_t>::list(deps);
-        dependency_info::dep_res_t res = dependency_info::find_dependencies(deps);
+        // TODO dependencies not currently used
+        //dependency_info::dep_list_t deps;
+        //list_dependencies<rules_reg_t>::list(deps);
+        //dependency_info::dep_res_t res = dependency_info::find_dependencies(deps);
+        
+        // exhaust all the deltasi
+        // This loop is triggered to exit when a non-label index is returned (i.e. >= the size of the label set)
+        // TODO take into account dependencies, for now this is only called once with every rule
+        unsigned last_used = lbls_t::size;// none of the relations have been used, set last_used to be beyond their range
+        do {
+            eval_if_delta<A, lbls_t::size, typename range_tm<lbls_t::size>::result, rules_reg_t>::eval(rels, deltas, last_used);
+        } while(last_used < lbls_t::size);
     }
 };
 
