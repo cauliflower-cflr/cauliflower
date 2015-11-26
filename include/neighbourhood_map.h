@@ -82,6 +82,11 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         return forwards.empty();
     }
 
+    void clear() {
+        forwards.clear();
+        backwards.clear();
+    }
+
     void initialise_import() {} // do nothing
     void import(ident from, ident to){
         if(forwards.find(from) == forwards.end()) forwards.insert({from, S()});

@@ -41,18 +41,6 @@ public class CppSemiNaiveBackend implements Backend{
         this.out = out;
     }
 
-    private static <T> void printList(PrintStream out, List<T> l){
-        printList(out, l, false);
-    }
-    private static <T> void printList(PrintStream out, List<T> l, boolean initialComma){
-        boolean printed = initialComma;
-        for(T e : l){
-            if(printed) out.print(", ");
-            else printed = true;
-            out.print(e);
-        }
-    }
-
     private void generatePreBlock(String problemName){
         out.println("// " + problemName);
         out.println("//");
@@ -83,62 +71,46 @@ public class CppSemiNaiveBackend implements Backend{
         out.println("typedef " + adt.typename + " adt_t;");
         out.println("typedef std::array<relation<adt_t>, num_lbls> rels_t;");
         out.println("typedef std::array<size_t, num_domains> vols_t;");
-        /*out.print("typedef problem<");
-        boolean printed = false;
-        for(Label l : prob.labels){
-            if(printed) out.print(",");
-            else printed = true;
-            out.print("\n\t\tlabel<");
-            printList(out, l.fDomains);
-            out.print(">");
-        }
-        Rule.ClauseVisitor printCV = new Rule.ClauseVisitor() {
-            @Override
-            public void visitLbl(Rule.Lbl l) {
-                out.print("clause<" + l.label);
-                printList(out, l.fields, true);
-                out.print(">");
-            }
-            @Override
-            public void visitRev(Rule.Rev r) {
-                out.print("rev<");
-                this.visit(r.clause);
-                out.print(">");
-            }
-            @Override
-            public void visitNeg(Rule.Neg n) {
-                out.print("negate<");
-                this.visit(n.clause);
-                out.print(">");
-            }
-            @Override
-            public void visitAnd(Rule.And a) {
-                out.print("isect<");
-                this.visit(a.left);
-                out.print(",");
-                this.visit(a.right);
-                out.print(">");
-            }
-        };
-        for(Rule r : prob.rules){
-            if(printed) out.print(",");
-            else printed = true;
-            out.print("\n\t\trule<");
-            printCV.visitLbl(r.head);
-            r.body.forEach((Rule.Clause c) -> {
-                out.print(",");
-                printCV.visit(c);
-            });
-            out.print(">");// end rule
-
-        }
-        out.println("\n\t> problem_t");*/
     }
 
     private void generateRuleCode(int l, int r, int occurance, Problem prob){
-        // TODO irrelevant label optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant labels
+        Rule rule = prob.rules.get(r);
+        // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
         out.println("// Label " + l + ", occurance " + occurance + ", rule " + prob.rules.get(r).toString());
-        out.println("std::cout << " + l + " << \", \" << " + occurance + " << std::endl;");
+        // TODO field selection
+        out.println("for(unsigned i=0; i<1; ++i){");
+        int deltaClause = -1;
+        for(int clause = 0; clause< rule.body.size(); clause++){
+            int deltasInClause = (int)rule.body.get(clause).getDependantLabels().stream().map(lbl -> lbl.label).filter(lbl -> lbl == l).count();
+            if(occurance-deltasInClause < 0){
+                deltaClause = clause;
+                break;
+            } else occurance -= deltasInClause;
+        }
+        assert deltaClause != -1;
+        int tempCount = 0;
+        for(int c=deltaClause+1; c<rule.body.size(); c++){
+            out.println("adt_t tmp" + tempCount + ";");
+            String left = tempCount == 0 ? "cur_delta.adts[0]" : "tmp" + (tempCount-1);
+            out.println(left + ".compose(relations[" + ((Rule.Lbl)rule.body.get(c)).label + "].adts[0], tmp" + tempCount + ");");
+            tempCount++;
+        }
+        for(int c=deltaClause-1; c>=0; c--){
+            out.println("adt_t tmp" + tempCount + ";");
+            String right = tempCount == 0 ? "cur_delta.adts[0]" : "tmp" + (tempCount-1);
+            out.println("relations[" + ((Rule.Lbl)rule.body.get(c)).label + "].adts[0].compose(" + right + ", tmp" + tempCount + ");");
+            tempCount++;
+        }
+        if(tempCount == 0){
+            out.println("adt_t tmp0;");
+            out.println("cur_delta.deep_copy(tmp0);");
+            tempCount = 1;
+        }
+        tempCount -= 1;//because i cant be bothered subtracting 1s
+        out.println("tmp" + tempCount + ".difference(relations[" + rule.head.label + "].adts[0]);");
+        out.println("deltas[" + rule.head.label + "].adts[0].union_copy(tmp" + tempCount + ");");
+        out.println("relations[" + rule.head.label + "].adts[0].union_absorb(tmp" + tempCount + ");");
+        out.println("}");
     }
 
     private String deltaExpansionFunctionName(int lbl, boolean argTypes){
@@ -196,17 +168,11 @@ public class CppSemiNaiveBackend implements Backend{
             out.println("// SCC " + scc.toString());
             // TODO don't iterate over non-cyclic SCCs
             // TODO early exit evaluation when we reach known code
-            out.print("while(");
-            boolean wprinted = false;
+            out.println("while(true){");
             for(int cc : scc){
-                if(wprinted) out.print(" && ");
-                else wprinted = true;
-                out.print("!deltas[" + cc + "].empty()");
+                out.println("if (!deltas[" + cc + "].empty()){ " + deltaExpansionFunctionName(cc, false) + "; continue; }");
             }
-            out.println("){");
-            for(int cc : scc){
-                out.println(deltaExpansionFunctionName(cc, false) + ";");
-            }
+            out.println("break;");
             out.println("}");
         }
         out.println("}");

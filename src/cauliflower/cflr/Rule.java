@@ -1,8 +1,7 @@
 package cauliflower.cflr;
 
-import cauliflower.Util;
-
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,6 +19,7 @@ public class Rule {
     public static abstract class Clause {
         @Override
         public abstract String toString();
+        public abstract List<Lbl> getDependantLabels();
     }
 
     public static class Lbl extends Clause {
@@ -32,8 +32,12 @@ public class Rule {
         public String toString(){
             StringBuilder ret = new StringBuilder();
             ret.append(label);
-            for(int f : fields) ret.append("[" + f + "]");
+            for(int f : fields) ret.append("[").append(f).append("]");
             return ret.toString();
+        }
+        @Override
+        public List<Lbl> getDependantLabels() {
+            return Collections.singletonList(this);
         }
     }
 
@@ -45,6 +49,10 @@ public class Rule {
         public String toString() {
             return "-" + clause.toString();
         }
+        @Override
+        public List<Lbl> getDependantLabels() {
+            return clause.getDependantLabels();
+        }
     }
 
     public static class Neg extends Clause {
@@ -54,6 +62,10 @@ public class Rule {
         }
         public String toString() {
             return "!" + clause.toString();
+        }
+        @Override
+        public List<Lbl> getDependantLabels() {
+            return clause.getDependantLabels();
         }
     }
 
@@ -67,6 +79,12 @@ public class Rule {
         public String toString() {
             return "(" + left.toString() + "&" + right.toString() + ")";
         }
+        @Override
+        public List<Lbl> getDependantLabels() {
+            List<Lbl> ret = left.getDependantLabels();
+            ret.addAll(right.getDependantLabels());
+            return ret;
+        }
     }
 
     public final Lbl head;
@@ -76,7 +94,7 @@ public class Rule {
     public Rule(Lbl head, Clause...body){
         this.head = head;
         this.body = Arrays.asList(body);
-        this.dependencies = this.body.stream().flatMap((Rule.Clause c) -> Util.clauseLabels(c).stream()).collect(Collectors.toList());
+        this.dependencies = this.body.stream().flatMap((Rule.Clause c) -> c.getDependantLabels().stream()).collect(Collectors.toList());
     }
 
     @Override

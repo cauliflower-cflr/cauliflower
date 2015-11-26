@@ -10,7 +10,7 @@ int main(){
     running_semi_naive::rels_t rels{relation<adt_t>(1), relation<adt_t>(1), relation<adt_t>(1)};
     rels[0].adts[0].initialise_import();
     rels[0].adts[0].import(0, 1);
-    rels[0].adts[0].import(0, 1);
+    rels[0].adts[0].import(1, 0);
     rels[0].adts[0].finalise_import();
     rels[1].adts[0].initialise_import();
     rels[1].adts[0].import(0,4);
