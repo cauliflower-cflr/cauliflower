@@ -230,7 +230,7 @@ template<typename A, unsigned Vl, typename...Ts> struct semi_naive<A, Vl, proble
         //list_dependencies<rules_reg_t>::list(deps);
         //dependency_info::dep_res_t res = dependency_info::find_dependencies(deps);
         
-        // exhaust all the deltasi
+        // exhaust all the deltas
         // This loop is triggered to exit when a non-label index is returned (i.e. >= the size of the label set)
         // TODO take into account dependencies, for now this is only called once with every rule
         unsigned last_used = lbls_t::size;// none of the relations have been used, set last_used to be beyond their range
