@@ -3,13 +3,10 @@ package cauliflower;
 import cauliflower.cflr.Label;
 import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
-import cauliflower.generator.Backend;
 import cauliflower.generator.CppSemiNaiveBackend;
 import cauliflower.generator.DebugBackend;
-import cauliflower.generator.NameMap;
 
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
 

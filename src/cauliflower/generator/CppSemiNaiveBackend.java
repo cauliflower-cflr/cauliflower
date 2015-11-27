@@ -20,8 +20,8 @@ import java.util.List;
 public class CppSemiNaiveBackend implements Backend{
 
     public enum Adt {
-        StdTree("neighbourhood_map<std::map<ident, std::set<ident>>, std::set<ident>>", "neighbourhood_map.h", "<map>", "<set>"),
-        Quadtree("concise_tree", "concise_tree.h");
+        StdTree("neighbourhood_map<std::map<ident, std::set<ident>>, std::set<ident>>", "neighbourhood_map.h", "<map>", "<set>");
+        // TODO Quadtree("concise_tree", "concise_tree.h");
 
         private String typename;
         private String importLoc;
@@ -204,9 +204,9 @@ public class CppSemiNaiveBackend implements Backend{
         out.println("size_t largest_vertex_domain = 0;");
         for(int i=0; i<prob.numDomains; i++) if(!prob.fields.contains(i)) out.println("largest_vertex_domain = std::max(largest_vertex_domain, volume[" + i + "]);");
         out.println("const adt_t epsilon = adt_t::identity(largest_vertex_domain);");
-        for(Rule r : prob.rules) if(r.body.size() == 0){
-            out.println("for(auto& a : relations[" + r.head.label + "].adts) a.union_copy(epsilon);");
-        }
+        prob.rules.forEach(r -> {
+            if(r.body.size() == 0) out.println("for(auto& a : relations[" + r.head.label + "].adts) a.union_copy(epsilon);");
+        } );
 
         out.println("// Delta initialisation");
         out.print("rels_t deltas{");
