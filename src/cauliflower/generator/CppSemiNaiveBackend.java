@@ -73,6 +73,61 @@ public class CppSemiNaiveBackend implements Backend{
         out.println("typedef std::array<size_t, num_domains> vols_t;");
     }
 
+    private class GeneratedClause implements Rule.ClauseVisitor{
+        public boolean reversed = false;
+        public boolean negated = false;
+        public String varName;
+        private final Rule.Clause clause;
+        public int curTemps;
+        private final int dl;
+        private int docc;
+        public GeneratedClause(int curTemps){
+            this.varName = "tmp" + curTemps;
+            this.curTemps = curTemps+1;
+            this.dl = -1;
+            this.clause = null;
+        }
+        public GeneratedClause(Rule.Clause clause, int curTemps, int dl, int docc) {
+            this.clause = clause;
+            this.curTemps = curTemps;
+            this.dl = dl;
+            this.docc = docc;
+            this.visit(this.clause);
+        }
+        private GeneratedClause subClause(Rule.Clause c){
+            return new GeneratedClause(c, curTemps, dl, docc);
+        }
+        @Override
+        public void visitLbl(Rule.Lbl lbl) {
+            if(lbl.label == dl && docc == 0){
+                varName = "cur_delta.adts[0]";
+            } else {
+                varName = "relations[" + lbl.label + "].adts[0]";
+            }
+            if(lbl.label == dl) docc--;
+        }
+        @Override
+        public void visitRev(Rule.Rev r) {
+            GeneratedClause sub = subClause(r.clause);
+            this.varName = sub.varName;
+            this.negated = sub.negated;
+            this.reversed = !sub.reversed;
+            this.curTemps = sub.curTemps;
+        }
+        @Override
+        public void visitNeg(Rule.Neg n) {
+            GeneratedClause sub = subClause(n.clause);
+            this.varName = sub.varName;
+            this.negated = !sub.negated;
+            this.reversed = sub.reversed;
+            this.curTemps = sub.curTemps;
+        }
+        @Override
+        public void visitAnd(Rule.And a) {
+            throw new RuntimeException("Unhandled");
+        }
+    }
+
     private void generateRuleCode(int l, int r, int occurance, Problem prob){
         Rule rule = prob.rules.get(r);
         // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
@@ -88,28 +143,31 @@ public class CppSemiNaiveBackend implements Backend{
             } else occurance -= deltasInClause;
         }
         assert deltaClause != -1;
-        int tempCount = 0;
+        GeneratedClause lastClause = new GeneratedClause(rule.body.get(deltaClause), 0, l, occurance);
         for(int c=deltaClause+1; c<rule.body.size(); c++){
-            out.println("adt_t tmp" + tempCount + ";");
-            String left = tempCount == 0 ? "cur_delta.adts[0]" : "tmp" + (tempCount-1);
-            out.println(left + ".compose(relations[" + ((Rule.Lbl)rule.body.get(c)).label + "].adts[0], tmp" + tempCount + ");");
-            tempCount++;
+            GeneratedClause thisClause = new GeneratedClause(rule.body.get(c), lastClause.curTemps, l, -1);
+            GeneratedClause nextClause = new GeneratedClause(thisClause.curTemps);
+            out.println("adt_t " + nextClause.varName + ";");
+            out.println(lastClause.varName + ".compose<" + lastClause.reversed + ", " + thisClause.reversed + ">(" + thisClause.varName + ", " + nextClause.varName + ");");
+            lastClause = nextClause;
         }
         for(int c=deltaClause-1; c>=0; c--){
-            out.println("adt_t tmp" + tempCount + ";");
-            String right = tempCount == 0 ? "cur_delta.adts[0]" : "tmp" + (tempCount-1);
-            out.println("relations[" + ((Rule.Lbl)rule.body.get(c)).label + "].adts[0].compose(" + right + ", tmp" + tempCount + ");");
-            tempCount++;
+            GeneratedClause thisClause = new GeneratedClause(rule.body.get(c), lastClause.curTemps, l, -1);
+            GeneratedClause nextClause = new GeneratedClause(thisClause.curTemps);
+            out.println("adt_t " + nextClause.varName + ";");
+            out.println(thisClause.varName + ".compose<" + thisClause.reversed + ", " + lastClause.reversed + ">(" + lastClause.varName + ", " + nextClause.varName + ");");
+            lastClause = nextClause;
         }
-        if(tempCount == 0){
-            out.println("adt_t tmp0;");
-            out.println("cur_delta.deep_copy(tmp0);");
-            tempCount = 1;
+        if(lastClause.curTemps == 0){ // occurs for unary productions with no intersection operation
+            // TODO handle negation/reversal
+            GeneratedClause tempClause = new GeneratedClause(0);
+            out.println("adt_t " + tempClause.varName + ";");
+            out.println(lastClause.varName + ".deep_copy(" + tempClause.varName + ");");
+            lastClause = tempClause;
         }
-        tempCount -= 1;//because i cant be bothered subtracting 1s
-        out.println("tmp" + tempCount + ".difference(relations[" + rule.head.label + "].adts[0]);");
-        out.println("deltas[" + rule.head.label + "].adts[0].union_copy(tmp" + tempCount + ");");
-        out.println("relations[" + rule.head.label + "].adts[0].union_absorb(tmp" + tempCount + ");");
+        out.println(lastClause.varName + ".difference(relations[" + rule.head.label + "].adts[0]);");
+        out.println("deltas[" + rule.head.label + "].adts[0].union_copy(" + lastClause.varName + ");");
+        out.println("relations[" + rule.head.label + "].adts[0].union_absorb(" + lastClause.varName + ");");
         out.println("}");
     }
 

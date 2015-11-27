@@ -67,6 +67,70 @@ struct neighbourhood_iterator{
     }
 };
 
+namespace template_internals {
+template<typename, typename, bool, bool> struct compose_h;
+template<typename M, typename S> struct compose_h<M, S, false, false>{
+    static inline void compose(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto end = other.forwards.end();
+        for(const auto& pvt : me.backwards){
+            auto oth = other.forwards.find(pvt.first);
+            if (oth != end) {
+                for(ident from : pvt.second){
+                    for(ident to : oth->second){
+                        into.import(from, to);
+                    }
+                }
+            }
+        }
+    }
+};
+template<typename M, typename S> struct compose_h<M, S, false, true>{
+    static inline void compose(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto end = other.backwards.end();
+        for(const auto& pvt : me.backwards){
+            auto oth = other.backwards.find(pvt.first);
+            if (oth != end) {
+                for(ident from : pvt.second){
+                    for(ident to : oth->second){
+                        into.import(from, to);
+                    }
+                }
+            }
+        }
+    }
+};
+template<typename M, typename S> struct compose_h<M, S, true, false>{
+    static inline void compose(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto end = other.forwards.end();
+        for(const auto& pvt : me.forwards){
+            auto oth = other.forwards.find(pvt.first);
+            if (oth != end) {
+                for(ident from : pvt.second){
+                    for(ident to : oth->second){
+                        into.import(from, to);
+                    }
+                }
+            }
+        }
+    }
+};
+template<typename M, typename S> struct compose_h<M, S, true, true>{
+    static inline void compose(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto end = other.backwards.end();
+        for(const auto& pvt : me.forwards){
+            auto oth = other.backwards.find(pvt.first);
+            if (oth != end) {
+                for(ident from : pvt.second){
+                    for(ident to : oth->second){
+                        into.import(from, to);
+                    }
+                }
+            }
+        }
+    }
+};
+} // end namespace template_internals
+
 template<typename M, typename S>
 struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_iterator<M, S>>{
 
@@ -122,18 +186,8 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         union_copy(other);
     }
 
-    void compose(const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into) const{
-        auto end = other.forwards.end();
-        for(const auto& pvt : backwards){
-            auto oth = other.forwards.find(pvt.first);
-            if (oth != end) {
-                for(ident from : pvt.second){
-                    for(ident to : oth->second){
-                        into.import(from, to);
-                    }
-                }
-            }
-        }
+    template<bool TMe, bool TOther> void compose(const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into) const{
+        template_internals::compose_h<M, S, TMe, TOther>::compose(*this, other, into);
     }
 
     void difference(const neighbourhood_map<M, S>& other){

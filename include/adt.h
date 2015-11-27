@@ -31,7 +31,7 @@ struct adt{
     // Relational Methods
     virtual void union_copy(const Self&) = 0;
     virtual void union_absorb(Self&) = 0;
-    virtual void compose(const Self&, Self&) const = 0;
+    //virtual void compose(const Self&, Self&) const = 0;
     virtual void difference(const Self&) = 0;
 };
 
