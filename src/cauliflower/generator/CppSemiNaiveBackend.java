@@ -75,6 +75,26 @@ public class CppSemiNaiveBackend implements Backend{
         out.println("typedef std::array<size_t, num_domains> vols_t;");
     }
 
+    private String labelRel(String ref, Rule.Lbl l){
+        StringBuilder vn = new StringBuilder();
+        vn.append(ref);
+        vn.append(".adts[");
+        if(l.fields.size() == 0){
+            vn.append(0);
+        } else {
+            int fi = 0;
+            for(int f : l.fields){
+                if(fi > 0) vn.append(" + ");
+                vn.append("f").append(f);
+                for(int vi=fi+1; vi<l.fields.size(); vi++){
+                    vn.append("*volume[").append(l.fieldDomains.get(vi)).append("]");
+                }
+                fi++;
+            }
+        }
+        return vn.append("]").toString();
+    }
+
     private class GeneratedClause implements Rule.ClauseVisitor{
         public boolean reversed = false;
         public boolean negated = false;
@@ -101,28 +121,12 @@ public class CppSemiNaiveBackend implements Backend{
         }
         @Override
         public void visitLbl(Rule.Lbl lbl) {
-            StringBuilder vn = new StringBuilder();
             if(lbl.label == dl && docc == 0){
-                vn.append("cur_delta.adts[");
+                varName = labelRel("cur_delta", lbl);
             } else {
-                vn.append("relations[" + lbl.label + "].adts[");
+                varName = labelRel("relations[" + lbl.label + "]", lbl);
             }
             if(lbl.label == dl) docc--;
-            if(lbl.fields.size() == 0){
-                vn.append(0);
-            } else {
-                int fi = 0;
-                for(int f : lbl.fields){
-                    if(fi > 0) vn.append(" + ");
-                    vn.append("f").append(f);
-                    for(int vi=fi+1; vi<lbl.fields.size(); vi++){
-                        // TODO support multi fields
-                        vn.append("*volume[").append(lbl.fieldDomains.get(vi)).append("]");
-                    }
-                    fi++;
-                }
-            }
-            varName = vn.append("]").toString();
         }
         @Override
         public void visitRev(Rule.Rev r) {
@@ -191,9 +195,11 @@ public class CppSemiNaiveBackend implements Backend{
             out.println(lastClause.varName + ".deep_copy(" + tempClause.varName + ");");
             lastClause = tempClause;
         }
-        out.println(lastClause.varName + ".difference(relations[" + rule.head.label + "].adts[0]);");
-        out.println("deltas[" + rule.head.label + "].adts[0].union_copy(" + lastClause.varName + ");");
-        out.println("relations[" + rule.head.label + "].adts[0].union_absorb(" + lastClause.varName + ");");
+        String intoR = labelRel("relations[" + rule.head.label + "]", rule.head);
+        String intoD = labelRel("deltas[" + rule.head.label + "]", rule.head);
+        out.println(lastClause.varName + ".difference(" + intoR + ");");
+        out.println("" + intoD + ".union_copy(" + lastClause.varName + ");");
+        out.println("" + intoR + ".union_absorb(" + lastClause.varName + ");");
         out.println("}"); // end of field loop
     }
 
