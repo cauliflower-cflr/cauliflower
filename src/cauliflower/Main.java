@@ -52,11 +52,10 @@ public class Main {
 
     public static Problem flds(){
         Label a = new Label(0);
-        Label b = new Label(0, 0);
-        Label c = new Label(0, 0, 0);
-        Label d = new Label(0, 0, 0, 0);
-        Rule r1 = new Rule(new Rule.Lbl(0, 3), new Rule.Lbl(2, 2, 0, 1), new Rule.Lbl(1, 1, 2));
-        return new Problem(2, Arrays.asList(a, b, c, d), Arrays.asList(r1));
+        Label b = new Label(0);
+        Label c = new Label();
+        Rule r1 = new Rule(new Rule.Lbl(2), new Rule.Lbl(0, 0), new Rule.Lbl(1, 0));
+        return new Problem(2, Arrays.asList(a, b, c), Arrays.asList(r1));
     }
 
     public static void out(Problem p, String name, String src) throws IOException {
@@ -73,7 +72,7 @@ public class Main {
             out(running(), "running", "include/running_OUT.h");
             out(rev(), "rev", "include/rev_OUT.h");
             out(pointsTo(), "pt", "include/pt_OUT.h");
-            //out(flds(), "fld", "include/fld_OUT.h");
+            out(flds(), "fld", "include/fld_OUT.h");
         } catch (Exception exc){
             exc.printStackTrace();
         }
