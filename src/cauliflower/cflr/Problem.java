@@ -28,6 +28,10 @@ public class Problem {
         this.labels = labels;
         this.rules = rules;
         this.fields = this.labels.stream().flatMap(l -> l.fDomains.stream()).collect(Collectors.toCollection(HashSet<Integer>::new));
+        for(Rule r : rules){
+            r.head.fieldDomains = labels.get(r.head.label).fDomains;
+            for(Rule.Lbl l : r.dependencies) l.fieldDomains = labels.get(l.label).fDomains;
+        }
     }
 
     /**

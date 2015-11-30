@@ -25,9 +25,11 @@ public class Rule {
     public static class Lbl extends Clause {
         public final int label;
         public final List<Integer> fields;
+        public List<Integer> fieldDomains;
         public Lbl(int label, int...fields){
             this.label = label;
             this.fields = Arrays.stream(fields).boxed().collect(Collectors.toList());
+            this.fieldDomains = null;
         }
         public String toString(){
             StringBuilder ret = new StringBuilder();

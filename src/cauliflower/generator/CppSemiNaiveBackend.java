@@ -101,12 +101,28 @@ public class CppSemiNaiveBackend implements Backend{
         }
         @Override
         public void visitLbl(Rule.Lbl lbl) {
+            StringBuilder vn = new StringBuilder();
             if(lbl.label == dl && docc == 0){
-                varName = "cur_delta.adts[0]";
+                vn.append("cur_delta.adts[");
             } else {
-                varName = "relations[" + lbl.label + "].adts[0]";
+                vn.append("relations[" + lbl.label + "].adts[");
             }
             if(lbl.label == dl) docc--;
+            if(lbl.fields.size() == 0){
+                vn.append(0);
+            } else {
+                int fi = 0;
+                for(int f : lbl.fields){
+                    if(fi > 0) vn.append(" + ");
+                    vn.append("f").append(f);
+                    for(int vi=fi+1; vi<lbl.fields.size(); vi++){
+                        // TODO support multi fields
+                        vn.append("*volume[").append(lbl.fieldDomains.get(vi)).append("]");
+                    }
+                    fi++;
+                }
+            }
+            varName = vn.append("]").toString();
         }
         @Override
         public void visitRev(Rule.Rev r) {
@@ -134,13 +150,15 @@ public class CppSemiNaiveBackend implements Backend{
         Rule rule = prob.rules.get(r);
         // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
         out.println("// Label " + l + ", occurance " + occurance + ", rule " + prob.rules.get(r).toString());
-//        Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
-//        for(Rule.Lbl lbl : rule.dependencies) if(!lbl.fields.isEmpty()){
-//
-//        }
-//        for(int ident : fieldIdents.keySet()){
-//            out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
-//        }
+        Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
+        for(int ident : fieldIdents.keySet()){ // TODO irrelevant field: if get[1] > 0...
+            out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
+        }
+        int dSeen = 0;
+        for(Rule.Lbl lbl : rule.dependencies){
+            out.print("if(!" + new GeneratedClause(lbl, 0, l, dSeen-occurance).varName + ".empty()) ");
+            if(lbl.label == l) dSeen ++;
+        }
         out.println("{"); // TODO field labels
         int deltaClause = -1;
         for(int clause = 0; clause< rule.body.size(); clause++){
