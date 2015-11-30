@@ -1,6 +1,9 @@
 # Build Directories #
 bin/
 build/
+.gradle/
+.idea/
+*.iml
 
 # misc #
 .*.swp

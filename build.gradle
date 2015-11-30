@@ -1,0 +1,22 @@
+group 'cauliflower'
+apply plugin: 'java'
+sourceCompatibility = 1.8
+version = '0.0.2-GRADLE'
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src'
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                'version' : version,
+                'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
+                'Main-Class': 'cauliflower.Main'
+        )
+    }
+}
