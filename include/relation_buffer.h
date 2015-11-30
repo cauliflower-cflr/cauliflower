@@ -144,18 +144,18 @@ struct relation_buffer{
     }
 
     bool from_csv(const std::string& csv_path){
-        io::CSVReader<cardinality, io::trim_chars<>,
-            io::no_quote_escape<','>, io::throw_on_overflow,
-            io::empty_line_comment> in(csv_path);
         try{
-            outer_type tmp;
+            io::CSVReader<cardinality, io::trim_chars<>,
+                io::no_quote_escape<','>, io::throw_on_overflow,
+                io::empty_line_comment> in(csv_path);
+                outer_type tmp;
             while(true){
                 if(!in.read_row_tuple(tmp)) break;
                 add(tmp);
             }
             return true;
         } catch(const io::error::base& err){
-            logger::error("CSV Read error: ", err.what());
+            logger::warning("CSV Read error: ", err.what());
             return false;
         }
     }

@@ -39,15 +39,15 @@ public class Main {
     public static Problem pointsTo(){
         Label al = new Label();
         Label as = new Label();
-        Label st = new Label(2);
         Label lo = new Label(2);
+        Label st = new Label(2);
         Label br = new Label();
         Label pt = new Label();
         Rule r1 = new Rule(new Rule.Lbl(5), new Rule.Lbl(0));
         Rule r2 = new Rule(new Rule.Lbl(5), new Rule.Lbl(1), new Rule.Lbl(5));
         Rule r3 = new Rule(new Rule.Lbl(5), new Rule.Lbl(4), new Rule.Lbl(5));
-        Rule r4 = new Rule(new Rule.Lbl(4), new Rule.Lbl(3, 0), new Rule.Lbl(5), new Rule.Rev(new Rule.Lbl(5)), new Rule.Lbl(2, 0), new Rule.Lbl(5));
-        return new Problem(3, Arrays.asList(al, as, st, lo, br, pt), Arrays.asList(r1, r2, r3, r4));
+        Rule r4 = new Rule(new Rule.Lbl(4), new Rule.Lbl(2, 0), new Rule.Lbl(5), new Rule.Rev(new Rule.Lbl(5)), new Rule.Lbl(3, 0));
+        return new Problem(3, Arrays.asList(al, as, lo, st, br, pt), Arrays.asList(r1, r2, r3, r4));
     }
 
     public static Problem flds(){
@@ -70,8 +70,8 @@ public class Main {
 
     public static void main(String[] args) {
         try {
-            //out(running(), "running", "include/running_OUT.h");
-            //out(rev(), "rev", "include/rev_OUT.h");
+            out(running(), "running", "include/running_OUT.h");
+            out(rev(), "rev", "include/rev_OUT.h");
             out(pointsTo(), "pt", "include/pt_OUT.h");
             //out(flds(), "fld", "include/fld_OUT.h");
         } catch (Exception exc){
