@@ -1,5 +1,7 @@
 package cauliflower.util;
 
+import java.util.Arrays;
+
 /**
  * Travelling Salesman Problem
  *
@@ -19,30 +21,9 @@ public class TSP {
         this.size = problem.length;
     }
 
-    public int[] greedy(){
-        int mx = 0;
-        int my = 1;
-        for(int x=0; x<size; x++){
-            for(int y=0; y<size; y++) if (y != x){
-                if(problem[x][y] > problem[mx][my]){
-                    mx = x;
-                    my = y;
-                }
-            }
-        }
+    public int[] opt2(){
         int[] ret = new int[size];
-        ret[0] = mx;
-        ret[1] = my;
-        for(int i=2; i<size; i++){
-            mx = my;
-            my = mx == 0 ? 1 : 0;
-            for(int y=0; y<size; y++) if (y != mx){
-                if(problem[mx][y] > problem[mx][my]){
-                    my = y;
-                }
-            }
-            ret[i] = my;
-        }
+        Arrays.setAll(ret, i -> i);
         return ret;
     }
 
@@ -52,7 +33,7 @@ public class TSP {
                 {3, 0, 0, 1},
                 {2, 0, 0, 1},
                 {0, 1, 1, 0}};
-        for(int i : new TSP(t).greedy()){
+        for(int i : new TSP(t).opt2()){
             // TODO THIS
             System.out.println(i);
         }

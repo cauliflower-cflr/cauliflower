@@ -2,6 +2,7 @@ package cauliflower.generator;
 
 import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
+import cauliflower.util.CFLRException;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -9,6 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * CppSemiNaiveBackend.java
@@ -128,12 +130,18 @@ public class CppSemiNaiveBackend implements Backend{
         }
     }
 
-    private void generateRuleCode(int l, int r, int occurance, Problem prob){
+    private void generateRuleCode(int l, int r, int occurance, Problem prob) throws CFLRException {
         Rule rule = prob.rules.get(r);
         // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
         out.println("// Label " + l + ", occurance " + occurance + ", rule " + prob.rules.get(r).toString());
-        // TODO field selection
-        out.println("for(unsigned i=0; i<1; ++i){");
+//        Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
+//        for(Rule.Lbl lbl : rule.dependencies) if(!lbl.fields.isEmpty()){
+//
+//        }
+//        for(int ident : fieldIdents.keySet()){
+//            out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
+//        }
+        out.println("{"); // TODO field labels
         int deltaClause = -1;
         for(int clause = 0; clause< rule.body.size(); clause++){
             int deltasInClause = (int)rule.body.get(clause).getDependantLabels().stream().map(lbl -> lbl.label).filter(lbl -> lbl == l).count();
@@ -168,14 +176,14 @@ public class CppSemiNaiveBackend implements Backend{
         out.println(lastClause.varName + ".difference(relations[" + rule.head.label + "].adts[0]);");
         out.println("deltas[" + rule.head.label + "].adts[0].union_copy(" + lastClause.varName + ");");
         out.println("relations[" + rule.head.label + "].adts[0].union_absorb(" + lastClause.varName + ");");
-        out.println("}");
+        out.println("}"); // end of field loop
     }
 
     private String deltaExpansionFunctionName(int lbl, boolean argTypes){
         return "delta_" + lbl + "(" + (argTypes ? "const vols_t& " : "") + "volume, " + (argTypes ? "rels_t& " : "") + "relations, " + (argTypes ? "rels_t& " : "") + "deltas)";
     }
 
-    private void generateDeltaExpansionCode(int l, Problem prob){
+    private void generateDeltaExpansionCode(int l, Problem prob) throws CFLRException{
         out.println("static void " + deltaExpansionFunctionName(l, true) + "{");
         out.println("relation<adt_t> cur_delta(deltas[" + l + "].volume());");
         out.println("cur_delta.swap_contents(deltas[" + l + "]);");
@@ -189,7 +197,7 @@ public class CppSemiNaiveBackend implements Backend{
         out.println("}");
     }
 
-    private void generateDeltas(Problem prob){
+    private void generateDeltas(Problem prob) throws CFLRException{
         out.println("// Delta expansion rules");
         for(int i=0; i<prob.labels.size(); i++){
             generateDeltaExpansionCode(i, prob);
@@ -242,8 +250,8 @@ public class CppSemiNaiveBackend implements Backend{
     }
 
     @Override
-    public void generate(String problemName, Problem prob) throws Exception{
-        if (problemName.contains(" ")) throw new IOException("Problem name has spaces: \"" + problemName + "\"");
+    public void generate(String problemName, Problem prob) throws CFLRException{
+        if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
         generatePreBlock(problemName);
         generateImports();
         generateScope(problemName);
