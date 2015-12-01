@@ -160,10 +160,10 @@ public class CppSemiNaiveBackend implements Backend{
         }
         int dSeen = 0;
         for(Rule.Lbl lbl : rule.dependencies){
-            out.print("if(!" + new GeneratedClause(lbl, 0, l, dSeen-occurance).varName + ".empty()) ");
+            if(lbl.label != l || dSeen-occurance != 0 || !lbl.fields.isEmpty()) out.print("if(!" + new GeneratedClause(lbl, 0, l, dSeen-occurance).varName + ".empty()) ");
             if(lbl.label == l) dSeen ++;
         }
-        out.println("{"); // TODO field labels
+        out.println("{");
         int deltaClause = -1;
         for(int clause = 0; clause< rule.body.size(); clause++){
             int deltasInClause = (int)rule.body.get(clause).getDependantLabels().stream().map(lbl -> lbl.label).filter(lbl -> lbl == l).count();

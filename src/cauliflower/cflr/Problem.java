@@ -42,7 +42,9 @@ public class Problem {
      * depend on those in B if B <= A
      */
     public List<List<Integer>> getLabelDependencyOrdering(){
-        return new TarjanScc(labels.size(), Stream.generate(ArrayList<Integer>::new).limit(labels.size()).collect(Collectors.toList())).result;
+        List<List<Integer>> successors = Stream.generate(ArrayList<Integer>::new).limit(labels.size()).collect(Collectors.toList());
+        rules.stream().forEach(r -> successors.get(r.head.label).addAll(r.dependencies.stream().map(l -> l.label).collect(Collectors.toList())));
+        return new TarjanScc(labels.size(), successors).result;
     }
 
     /**

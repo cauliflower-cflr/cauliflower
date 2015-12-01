@@ -50,6 +50,24 @@ public class Main {
         return new Problem(3, Arrays.asList(al, as, lo, st, br, pt), Arrays.asList(r1, r2, r3, r4));
     }
 
+    public static Problem jpt(){
+        Label al = new Label();
+        Label as = new Label();
+        Label lo = new Label(2);
+        Label st = new Label(2);
+        Label br = new Label();
+        Label pt = new Label();
+        Label lv = new Label(2);
+        Label sv = new Label(2);
+        Rule r1 = new Rule(new Rule.Lbl(5), new Rule.Lbl(0));
+        Rule r2 = new Rule(new Rule.Lbl(5), new Rule.Rev(new Rule.Lbl(1)), new Rule.Lbl(5));
+        Rule r3 = new Rule(new Rule.Lbl(5), new Rule.Lbl(4), new Rule.Lbl(5));
+        Rule r4 = new Rule(new Rule.Lbl(4), new Rule.Lbl(6, 0), new Rule.Rev(new Rule.Lbl(7, 0)));
+        Rule r5 = new Rule(new Rule.Lbl(6, 0), new Rule.Rev(new Rule.Lbl(2, 0)), new Rule.Lbl(5));
+        Rule r6 = new Rule(new Rule.Lbl(7, 0), new Rule.Lbl(3, 0), new Rule.Lbl(5));
+        return new Problem(3, Arrays.asList(al, as, lo, st, br, pt, lv, sv), Arrays.asList(r1, r2, r3, r4, r5, r6));
+    }
+
     public static Problem flds(){
         Label a = new Label(0);
         Label b = new Label(0);
@@ -72,6 +90,7 @@ public class Main {
             out(running(), "running", "include/running_OUT.h");
             out(rev(), "rev", "include/rev_OUT.h");
             out(pointsTo(), "pt", "include/pt_OUT.h");
+            out(jpt(), "jpt", "include/jpt_OUT.h");
             out(flds(), "fld", "include/fld_OUT.h");
         } catch (Exception exc){
             exc.printStackTrace();

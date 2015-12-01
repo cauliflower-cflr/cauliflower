@@ -1,0 +1,17 @@
+digraph graphname {
+   commentnode [fillcolor=lightyellow shape=box label="GRAPH GENERATED FROM TEST DATA\ndata:  data/testdata-fieldsensitive1/\ngreen edges - NEW\nblack edges - ASSIGN\nred egdes - STORE\nblue edges - LOAD"]
+  v5 -> v6 [color=black fontcolor=black];
+  v1 -> v2 [color=black fontcolor=black];
+  v7 -> v8 [color=black fontcolor=black];
+  v2 -> v3 [label=store_1 color=red fontcolor=red];
+  hobj2 [fillcolor=green]
+  hobj2 -> v7 [color=darkgreen fontcolor=darkgreen];
+  v8 -> v9 [color=black fontcolor=black];
+  hobj3 [fillcolor=green]
+  hobj3 -> v3 [color=darkgreen fontcolor=darkgreen];
+  v3 -> v4 [color=black fontcolor=black];
+  v4 -> v5 [label=load_1 color=blue fontcolor=blue];
+  hobj1 [fillcolor=green]
+  hobj1 -> v1 [color=darkgreen fontcolor=darkgreen];
+  v8 -> v5 [color=black fontcolor=black];
+}
