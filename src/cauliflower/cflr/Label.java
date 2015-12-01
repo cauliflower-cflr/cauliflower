@@ -14,9 +14,12 @@ import java.util.stream.Collectors;
  */
 public class Label {
 
+    public final int fromDomain, toDomain;
     public final List<Integer> fDomains;
 
-    public Label(int...fDomains){
+    public Label(int fromDomain, int toDomain, int...fDomains){
+        this.fromDomain = fromDomain;
+        this.toDomain = toDomain;
         this.fDomains = Arrays.stream(fDomains).boxed().collect(Collectors.toList());
     }
 

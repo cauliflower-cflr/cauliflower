@@ -1,9 +1,6 @@
-package cauliflower.generator;
+package cauliflower.parser;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import cauliflower.util.Registrar;
 
 /**
  * NameMap.java
@@ -24,20 +21,5 @@ public class NameMap {
     public String field(int i){ return fields.fromIndex(i); }
     public int domain(String s){ return domains.toIndex(s); }
     public String domain(int i){ return domains.fromIndex(i); }
-
-    private class Registrar {
-        public final Map<String, Integer> si =  new HashMap<>();
-        public final List<String> is = new ArrayList<>();
-        public int toIndex(String s){
-            if(!si.containsKey(s)){
-                si.put(s, is.size());
-                is.add(s);
-            }
-            return si.get(s);
-        }
-        public String fromIndex(int i){
-            return is.get(i);
-        }
-    }
 
 }

@@ -48,9 +48,10 @@ struct buffer_helper{
     static inline unsigned field_volume_index(const TReg& regs, const TArr& arr){
         return buffer_helper<TReg, TArr, I-1, Tups...>::field_volume_index(regs, arr)*std::get<I+1>(regs)->size() + arr[I+1];
     }
-    // static inline void field_index_to_volume(unsigned amt, const TReg& regs, TArr& arr){
-    //     arr[I+1] = amt/buffer_helper<TReg, TArr, I, Tups...>::field_volume(TReg&)
-    // }
+    static inline void field_index_to_volume(unsigned amt, const TReg& regs, TArr& arr){
+        arr[I+1] = amt%std::get<I+1>(regs)->size();
+        buffer_helper<TReg, TArr, I-1, Tups...>::field_index_to_volume(amt/std::get<I+1>(regs)->size(), regs, arr);
+    }
 };
 template<typename TReg, typename TArr, typename...Tups>
 struct buffer_helper<TReg, TArr, 0, Tups...>{

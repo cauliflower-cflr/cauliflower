@@ -10,7 +10,7 @@ INCLUDES=-I include/
 
 # Options and Flags
 #CXXFLAGS=$(INCLUDES) -Wl,-rpath -Wl,/usr/local/lib -std=c++11 -Wall -g
-CXXFLAGS=$(INCLUDES) -std=c++11 -Wall -O3 -DCSV_IO_NO_THREAD
+CXXFLAGS=$(INCLUDES) -std=c++11 -Wall -O3 -DCSV_IO_NO_THREAD -g
 CXXLIBS=#-llog4cplus
 TEST_ARGS=--report_format=xml --report_level=detailed
 

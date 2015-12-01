@@ -4,7 +4,6 @@ import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
 import cauliflower.util.CFLRException;
 
-import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -43,8 +42,22 @@ public class CppSemiNaiveBackend implements Backend{
         this.out = out;
     }
 
+    @Override
+    public void generate(String problemName, Problem prob) throws CFLRException{
+        if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
+        generatePreBlock(problemName);
+        generateImports();
+        generateScope(problemName);
+        generateDefs(prob);
+        generateDeltas(prob);
+        generateSemiNaive(prob);
+        endScope(problemName);
+    }
+
     private void generatePreBlock(String problemName){
         out.println("// " + problemName);
+        out.println("//");
+        out.println("// Semi-naive method fore evaluating CFLR solutions");
         out.println("//");
         out.println("// Generated on: " + new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
         out.println("//           by: v" + cauliflower.Main.MAJOR + "." + cauliflower.Main.MINOR + "." + cauliflower.Main.REVISION);
@@ -52,8 +65,6 @@ public class CppSemiNaiveBackend implements Backend{
 
     private void generateImports(){
         out.println("#include <array>");
-        //out.println("#include <tuple>");
-        //out.println("#include <vector>");
         for(String imp : adt.imports){
             out.println("#include " + imp);
         }
@@ -61,9 +72,13 @@ public class CppSemiNaiveBackend implements Backend{
         out.println("#include \"relation.h\"");
     }
 
+    public static String className(String problemName){
+        return problemName + "_semi_naive";
+    }
+
     private void generateScope(String problemName){
         out.println("namespace cflr {");
-        out.println("struct " + problemName + "_semi_naive {");
+        out.println("struct " + className(problemName) + " {");
     }
 
     private void generateDefs(Problem prob){
@@ -271,18 +286,6 @@ public class CppSemiNaiveBackend implements Backend{
     private void endScope(String problemName){
         out.println("}; // end struct " + problemName + "_semi_naive");
         out.println("} // end namespace cflr");
-    }
-
-    @Override
-    public void generate(String problemName, Problem prob) throws CFLRException{
-        if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
-        generatePreBlock(problemName);
-        generateImports();
-        generateScope(problemName);
-        generateDefs(prob);
-        generateDeltas(prob);
-        generateSemiNaive(prob);
-        endScope(problemName);
     }
 
 }
