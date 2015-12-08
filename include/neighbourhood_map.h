@@ -191,20 +191,35 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
     }
 
     void difference(const neighbourhood_map<M, S>& other){
-        auto end = forwards.end();
-        for(const auto& oth : other.forwards){
-            auto ms = forwards.find(oth.first);
-            if(ms != end){
-                for(ident to : oth.second){
-                    auto fnd = ms->second.find(to);
-                    if(fnd != ms->second.end()){
-                        auto bck = backwards.find(to);
-                        ms->second.erase(fnd);
-                        bck->second.erase(oth.first);
-                        if(ms->second.empty()) forwards.erase(ms);
-                        if(bck->second.empty()) backwards.erase(bck);
+        // auto end = forwards.end();
+        // for(const auto& oth : other.forwards){
+        //     auto ms = forwards.find(oth.first);
+        //     if(ms != end){
+        //         for(ident to : oth.second){
+        //             auto fnd = ms->second.find(to);
+        //             if(fnd != ms->second.end()){
+        //                 auto bck = backwards.find(to);
+        //                 ms->second.erase(fnd);
+        //                 bck->second.erase(oth.first);
+        //                 if(ms->second.empty()) forwards.erase(ms);
+        //                 if(bck->second.empty()) backwards.erase(bck);
+        //             }
+        //         }
+        //     }
+        // }
+        for(typename M::iterator lit = forwards.begin(); lit != forwards.end(); ++lit){
+            std::vector<typename M::key_type> rms;
+            for(typename S::const_iterator rit = lit->second.begin(); rit != lit->second.end(); ++rit){
+                typename M::const_iterator f = other.forwards.find(lit->first);
+                if(f != other.forwards.end()){
+                    if(f->second.find(*rit) != f->second.end()){
+                        backwards[*rit].erase(lit->first);
+                        rms.push_back(*rit);
                     }
                 }
+            }
+            for(auto id : rms){
+                lit->second.erase(id);
             }
         }
     }
@@ -222,7 +237,8 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
     static neighbourhood_map<M, S> identity(unsigned max_ident){
         neighbourhood_map<M, S> ret;
         for(ident i=0; i<max_ident; i++){
-            ret.forwards.insert({i, S({i})});
+            std::pair<typename M::iterator, bool> ins = ret.forwards.insert({i, S()});
+            ins.first->second.insert(i);
         }
         return ret;
     }

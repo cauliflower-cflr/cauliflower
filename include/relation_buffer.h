@@ -150,13 +150,18 @@ struct relation_buffer{
                 io::no_quote_escape<','>, io::throw_on_overflow,
                 io::empty_line_comment> in(csv_path);
                 outer_type tmp;
-            while(true){
-                if(!in.read_row_tuple(tmp)) break;
-                add(tmp);
+            try{
+                while(true){
+                    if(!in.read_row_tuple(tmp)) break;
+                    add(tmp);
+                }
+                return true;
+            } catch(const io::error::base& err){
+                logger::warning("CSV Read error: ", err.what());
+                return false;
             }
-            return true;
         } catch(const io::error::base& err){
-            logger::warning("CSV Read error: ", err.what());
+            // silently fail when file does not exist
             return false;
         }
     }

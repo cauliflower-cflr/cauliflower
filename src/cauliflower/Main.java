@@ -56,7 +56,7 @@ public class Main {
                 "Store[field] <- vert . vert;" +
                 "VarPointsTo <- vert . heap;" +
                 "VarPointsTo -> Alloc;" +
-                "VarPointsTo -> -Assign, Alloc;" +
+                "VarPointsTo -> -Assign, VarPointsTo;" +
                 "VarPointsTo -> -Load[f], VarPointsTo, -VarPointsTo, -Store[f], VarPointsTo;";
     }
     public static String jpt() {
@@ -90,8 +90,8 @@ public class Main {
         PrintStream ps = new PrintStream(new FileOutputStream(src));
         PrintStream ps2 = new PrintStream(new FileOutputStream(src.replace("include/", "spikes/").replace(".h", ".cpp")));
         //new CppSemiNaiveBackend(CppSemiNaiveBackend.Adt.StdTree, System.out).generate(name, p);
-        new CppSemiNaiveBackend(CppSemiNaiveBackend.Adt.StdTree, ps).generate(name, po.problem);
-        new CppCSVBackend(System.out, src.substring(src.indexOf("include/") + 8), po.labelNames, po.fieldDomains, true).generate(name, po.problem);
+        new CppSemiNaiveBackend(CppSemiNaiveBackend.Adt.Btree, ps).generate(name, po.problem);
+        //new CppCSVBackend(System.out, src.substring(src.indexOf("include/") + 8), po.labelNames, po.fieldDomains, true).generate(name, po.problem);
         new CppCSVBackend(ps2, src.substring(src.indexOf("include/") + 8), po.labelNames, po.fieldDomains, true).generate(name, po.problem);
         ps.close();
         ps2.close();
@@ -100,11 +100,11 @@ public class Main {
 
     public static void main(String[] args) {
         try {
-            //out(running(), "running", "include/running_OUT.h");
-            //out(rev(), "rev", "include/rev_OUT.h");
+            out(running(), "running", "include/running_OUT.h");
+            out(rev(), "rev", "include/rev_OUT.h");
             //out(pointsTo(), "pt", "include/pt_OUT.h");
             out(jpt(), "jpt", "include/jpt_OUT.h");
-            //out(jptx(), "jptx", "include/jptx_OUT.h");
+            out(jptx(), "jptx", "include/jptx_OUT.h");
             //out(flds(), "fld", "include/fld_OUT.h");
         } catch (Exception exc){
             exc.printStackTrace();

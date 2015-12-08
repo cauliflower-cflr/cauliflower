@@ -51,11 +51,13 @@ public class CppCSVBackend implements Backend {
     }
 
     private void generateImportsUsing(){
+        out.println("#include <chrono>");
         out.println("#include <iostream>");
         out.println("#include <string>");
         out.println("#include \"relation_buffer.h\"");
         out.println("#include \"" + snPath + "\"");
         out.println("using namespace std;");
+        out.println("using namespace std::chrono;");
         out.println("using namespace cflr;");
     }
 
@@ -63,13 +65,16 @@ public class CppCSVBackend implements Backend {
         out.println("int main(int argc, char* argv[]){");
         out.println("// Confirm the CSV directory has been provided as an argument");
         out.println("if(argc < 2){");
-        out.println("cerr << \"Usage: pointsto <path-to-pointsto-example> [output-relations...]\" << endl;");
+        out.println("cerr << \"Usage: \" << argv[0] << \" <path-to-input-csv-directory> [output-relations...]\" << endl;");
         out.println("return 1;");
         out.println("}");
     }
 
     private void generateRegistrars(Problem prob) {
         out.println("// The group of string registrars");
+        if(verbose){
+            out.println("steady_clock::time_point time0 = steady_clock::now();");
+        }
         out.print("registrar_group<");
         for(int i=0; i<prob.numDomains; i++){
             if(i != 0) out.print(", ");
@@ -84,12 +89,15 @@ public class CppCSVBackend implements Backend {
 
         out.println("// Import the CSV files into the registrars");
         for(int i=0; i<prob.labels.size(); i++){
-            out.println("buf_" + i + ".from_csv(string(argv[1]) + \"" + labelReg.fromIndex(i) + ".csv\");");
+            out.println("buf_" + i + ".from_csv(string(argv[1]) + \"/" + labelReg.fromIndex(i) + ".csv\");");
         }
     }
 
     private void generateRelationImportSolve(Problem prob, String problemName) {
         out.println("// Load the registrars into relations");
+        if(verbose){
+            out.println("steady_clock::time_point time1 = steady_clock::now();");
+        }
         out.println("typedef " + CppSemiNaiveBackend.className(problemName) + " P;");
         out.println("P::vols_t vols = regs.volumes();");
         out.print("P::rels_t relations = {");
@@ -107,7 +115,13 @@ public class CppCSVBackend implements Backend {
         }
 
         out.println("// Solve the problem");
+        if(verbose){
+            out.println("steady_clock::time_point time2 = steady_clock::now();");
+        }
         out.println("P::solve(vols, relations);");
+        if(verbose){
+            out.println("steady_clock::time_point time3 = steady_clock::now();");
+        }
     }
 
     private void generateBufferDeclaration(Label lbl, String name){
@@ -123,7 +137,7 @@ public class CppCSVBackend implements Backend {
 
     private void generateMainEnd(Problem prob){
         out.println("// print the specified relations to stdout");
-        out.println("for(int i=3; i<argc; ++i){");
+        out.println("for(int i=2; i<argc; ++i){");
         for(int l=0; l<prob.labels.size(); l++){
             if(l != 0) out.print("else ");
             out.println("if(string(argv[i]) == \"" + labelReg.fromIndex(l) + "\"){");
@@ -134,6 +148,13 @@ public class CppCSVBackend implements Backend {
             out.println("}");
         }
         out.println("}");
+        if(verbose){
+            out.println("steady_clock::time_point time4 = steady_clock::now();");
+            out.println("cerr << \"        input csv files: \" << duration_cast<duration<double>>(time1 - time0).count() << endl;");
+            out.println("cerr << \"convert csv to relation: \" << duration_cast<duration<double>>(time2 - time1).count() << endl;");
+            out.println("cerr << \"       solve semi-naive: \" << duration_cast<duration<double>>(time3 - time2).count() << endl;");
+            out.println("cerr << \"       output csv files: \" << duration_cast<duration<double>>(time4 - time3).count() << endl;");
+        }
         out.println("return 0;");
         out.println("}");
     }

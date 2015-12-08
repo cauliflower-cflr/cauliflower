@@ -6,11 +6,13 @@ TEST=test
 SRC_DIR=src
 TST_DIR=test
 SPK_DIR=spikes
-INCLUDES=-I include/
+INCLUDES=-I include/ -I include/cpp-btree-1.0.1/
 
 # Options and Flags
+#PROFILE=-p
+DEBUG=-g
 #CXXFLAGS=$(INCLUDES) -Wl,-rpath -Wl,/usr/local/lib -std=c++11 -Wall -g
-CXXFLAGS=$(INCLUDES) -std=c++11 -Wall -O3 -DCSV_IO_NO_THREAD -g
+CXXFLAGS=$(INCLUDES) -std=c++11 -Wall -O3 -DCSV_IO_NO_THREAD $(PROFILE) $(DEBUG)
 CXXLIBS=#-llog4cplus
 TEST_ARGS=--report_format=xml --report_level=detailed
 
