@@ -142,7 +142,7 @@ public class CppSemiNaiveBackend implements Backend{
             } else {
                 varName = labelRel("relations[" + lbl.label + "]", lbl);
             }
-            if(lbl.label == dl) docc--;
+            if(lbl.label == dl) this.docc--;
         }
         @Override
         public void visitRev(Rule.Rev r) {
@@ -151,6 +151,7 @@ public class CppSemiNaiveBackend implements Backend{
             this.negated = sub.negated;
             this.reversed = !sub.reversed;
             this.curTemps = sub.curTemps;
+            this.docc = sub.docc;
         }
         @Override
         public void visitNeg(Rule.Neg n) {
@@ -159,10 +160,21 @@ public class CppSemiNaiveBackend implements Backend{
             this.negated = !sub.negated;
             this.reversed = sub.reversed;
             this.curTemps = sub.curTemps;
+            this.docc = sub.docc;
         }
         @Override
         public void visitAnd(Rule.And a) {
-            throw new RuntimeException("Unhandled");
+            GeneratedClause lft = subClause(a.left);
+            this.curTemps = lft.curTemps;
+            this.docc = lft.docc;
+            GeneratedClause rgh = subClause(a.right);
+            if(lft.negated || rgh.negated) throw new RuntimeException("Unhandled");
+            GeneratedClause tmp = new GeneratedClause(rgh.curTemps); // used to stub myself
+            this.varName = tmp.varName;
+            this.curTemps = tmp.curTemps;
+            this.docc = rgh.docc;
+            out.println("adt_t " + this.varName + ";");
+            out.println(lft.varName + ".intersect<" + lft.reversed + ", " + rgh.reversed + ">(" + rgh.varName + ", " + this.varName + ");");
         }
     }
 

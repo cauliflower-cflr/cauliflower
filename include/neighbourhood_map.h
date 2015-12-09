@@ -129,6 +129,74 @@ template<typename M, typename S> struct compose_h<M, S, true, true>{
         }
     }
 };
+
+/// Helper template to perform intersection when transpose-configuration is known statically
+template<typename, typename, bool, bool> struct intersect_h;
+template<typename M, typename S> struct intersect_h<M, S, false, false>{
+    static inline void intersect(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto oe = other.forwards.end();
+        into.initialise_import();
+        for(auto i = me.begin(); i!=me.end(); ++i){
+            auto oi = other.forwards.find(i->first);
+            if(oi != oe){
+                auto ois = oi->second.find(i->second);
+                if(ois != oi->second.end()){
+                    into.import(i->first, i->second);
+                }
+            }
+        }
+        into.finalise_import();
+    }
+};
+template<typename M, typename S> struct intersect_h<M, S, false, true>{
+    static inline void intersect(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto oe = other.backwards.end();
+        into.initialise_import();
+        for(auto i = me.begin(); i!=me.end(); ++i){
+            auto oi = other.backwards.find(i->first);
+            if(oi != oe){
+                auto ois = oi->second.find(i->second);
+                if(ois != oi->second.end()){
+                    into.import(i->first, i->second);
+                }
+            }
+        }
+        into.finalise_import();
+    }
+};
+template<typename M, typename S> struct intersect_h<M, S, true, false>{
+    static inline void intersect(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto oe = other.forwards.end();
+        into.initialise_import();
+        for(auto i = me.begin(); i!=me.end(); ++i){
+            auto oi = other.forwards.find(i->second);
+            if(oi != oe){
+                auto ois = oi->second.find(i->first);
+                if(ois != oi->second.end()){
+                    into.import(i->second, i->first);
+                }
+            }
+        }
+        into.finalise_import();
+    }
+};
+template<typename M, typename S> struct intersect_h<M, S, true, true>{
+    static inline void intersect(const neighbourhood_map<M, S>& me, const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into){
+        auto oe = other.backwards.end();
+        into.initialise_import();
+        for(auto i = me.begin(); i!=me.end(); ++i){
+            auto oi = other.backwards.find(i->second);
+            if(oi != oe){
+                auto ois = oi->second.find(i->first);
+                if(ois != oi->second.end()){
+                    into.import(i->second, i->first);
+                }
+            }
+        }
+        into.finalise_import();
+    }
+};
+
 } // end namespace template_internals
 
 template<typename M, typename S>
@@ -186,27 +254,15 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         union_copy(other);
     }
 
+    template<bool TMe, bool TOther> void intersect(const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into) const{
+        template_internals::intersect_h<M, S, TMe, TOther>::intersect(*this, other, into);
+    }
+
     template<bool TMe, bool TOther> void compose(const neighbourhood_map<M, S>& other, neighbourhood_map<M, S>& into) const{
         template_internals::compose_h<M, S, TMe, TOther>::compose(*this, other, into);
     }
 
     void difference(const neighbourhood_map<M, S>& other){
-        // auto end = forwards.end();
-        // for(const auto& oth : other.forwards){
-        //     auto ms = forwards.find(oth.first);
-        //     if(ms != end){
-        //         for(ident to : oth.second){
-        //             auto fnd = ms->second.find(to);
-        //             if(fnd != ms->second.end()){
-        //                 auto bck = backwards.find(to);
-        //                 ms->second.erase(fnd);
-        //                 bck->second.erase(oth.first);
-        //                 if(ms->second.empty()) forwards.erase(ms);
-        //                 if(bck->second.empty()) backwards.erase(bck);
-        //             }
-        //         }
-        //     }
-        // }
         for(typename M::iterator lit = forwards.begin(); lit != forwards.end(); ++lit){
             std::vector<typename M::key_type> rms;
             for(typename S::const_iterator rit = lit->second.begin(); rit != lit->second.end(); ++rit){

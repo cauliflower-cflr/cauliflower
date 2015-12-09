@@ -43,8 +43,18 @@ public class SimpleParser implements CFLRParser{
     private Rule.Clause readClause(String s, Registrar lblReg, Registrar fldReg){
         switch(s.charAt(0)){
             case '(' :{
-                //this will break for ((&)&(&))
-                return new Rule.And(readClause(s.substring(1, s.indexOf("&")), lblReg, fldReg), readClause(s.substring(s.indexOf("&") + 1, s.lastIndexOf(")")), lblReg, fldReg));
+                int depth = -1;
+                int loc = -1;
+                for(int i=0; i<s.length(); i++){
+                    char c = s.charAt(i);
+                    if(c == '&' && depth == 0){
+                        loc = i;
+                        break;
+                    }
+                    else if (c == '(') depth++;
+                    else if (c == ')') depth--;
+                }
+                return new Rule.And(readClause(s.substring(1, loc), lblReg, fldReg), readClause(s.substring(loc + 1, s.lastIndexOf(")")), lblReg, fldReg));
             }
             case '-' :{
                 return new Rule.Rev(readClause(s.substring(1), lblReg, fldReg));

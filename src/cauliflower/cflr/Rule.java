@@ -1,5 +1,6 @@
 package cauliflower.cflr;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -83,7 +84,7 @@ public class Rule {
         }
         @Override
         public List<Lbl> getDependantLabels() {
-            List<Lbl> ret = left.getDependantLabels();
+            List<Lbl> ret = new ArrayList<>(left.getDependantLabels());
             ret.addAll(right.getDependantLabels());
             return ret;
         }

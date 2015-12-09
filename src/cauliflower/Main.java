@@ -83,6 +83,21 @@ public class Main {
                 "c -> a[f], b[f];";
     }
 
+    public static String inter(){
+        return "a <- v . v;" +
+                "b <- v . v;" +
+                "c <- v . v;" +
+                "d <- v . v;" +
+                "e <- v . v;" +
+                "f <- v . v;" +
+                "g <- v . v;" +
+                "c -> (a & b);" +
+                "d -> (b & -a);" +
+                "e -> (-b & a);" +
+                "f -> (-a & -b);" +
+                "g -> (-(a & b) & (-a & -b))";
+    }
+
     public static void out(String gram, String name, String src) throws IOException {
         InputStream gs = new ByteArrayInputStream(gram.getBytes(StandardCharsets.UTF_8));
         CFLRParser.ParserOutputs po =  new SimpleParser().parse(gs);
@@ -100,12 +115,13 @@ public class Main {
 
     public static void main(String[] args) {
         try {
-            out(running(), "running", "include/running_OUT.h");
-            out(rev(), "rev", "include/rev_OUT.h");
+            //out(running(), "running", "include/running_OUT.h");
+            //out(rev(), "rev", "include/rev_OUT.h");
             //out(pointsTo(), "pt", "include/pt_OUT.h");
-            out(jpt(), "jpt", "include/jpt_OUT.h");
-            out(jptx(), "jptx", "include/jptx_OUT.h");
+            //out(jpt(), "jpt", "include/jpt_OUT.h");
+            //out(jptx(), "jptx", "include/jptx_OUT.h");
             //out(flds(), "fld", "include/fld_OUT.h");
+            out(inter(), "inter", "include/inter_OUT.h");
         } catch (Exception exc){
             exc.printStackTrace();
         }
