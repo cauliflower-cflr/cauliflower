@@ -1,0 +1,15 @@
+Alloc <- vert . heap;
+Assign <- vert . vert;
+Load[field] <- vert . vert;
+Store[field] <- vert . vert;
+Bridge <- vert . vert;
+VarPointsTo <- vert . heap;
+LVPT[field] <- vert . heap;
+SVPT[field] <- vert . heap;
+VarPointsTo -> Alloc;
+VarPointsTo -> -Assign, VarPointsTo;
+VarPointsTo -> Bridge, VarPointsTo;
+LVPT[f] -> -Load[f], VarPointsTo;
+SVPT[f] -> Store[f], VarPointsTo;
+Bridge -> LVPT[f], -SVPT[f];
+

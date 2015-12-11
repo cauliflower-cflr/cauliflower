@@ -20,21 +20,6 @@ import java.util.Map;
  */
 public class CppSemiNaiveBackend implements Backend{
 
-    public enum Adt {
-        Std("neighbourhood_map<std::map<ident, std::set<ident>>, std::set<ident>>", "neighbourhood_map.h", "<map>", "<set>"),
-        Btree("neighbourhood_map<btree::btree_map<ident, btree::btree_set<ident>>, btree::btree_set<ident>>", "neighbourhood_map.h", "\"btree_map.h\"", "\"btree_set.h\"");
-        // TODO Quadtree("concise_tree", "concise_tree.h");
-
-        private String typename;
-        private String importLoc;
-        private List<String> imports;
-        Adt(String typename, String importLoc, String... imports){
-            this.typename = typename;
-            this.importLoc = importLoc;
-            this.imports = Arrays.asList(imports);
-        }
-    }
-
     private final Adt adt;
     private final PrintStream out;
 
