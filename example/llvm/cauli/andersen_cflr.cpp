@@ -1,14 +1,24 @@
 
+#include <forward_list>
+
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
+
+#include "StratifiedSets.h"
 
 using namespace llvm;
 
 namespace {
-struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<CauliAA, void> {
+
+struct CauliAA : public ModulePass, public AliasAnalysis {
+
     static char ID;
     int num = 0;
     CauliAA() : ModulePass(ID) {}
@@ -17,6 +27,9 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
         errs() << "TOLD " << num << "\n";
     }
 
+    // 
+    // Analysis
+    //
     //
     // Module Pass
     //
@@ -26,12 +39,6 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
         errs() << "Hello: \n";
         unsigned count = 0;
         for(auto& func : m.functions()) {
-            (errs() << "  - ").write_escaped(func.getName()) << "\n";
-            for(auto& block : func.getBasicBlockList()) {
-                for(auto& inst : block.getInstList()) {
-                    this->visit(&inst);
-                }
-            }
             count++;
         }
         errs() << "==" << count << "==\n";
