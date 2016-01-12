@@ -1,44 +1,57 @@
 
-#include <forward_list>
+#include <chrono>
+#include <iostream>
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "StratifiedSets.h"
+#include "relation_buffer.h"
+#include "andersen.h"
 
 using namespace llvm;
+using namespace cflr;
 
 namespace {
 
-struct CauliAA : public ModulePass, public AliasAnalysis {
+template<typename A, typename B, unsigned AC, unsigned BC>
 
+struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<CauliAA, void> {
     static char ID;
+    unsigned num_allocs = 0;
     int num = 0;
-    CauliAA() : ModulePass(ID) {}
+
+        registrar_group<Value*,unsigned> regs;
+        relation_buffer<Value*,unsigned> buf_al;
+        relation_buffer<Value*,Value*> buf_as;
+        relation_buffer<Value*,Value*> buf_lo;
+        relation_buffer<Value*,Value*> buf_st;
+        relation_buffer<Value*,unsigned> buf_pt;
+        relation_buffer<Value*,Value*> buf_ai;
+
+    CauliAA() : ModulePass(ID), regs(), buf_al(regs.select<0,1>()), buf_as(regs.select<0,0>()), buf_lo(regs.select<0,0>()), buf_st(regs.select<0,0>()), buf_pt(regs.select<0,1>()), buf_ai(regs.select<0,0>()) {}
 
     ~CauliAA() {
         errs() << "TOLD " << num << "\n";
     }
 
-    // 
-    // Analysis
-    //
     //
     // Module Pass
     //
 
     bool runOnModule(Module& m) override {
         InitializeAliasAnalysis(this);
-        errs() << "Hello: \n";
+        // The group of string registrars
         unsigned count = 0;
         for(auto& func : m.functions()) {
+            (errs() << "  - ").write_escaped(func.getName()) << "\n";
+            for(auto& block : func.getBasicBlockList()) {
+                for(auto& inst : block.getInstList()) {
+                    this->visit(&inst);
+                }
+            }
             count++;
         }
         errs() << "==" << count << "==\n";
@@ -78,6 +91,7 @@ struct CauliAA : public ModulePass, public AliasAnalysis {
         errs() << "LOAD: " << inst << "\n";
     }
 };
+
 }
 
 char CauliAA::ID = 0;

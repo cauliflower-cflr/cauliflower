@@ -76,7 +76,7 @@ static Optional<Value *> getTargetValue(Instruction *);
 static bool hasUsefulEdges(Instruction *);
 
 const StratifiedIndex StratifiedLink::SetSentinel =
-  std::numeric_limits<StratifiedIndex>::max();
+    std::numeric_limits<StratifiedIndex>::max();
 
 namespace {
 // StratifiedInfo Attribute things.
@@ -93,436 +93,448 @@ LLVM_CONSTEXPR StratifiedAttr AttrAll = ~AttrNone;
 
 // \brief StratifiedSets call for knowledge of "direction", so this is how we
 // represent that locally.
-enum class Level { Same, Above, Below };
+enum class Level {
+    Same, Above, Below
+};
 
 // \brief Edges can be one of four "weights" -- each weight must have an inverse
 // weight (Assign has Assign; Reference has Dereference).
 enum class EdgeType {
-  // The weight assigned when assigning from or to a value. For example, in:
-  // %b = getelementptr %a, 0
-  // ...The relationships are %b assign %a, and %a assign %b. This used to be
-  // two edges, but having a distinction bought us nothing.
-  Assign,
+    // The weight assigned when assigning from or to a value. For example, in:
+    // %b = getelementptr %a, 0
+    // ...The relationships are %b assign %a, and %a assign %b. This used to be
+    // two edges, but having a distinction bought us nothing.
+    Assign,
 
-  // The edge used when we have an edge going from some handle to a Value.
-  // Examples of this include:
-  // %b = load %a              (%b Dereference %a)
-  // %b = extractelement %a, 0 (%a Dereference %b)
-  Dereference,
+    // The edge used when we have an edge going from some handle to a Value.
+    // Examples of this include:
+    // %b = load %a              (%b Dereference %a)
+    // %b = extractelement %a, 0 (%a Dereference %b)
+    Dereference,
 
-  // The edge used when our edge goes from a value to a handle that may have
-  // contained it at some point. Examples:
-  // %b = load %a              (%a Reference %b)
-  // %b = extractelement %a, 0 (%b Reference %a)
-  Reference
+    // The edge used when our edge goes from a value to a handle that may have
+    // contained it at some point. Examples:
+    // %b = load %a              (%a Reference %b)
+    // %b = extractelement %a, 0 (%b Reference %a)
+    Reference
 };
 
 // \brief Encodes the notion of a "use"
 struct Edge {
-  // \brief Which value the edge is coming from
-  Value *From;
+    // \brief Which value the edge is coming from
+    Value *From;
 
-  // \brief Which value the edge is pointing to
-  Value *To;
+    // \brief Which value the edge is pointing to
+    Value *To;
 
-  // \brief Edge weight
-  EdgeType Weight;
+    // \brief Edge weight
+    EdgeType Weight;
 
-  // \brief Whether we aliased any external values along the way that may be
-  // invisible to the analysis (i.e. landingpad for exceptions, calls for
-  // interprocedural analysis, etc.)
-  StratifiedAttrs AdditionalAttrs;
+    // \brief Whether we aliased any external values along the way that may be
+    // invisible to the analysis (i.e. landingpad for exceptions, calls for
+    // interprocedural analysis, etc.)
+    StratifiedAttrs AdditionalAttrs;
 
-  Edge(Value *From, Value *To, EdgeType W, StratifiedAttrs A)
-      : From(From), To(To), Weight(W), AdditionalAttrs(A) {}
+    Edge(Value *From, Value *To, EdgeType W, StratifiedAttrs A)
+        : From(From), To(To), Weight(W), AdditionalAttrs(A) {}
 };
 
 // \brief Information we have about a function and would like to keep around
 struct FunctionInfo {
-  StratifiedSets<Value *> Sets;
-  // Lots of functions have < 4 returns. Adjust as necessary.
-  SmallVector<Value *, 4> ReturnedValues;
+    StratifiedSets<Value *> Sets;
+    // Lots of functions have < 4 returns. Adjust as necessary.
+    SmallVector<Value *, 4> ReturnedValues;
 
-  FunctionInfo(StratifiedSets<Value *> &&S,
-               SmallVector<Value *, 4> &&RV)
-    : Sets(std::move(S)), ReturnedValues(std::move(RV)) {}
+    FunctionInfo(StratifiedSets<Value *> &&S,
+                 SmallVector<Value *, 4> &&RV)
+        : Sets(std::move(S)), ReturnedValues(std::move(RV)) {}
 };
 
 struct CauliflowerAndersenAA;
 
 struct FunctionHandle : public CallbackVH {
-  FunctionHandle(Function *Fn, CauliflowerAndersenAA *CFLAA)
-      : CallbackVH(Fn), CFLAA(CFLAA) {
-    assert(Fn != nullptr);
-    assert(CFLAA != nullptr);
-  }
+    FunctionHandle(Function *Fn, CauliflowerAndersenAA *CFLAA)
+        : CallbackVH(Fn), CFLAA(CFLAA) {
+        assert(Fn != nullptr);
+        assert(CFLAA != nullptr);
+    }
 
-  virtual ~FunctionHandle() {}
+    virtual ~FunctionHandle() {}
 
-  void deleted() override { removeSelfFromCache(); }
-  void allUsesReplacedWith(Value *) override { removeSelfFromCache(); }
+    void deleted() override {
+        removeSelfFromCache();
+    }
+    void allUsesReplacedWith(Value *) override {
+        removeSelfFromCache();
+    }
 
 private:
-  CauliflowerAndersenAA *CFLAA;
+    CauliflowerAndersenAA *CFLAA;
 
-  void removeSelfFromCache();
+    void removeSelfFromCache();
 };
 
 struct CauliflowerAndersenAA : public ModulePass, public AliasAnalysis {
 private:
-  /// \brief Cached mapping of Functions to their StratifiedSets.
-  /// If a function's sets are currently being built, it is marked
-  /// in the cache as an Optional without a value. This way, if we
-  /// have any kind of recursion, it is discernable from a function
-  /// that simply has empty sets.
-  DenseMap<Function *, Optional<FunctionInfo>> Cache;
-  std::forward_list<FunctionHandle> Handles;
+    /// \brief Cached mapping of Functions to their StratifiedSets.
+    /// If a function's sets are currently being built, it is marked
+    /// in the cache as an Optional without a value. This way, if we
+    /// have any kind of recursion, it is discernable from a function
+    /// that simply has empty sets.
+    DenseMap<Function *, Optional<FunctionInfo>> Cache;
+    std::forward_list<FunctionHandle> Handles;
 
 public:
-  static char ID;
+    static char ID;
 
-  CauliflowerAndersenAA() : ModulePass(ID) {
-    //initializeCauliflowerAndersenAAPass(*PassRegistry::getPassRegistry());
-  }
-
-  virtual ~CauliflowerAndersenAA() {}
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AliasAnalysis::getAnalysisUsage(AU);
-  }
-
-  void *getAdjustedAnalysisPointer(const void *ID) override {
-    if (ID == &AliasAnalysis::ID)
-      return (AliasAnalysis *)this;
-    return this;
-  }
-
-  /// \brief Inserts the given Function into the cache.
-  void scan(Function *Fn);
-
-  void evict(Function *Fn) { Cache.erase(Fn); }
-
-  /// \brief Ensures that the given function is available in the cache.
-  /// Returns the appropriate entry from the cache.
-  const Optional<FunctionInfo> &ensureCached(Function *Fn) {
-    auto Iter = Cache.find(Fn);
-    if (Iter == Cache.end()) {
-      scan(Fn);
-      Iter = Cache.find(Fn);
-      assert(Iter != Cache.end());
-      assert(Iter->second.hasValue());
-    }
-    return Iter->second;
-  }
-
-  AliasResult query(const Location &LocA, const Location &LocB);
-
-  AliasResult alias(const Location &LocA, const Location &LocB) override {
-    if (LocA.Ptr == LocB.Ptr) {
-      if (LocA.Size == LocB.Size) {
-        return MustAlias;
-      } else {
-        return PartialAlias;
-      }
+    CauliflowerAndersenAA() : ModulePass(ID) {
+        //initializeCauliflowerAndersenAAPass(*PassRegistry::getPassRegistry());
     }
 
-    // Comparisons between global variables and other constants should be
-    // handled by BasicAA.
-    if (isa<Constant>(LocA.Ptr) && isa<Constant>(LocB.Ptr)) {
-      return MayAlias;
+    virtual ~CauliflowerAndersenAA() {}
+
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+        AliasAnalysis::getAnalysisUsage(AU);
     }
 
-    return query(LocA, LocB);
-  }
+    void *getAdjustedAnalysisPointer(const void *ID) override {
+        if (ID == &AliasAnalysis::ID)
+            return (AliasAnalysis *)this;
+        return this;
+    }
 
-  bool runOnModule(Module& m) override {
-      InitializeAliasAnalysis(this);
-      errs() << "HI THERE\n";
+    /// \brief Inserts the given Function into the cache.
+    void scan(Function *Fn);
+
+    void evict(Function *Fn) {
+        Cache.erase(Fn);
+    }
+
+    /// \brief Ensures that the given function is available in the cache.
+    /// Returns the appropriate entry from the cache.
+    const Optional<FunctionInfo> &ensureCached(Function *Fn) {
+        auto Iter = Cache.find(Fn);
+        if (Iter == Cache.end()) {
+            scan(Fn);
+            Iter = Cache.find(Fn);
+            assert(Iter != Cache.end());
+            assert(Iter->second.hasValue());
+        }
+        return Iter->second;
+    }
+
+    AliasResult query(const Location &LocA, const Location &LocB);
+
+    AliasResult alias(const Location &LocA, const Location &LocB) override {
+        if (LocA.Ptr == LocB.Ptr) {
+            if (LocA.Size == LocB.Size) {
+                return MustAlias;
+            } else {
+                return PartialAlias;
+            }
+        }
+
+        // Comparisons between global variables and other constants should be
+        // handled by BasicAA.
+        if (isa<Constant>(LocA.Ptr) && isa<Constant>(LocB.Ptr)) {
+            return MayAlias;
+        }
+
+        return query(LocA, LocB);
+    }
+
+    bool runOnModule(Module& m) override {
+        InitializeAliasAnalysis(this);
+        errs() << "HI THERE\n";
         for(auto& func : m.functions()) {
             ensureCached(&func);
             errs() << "EC " << func.getName() << "\n";
         }
-      return false;
-  }
+        return false;
+    }
 };
 
 void FunctionHandle::removeSelfFromCache() {
-  assert(CFLAA != nullptr);
-  auto *Val = getValPtr();
-  CFLAA->evict(cast<Function>(Val));
-  setValPtr(nullptr);
+    assert(CFLAA != nullptr);
+    auto *Val = getValPtr();
+    CFLAA->evict(cast<Function>(Val));
+    setValPtr(nullptr);
 }
 
 // \brief Gets the edges our graph should have, based on an Instruction*
 class GetEdgesVisitor : public InstVisitor<GetEdgesVisitor, void> {
-  CauliflowerAndersenAA &AA;
-  SmallVectorImpl<Edge> &Output;
+    CauliflowerAndersenAA &AA;
+    SmallVectorImpl<Edge> &Output;
 
 public:
-  GetEdgesVisitor(CauliflowerAndersenAA &AA, SmallVectorImpl<Edge> &Output)
-      : AA(AA), Output(Output) {}
+    GetEdgesVisitor(CauliflowerAndersenAA &AA, SmallVectorImpl<Edge> &Output)
+        : AA(AA), Output(Output) {}
 
-  void visitInstruction(Instruction &) {
-    llvm_unreachable("Unsupported instruction encountered");
-  }
-
-  void visitCastInst(CastInst &Inst) {
-    Output.push_back(Edge(&Inst, Inst.getOperand(0), EdgeType::Assign,
-                          AttrNone));
-  }
-
-  void visitBinaryOperator(BinaryOperator &Inst) {
-    auto *Op1 = Inst.getOperand(0);
-    auto *Op2 = Inst.getOperand(1);
-    Output.push_back(Edge(&Inst, Op1, EdgeType::Assign, AttrNone));
-    Output.push_back(Edge(&Inst, Op2, EdgeType::Assign, AttrNone));
-  }
-
-  void visitAtomicCmpXchgInst(AtomicCmpXchgInst &Inst) {
-    auto *Ptr = Inst.getPointerOperand();
-    auto *Val = Inst.getNewValOperand();
-    Output.push_back(Edge(Ptr, Val, EdgeType::Dereference, AttrNone));
-  }
-
-  void visitAtomicRMWInst(AtomicRMWInst &Inst) {
-    auto *Ptr = Inst.getPointerOperand();
-    auto *Val = Inst.getValOperand();
-    Output.push_back(Edge(Ptr, Val, EdgeType::Dereference, AttrNone));
-  }
-
-  void visitPHINode(PHINode &Inst) {
-    for (unsigned I = 0, E = Inst.getNumIncomingValues(); I != E; ++I) {
-      Value *Val = Inst.getIncomingValue(I);
-      Output.push_back(Edge(&Inst, Val, EdgeType::Assign, AttrNone));
-    }
-  }
-
-  void visitGetElementPtrInst(GetElementPtrInst &Inst) {
-    auto *Op = Inst.getPointerOperand();
-    Output.push_back(Edge(&Inst, Op, EdgeType::Assign, AttrNone));
-    for (auto I = Inst.idx_begin(), E = Inst.idx_end(); I != E; ++I)
-      Output.push_back(Edge(&Inst, *I, EdgeType::Assign, AttrNone));
-  }
-
-  void visitSelectInst(SelectInst &Inst) {
-    auto *Condition = Inst.getCondition();
-    Output.push_back(Edge(&Inst, Condition, EdgeType::Assign, AttrNone));
-    auto *TrueVal = Inst.getTrueValue();
-    Output.push_back(Edge(&Inst, TrueVal, EdgeType::Assign, AttrNone));
-    auto *FalseVal = Inst.getFalseValue();
-    Output.push_back(Edge(&Inst, FalseVal, EdgeType::Assign, AttrNone));
-  }
-
-  void visitAllocaInst(AllocaInst &) {}
-
-  void visitLoadInst(LoadInst &Inst) {
-    auto *Ptr = Inst.getPointerOperand();
-    auto *Val = &Inst;
-    Output.push_back(Edge(Val, Ptr, EdgeType::Reference, AttrNone));
-  }
-
-  void visitStoreInst(StoreInst &Inst) {
-    auto *Ptr = Inst.getPointerOperand();
-    auto *Val = Inst.getValueOperand();
-    Output.push_back(Edge(Ptr, Val, EdgeType::Dereference, AttrNone));
-  }
-
-  void visitVAArgInst(VAArgInst &Inst) {
-    // We can't fully model va_arg here. For *Ptr = Inst.getOperand(0), it does
-    // two things:
-    //  1. Loads a value from *((T*)*Ptr).
-    //  2. Increments (stores to) *Ptr by some target-specific amount.
-    // For now, we'll handle this like a landingpad instruction (by placing the
-    // result in its own group, and having that group alias externals).
-    auto *Val = &Inst;
-    Output.push_back(Edge(Val, Val, EdgeType::Assign, AttrAll));
-  }
-
-  static bool isFunctionExternal(Function *Fn) {
-    return Fn->isDeclaration() || !Fn->hasLocalLinkage();
-  }
-
-  // Gets whether the sets at Index1 above, below, or equal to the sets at
-  // Index2. Returns None if they are not in the same set chain.
-  static Optional<Level> getIndexRelation(const StratifiedSets<Value *> &Sets,
-                                          StratifiedIndex Index1,
-                                          StratifiedIndex Index2) {
-    if (Index1 == Index2)
-      return Level::Same;
-
-    const auto *Current = &Sets.getLink(Index1);
-    while (Current->hasBelow()) {
-      if (Current->Below == Index2)
-        return Level::Below;
-      Current = &Sets.getLink(Current->Below);
+    void visitInstruction(Instruction &) {
+        llvm_unreachable("Unsupported instruction encountered");
     }
 
-    Current = &Sets.getLink(Index1);
-    while (Current->hasAbove()) {
-      if (Current->Above == Index2)
-        return Level::Above;
-      Current = &Sets.getLink(Current->Above);
+    void visitCastInst(CastInst &Inst) {
+        Output.push_back(Edge(&Inst, Inst.getOperand(0), EdgeType::Assign,
+                              AttrNone));
     }
 
-    return NoneType();
-  }
-
-  bool
-  tryInterproceduralAnalysis(const SmallVectorImpl<Function *> &Fns,
-                             Value *FuncValue,
-                             const iterator_range<User::op_iterator> &Args) {
-    const unsigned ExpectedMaxArgs = 8;
-    const unsigned MaxSupportedArgs = 50;
-    assert(Fns.size() > 0);
-
-    // I put this here to give us an upper bound on time taken by IPA. Is it
-    // really (realistically) needed? Keep in mind that we do have an n^2 algo.
-    if (std::distance(Args.begin(), Args.end()) > (int) MaxSupportedArgs)
-      return false;
-
-    // Exit early if we'll fail anyway
-    for (auto *Fn : Fns) {
-      if (isFunctionExternal(Fn) || Fn->isVarArg())
-        return false;
-      auto &MaybeInfo = AA.ensureCached(Fn);
-      if (!MaybeInfo.hasValue())
-        return false;
+    void visitBinaryOperator(BinaryOperator &Inst) {
+        auto *Op1 = Inst.getOperand(0);
+        auto *Op2 = Inst.getOperand(1);
+        Output.push_back(Edge(&Inst, Op1, EdgeType::Assign, AttrNone));
+        Output.push_back(Edge(&Inst, Op2, EdgeType::Assign, AttrNone));
     }
 
-    SmallVector<Value *, ExpectedMaxArgs> Arguments(Args.begin(), Args.end());
-    SmallVector<StratifiedInfo, ExpectedMaxArgs> Parameters;
-    for (auto *Fn : Fns) {
-      auto &Info = *AA.ensureCached(Fn);
-      auto &Sets = Info.Sets;
-      auto &RetVals = Info.ReturnedValues;
+    void visitAtomicCmpXchgInst(AtomicCmpXchgInst &Inst) {
+        auto *Ptr = Inst.getPointerOperand();
+        auto *Val = Inst.getNewValOperand();
+        Output.push_back(Edge(Ptr, Val, EdgeType::Dereference, AttrNone));
+    }
 
-      Parameters.clear();
-      for (auto &Param : Fn->args()) {
-        auto MaybeInfo = Sets.find(&Param);
-        // Did a new parameter somehow get added to the function/slip by?
-        if (!MaybeInfo.hasValue())
-          return false;
-        Parameters.push_back(*MaybeInfo);
-      }
+    void visitAtomicRMWInst(AtomicRMWInst &Inst) {
+        auto *Ptr = Inst.getPointerOperand();
+        auto *Val = Inst.getValOperand();
+        Output.push_back(Edge(Ptr, Val, EdgeType::Dereference, AttrNone));
+    }
 
-      // Adding an edge from argument -> return value for each parameter that
-      // may alias the return value
-      for (unsigned I = 0, E = Parameters.size(); I != E; ++I) {
-        auto &ParamInfo = Parameters[I];
-        auto &ArgVal = Arguments[I];
-        bool AddEdge = false;
-        StratifiedAttrs Externals;
-        for (unsigned X = 0, XE = RetVals.size(); X != XE; ++X) {
-          auto MaybeInfo = Sets.find(RetVals[X]);
-          if (!MaybeInfo.hasValue())
+    void visitPHINode(PHINode &Inst) {
+        for (unsigned I = 0, E = Inst.getNumIncomingValues(); I != E; ++I) {
+            Value *Val = Inst.getIncomingValue(I);
+            Output.push_back(Edge(&Inst, Val, EdgeType::Assign, AttrNone));
+        }
+    }
+
+    void visitGetElementPtrInst(GetElementPtrInst &Inst) {
+        auto *Op = Inst.getPointerOperand();
+        Output.push_back(Edge(&Inst, Op, EdgeType::Assign, AttrNone));
+        for (auto I = Inst.idx_begin(), E = Inst.idx_end(); I != E; ++I)
+            Output.push_back(Edge(&Inst, *I, EdgeType::Assign, AttrNone));
+    }
+
+    void visitSelectInst(SelectInst &Inst) {
+        auto *Condition = Inst.getCondition();
+        Output.push_back(Edge(&Inst, Condition, EdgeType::Assign, AttrNone));
+        auto *TrueVal = Inst.getTrueValue();
+        Output.push_back(Edge(&Inst, TrueVal, EdgeType::Assign, AttrNone));
+        auto *FalseVal = Inst.getFalseValue();
+        Output.push_back(Edge(&Inst, FalseVal, EdgeType::Assign, AttrNone));
+    }
+
+    void visitAllocaInst(AllocaInst &) {}
+
+    void visitLoadInst(LoadInst &Inst) {
+        auto *Ptr = Inst.getPointerOperand();
+        auto *Val = &Inst;
+        Output.push_back(Edge(Val, Ptr, EdgeType::Reference, AttrNone));
+    }
+
+    void visitStoreInst(StoreInst &Inst) {
+        auto *Ptr = Inst.getPointerOperand();
+        auto *Val = Inst.getValueOperand();
+        Output.push_back(Edge(Ptr, Val, EdgeType::Dereference, AttrNone));
+    }
+
+    void visitVAArgInst(VAArgInst &Inst) {
+        // We can't fully model va_arg here. For *Ptr = Inst.getOperand(0), it does
+        // two things:
+        //  1. Loads a value from *((T*)*Ptr).
+        //  2. Increments (stores to) *Ptr by some target-specific amount.
+        // For now, we'll handle this like a landingpad instruction (by placing the
+        // result in its own group, and having that group alias externals).
+        auto *Val = &Inst;
+        Output.push_back(Edge(Val, Val, EdgeType::Assign, AttrAll));
+    }
+
+    static bool isFunctionExternal(Function *Fn) {
+        return Fn->isDeclaration() || !Fn->hasLocalLinkage();
+    }
+
+    // Gets whether the sets at Index1 above, below, or equal to the sets at
+    // Index2. Returns None if they are not in the same set chain.
+    static Optional<Level> getIndexRelation(const StratifiedSets<Value *> &Sets,
+                                            StratifiedIndex Index1,
+                                            StratifiedIndex Index2) {
+        if (Index1 == Index2)
+            return Level::Same;
+
+        const auto *Current = &Sets.getLink(Index1);
+        while (Current->hasBelow()) {
+            if (Current->Below == Index2)
+                return Level::Below;
+            Current = &Sets.getLink(Current->Below);
+        }
+
+        Current = &Sets.getLink(Index1);
+        while (Current->hasAbove()) {
+            if (Current->Above == Index2)
+                return Level::Above;
+            Current = &Sets.getLink(Current->Above);
+        }
+
+        return NoneType();
+    }
+
+    bool
+    tryInterproceduralAnalysis(const SmallVectorImpl<Function *> &Fns,
+                               Value *FuncValue,
+                               const iterator_range<User::op_iterator> &Args) {
+        const unsigned ExpectedMaxArgs = 8;
+        const unsigned MaxSupportedArgs = 50;
+        assert(Fns.size() > 0);
+
+        // I put this here to give us an upper bound on time taken by IPA. Is it
+        // really (realistically) needed? Keep in mind that we do have an n^2 algo.
+        if (std::distance(Args.begin(), Args.end()) > (int) MaxSupportedArgs)
             return false;
 
-          auto &RetInfo = *MaybeInfo;
-          auto RetAttrs = Sets.getLink(RetInfo.Index).Attrs;
-          auto ParamAttrs = Sets.getLink(ParamInfo.Index).Attrs;
-          auto MaybeRelation =
-              getIndexRelation(Sets, ParamInfo.Index, RetInfo.Index);
-          if (MaybeRelation.hasValue()) {
-            AddEdge = true;
-            Externals |= RetAttrs | ParamAttrs;
-          }
+        // Exit early if we'll fail anyway
+        for (auto *Fn : Fns) {
+            if (isFunctionExternal(Fn) || Fn->isVarArg())
+                return false;
+            auto &MaybeInfo = AA.ensureCached(Fn);
+            if (!MaybeInfo.hasValue())
+                return false;
         }
-        if (AddEdge)
-          Output.push_back(Edge(FuncValue, ArgVal, EdgeType::Assign,
-                            StratifiedAttrs().flip()));
-      }
 
-      if (Parameters.size() != Arguments.size())
-        return false;
+        SmallVector<Value *, ExpectedMaxArgs> Arguments(Args.begin(), Args.end());
+        SmallVector<StratifiedInfo, ExpectedMaxArgs> Parameters;
+        for (auto *Fn : Fns) {
+            auto &Info = *AA.ensureCached(Fn);
+            auto &Sets = Info.Sets;
+            auto &RetVals = Info.ReturnedValues;
 
-      // Adding edges between arguments for arguments that may end up aliasing
-      // each other. This is necessary for functions such as
-      // void foo(int** a, int** b) { *a = *b; }
-      // (Technically, the proper sets for this would be those below
-      // Arguments[I] and Arguments[X], but our algorithm will produce
-      // extremely similar, and equally correct, results either way)
-      for (unsigned I = 0, E = Arguments.size(); I != E; ++I) {
-        auto &MainVal = Arguments[I];
-        auto &MainInfo = Parameters[I];
-        auto &MainAttrs = Sets.getLink(MainInfo.Index).Attrs;
-        for (unsigned X = I + 1; X != E; ++X) {
-          auto &SubInfo = Parameters[X];
-          auto &SubVal = Arguments[X];
-          auto &SubAttrs = Sets.getLink(SubInfo.Index).Attrs;
-          auto MaybeRelation =
-              getIndexRelation(Sets, MainInfo.Index, SubInfo.Index);
+            Parameters.clear();
+            for (auto &Param : Fn->args()) {
+                auto MaybeInfo = Sets.find(&Param);
+                // Did a new parameter somehow get added to the function/slip by?
+                if (!MaybeInfo.hasValue())
+                    return false;
+                Parameters.push_back(*MaybeInfo);
+            }
 
-          if (!MaybeRelation.hasValue())
-            continue;
+            // Adding an edge from argument -> return value for each parameter that
+            // may alias the return value
+            for (unsigned I = 0, E = Parameters.size(); I != E; ++I) {
+                auto &ParamInfo = Parameters[I];
+                auto &ArgVal = Arguments[I];
+                bool AddEdge = false;
+                StratifiedAttrs Externals;
+                for (unsigned X = 0, XE = RetVals.size(); X != XE; ++X) {
+                    auto MaybeInfo = Sets.find(RetVals[X]);
+                    if (!MaybeInfo.hasValue())
+                        return false;
 
-          auto NewAttrs = SubAttrs | MainAttrs;
-          Output.push_back(Edge(MainVal, SubVal, EdgeType::Assign, NewAttrs));
+                    auto &RetInfo = *MaybeInfo;
+                    auto RetAttrs = Sets.getLink(RetInfo.Index).Attrs;
+                    auto ParamAttrs = Sets.getLink(ParamInfo.Index).Attrs;
+                    auto MaybeRelation =
+                        getIndexRelation(Sets, ParamInfo.Index, RetInfo.Index);
+                    if (MaybeRelation.hasValue()) {
+                        AddEdge = true;
+                        Externals |= RetAttrs | ParamAttrs;
+                    }
+                }
+                if (AddEdge)
+                    Output.push_back(Edge(FuncValue, ArgVal, EdgeType::Assign,
+                                          StratifiedAttrs().flip()));
+            }
+
+            if (Parameters.size() != Arguments.size())
+                return false;
+
+            // Adding edges between arguments for arguments that may end up aliasing
+            // each other. This is necessary for functions such as
+            // void foo(int** a, int** b) { *a = *b; }
+            // (Technically, the proper sets for this would be those below
+            // Arguments[I] and Arguments[X], but our algorithm will produce
+            // extremely similar, and equally correct, results either way)
+            for (unsigned I = 0, E = Arguments.size(); I != E; ++I) {
+                auto &MainVal = Arguments[I];
+                auto &MainInfo = Parameters[I];
+                auto &MainAttrs = Sets.getLink(MainInfo.Index).Attrs;
+                for (unsigned X = I + 1; X != E; ++X) {
+                    auto &SubInfo = Parameters[X];
+                    auto &SubVal = Arguments[X];
+                    auto &SubAttrs = Sets.getLink(SubInfo.Index).Attrs;
+                    auto MaybeRelation =
+                        getIndexRelation(Sets, MainInfo.Index, SubInfo.Index);
+
+                    if (!MaybeRelation.hasValue())
+                        continue;
+
+                    auto NewAttrs = SubAttrs | MainAttrs;
+                    Output.push_back(Edge(MainVal, SubVal, EdgeType::Assign, NewAttrs));
+                }
+            }
         }
-      }
-    }
-    return true;
-  }
-
-  template <typename InstT> void visitCallLikeInst(InstT &Inst) {
-    SmallVector<Function *, 4> Targets;
-    if (getPossibleTargets(&Inst, Targets)) {
-      if (tryInterproceduralAnalysis(Targets, &Inst, Inst.arg_operands()))
-        return;
-      // Cleanup from interprocedural analysis
-      Output.clear();
+        return true;
     }
 
-    for (Value *V : Inst.arg_operands())
-      Output.push_back(Edge(&Inst, V, EdgeType::Assign, AttrAll));
-  }
+    template <typename InstT> void visitCallLikeInst(InstT &Inst) {
+        SmallVector<Function *, 4> Targets;
+        if (getPossibleTargets(&Inst, Targets)) {
+            if (tryInterproceduralAnalysis(Targets, &Inst, Inst.arg_operands()))
+                return;
+            // Cleanup from interprocedural analysis
+            Output.clear();
+        }
 
-  void visitCallInst(CallInst &Inst) { visitCallLikeInst(Inst); }
+        for (Value *V : Inst.arg_operands())
+            Output.push_back(Edge(&Inst, V, EdgeType::Assign, AttrAll));
+    }
 
-  void visitInvokeInst(InvokeInst &Inst) { visitCallLikeInst(Inst); }
+    void visitCallInst(CallInst &Inst) {
+        visitCallLikeInst(Inst);
+    }
 
-  // Because vectors/aggregates are immutable and unaddressable,
-  // there's nothing we can do to coax a value out of them, other
-  // than calling Extract{Element,Value}. We can effectively treat
-  // them as pointers to arbitrary memory locations we can store in
-  // and load from.
-  void visitExtractElementInst(ExtractElementInst &Inst) {
-    auto *Ptr = Inst.getVectorOperand();
-    auto *Val = &Inst;
-    Output.push_back(Edge(Val, Ptr, EdgeType::Reference, AttrNone));
-  }
+    void visitInvokeInst(InvokeInst &Inst) {
+        visitCallLikeInst(Inst);
+    }
 
-  void visitInsertElementInst(InsertElementInst &Inst) {
-    auto *Vec = Inst.getOperand(0);
-    auto *Val = Inst.getOperand(1);
-    Output.push_back(Edge(&Inst, Vec, EdgeType::Assign, AttrNone));
-    Output.push_back(Edge(&Inst, Val, EdgeType::Dereference, AttrNone));
-  }
+    // Because vectors/aggregates are immutable and unaddressable,
+    // there's nothing we can do to coax a value out of them, other
+    // than calling Extract{Element,Value}. We can effectively treat
+    // them as pointers to arbitrary memory locations we can store in
+    // and load from.
+    void visitExtractElementInst(ExtractElementInst &Inst) {
+        auto *Ptr = Inst.getVectorOperand();
+        auto *Val = &Inst;
+        Output.push_back(Edge(Val, Ptr, EdgeType::Reference, AttrNone));
+    }
 
-  void visitLandingPadInst(LandingPadInst &Inst) {
-    // Exceptions come from "nowhere", from our analysis' perspective.
-    // So we place the instruction its own group, noting that said group may
-    // alias externals
-    Output.push_back(Edge(&Inst, &Inst, EdgeType::Assign, AttrAll));
-  }
+    void visitInsertElementInst(InsertElementInst &Inst) {
+        auto *Vec = Inst.getOperand(0);
+        auto *Val = Inst.getOperand(1);
+        Output.push_back(Edge(&Inst, Vec, EdgeType::Assign, AttrNone));
+        Output.push_back(Edge(&Inst, Val, EdgeType::Dereference, AttrNone));
+    }
 
-  void visitInsertValueInst(InsertValueInst &Inst) {
-    auto *Agg = Inst.getOperand(0);
-    auto *Val = Inst.getOperand(1);
-    Output.push_back(Edge(&Inst, Agg, EdgeType::Assign, AttrNone));
-    Output.push_back(Edge(&Inst, Val, EdgeType::Dereference, AttrNone));
-  }
+    void visitLandingPadInst(LandingPadInst &Inst) {
+        // Exceptions come from "nowhere", from our analysis' perspective.
+        // So we place the instruction its own group, noting that said group may
+        // alias externals
+        Output.push_back(Edge(&Inst, &Inst, EdgeType::Assign, AttrAll));
+    }
 
-  void visitExtractValueInst(ExtractValueInst &Inst) {
-    auto *Ptr = Inst.getAggregateOperand();
-    Output.push_back(Edge(&Inst, Ptr, EdgeType::Reference, AttrNone));
-  }
+    void visitInsertValueInst(InsertValueInst &Inst) {
+        auto *Agg = Inst.getOperand(0);
+        auto *Val = Inst.getOperand(1);
+        Output.push_back(Edge(&Inst, Agg, EdgeType::Assign, AttrNone));
+        Output.push_back(Edge(&Inst, Val, EdgeType::Dereference, AttrNone));
+    }
 
-  void visitShuffleVectorInst(ShuffleVectorInst &Inst) {
-    auto *From1 = Inst.getOperand(0);
-    auto *From2 = Inst.getOperand(1);
-    Output.push_back(Edge(&Inst, From1, EdgeType::Assign, AttrNone));
-    Output.push_back(Edge(&Inst, From2, EdgeType::Assign, AttrNone));
-  }
+    void visitExtractValueInst(ExtractValueInst &Inst) {
+        auto *Ptr = Inst.getAggregateOperand();
+        Output.push_back(Edge(&Inst, Ptr, EdgeType::Reference, AttrNone));
+    }
+
+    void visitShuffleVectorInst(ShuffleVectorInst &Inst) {
+        auto *From1 = Inst.getOperand(0);
+        auto *From2 = Inst.getOperand(1);
+        Output.push_back(Edge(&Inst, From1, EdgeType::Assign, AttrNone));
+        Output.push_back(Edge(&Inst, From2, EdgeType::Assign, AttrNone));
+    }
 };
 
 // For a given instruction, we need to know which Value* to get the
@@ -536,163 +548,183 @@ public:
 // something to GetEdgesVisitor, add it here -- remove something from
 // GetEdgesVisitor, remove it here.
 class GetTargetValueVisitor
-    : public InstVisitor<GetTargetValueVisitor, Value *> {
+        : public InstVisitor<GetTargetValueVisitor, Value *> {
 public:
-  Value *visitInstruction(Instruction &Inst) { return &Inst; }
+    Value *visitInstruction(Instruction &Inst) {
+        return &Inst;
+    }
 
-  Value *visitStoreInst(StoreInst &Inst) { return Inst.getPointerOperand(); }
+    Value *visitStoreInst(StoreInst &Inst) {
+        return Inst.getPointerOperand();
+    }
 
-  Value *visitAtomicCmpXchgInst(AtomicCmpXchgInst &Inst) {
-    return Inst.getPointerOperand();
-  }
+    Value *visitAtomicCmpXchgInst(AtomicCmpXchgInst &Inst) {
+        return Inst.getPointerOperand();
+    }
 
-  Value *visitAtomicRMWInst(AtomicRMWInst &Inst) {
-    return Inst.getPointerOperand();
-  }
+    Value *visitAtomicRMWInst(AtomicRMWInst &Inst) {
+        return Inst.getPointerOperand();
+    }
 
-  Value *visitInsertElementInst(InsertElementInst &Inst) {
-    return Inst.getOperand(0);
-  }
+    Value *visitInsertElementInst(InsertElementInst &Inst) {
+        return Inst.getOperand(0);
+    }
 
-  Value *visitInsertValueInst(InsertValueInst &Inst) {
-    return Inst.getAggregateOperand();
-  }
+    Value *visitInsertValueInst(InsertValueInst &Inst) {
+        return Inst.getAggregateOperand();
+    }
 };
 
 // Set building requires a weighted bidirectional graph.
 template <typename EdgeTypeT> class WeightedBidirectionalGraph {
 public:
-  typedef std::size_t Node;
+    typedef std::size_t Node;
 
 private:
-  const static Node StartNode = Node(0);
+    const static Node StartNode = Node(0);
 
-  struct Edge {
-    EdgeTypeT Weight;
-    Node Other;
+    struct Edge {
+        EdgeTypeT Weight;
+        Node Other;
 
-    Edge(const EdgeTypeT &W, const Node &N)
-      : Weight(W), Other(N) {}
+        Edge(const EdgeTypeT &W, const Node &N)
+            : Weight(W), Other(N) {}
 
-    bool operator==(const Edge &E) const {
-      return Weight == E.Weight && Other == E.Other;
+        bool operator==(const Edge &E) const {
+            return Weight == E.Weight && Other == E.Other;
+        }
+
+        bool operator!=(const Edge &E) const {
+            return !operator==(E);
+        }
+    };
+
+    struct NodeImpl {
+        std::vector<Edge> Edges;
+    };
+
+    std::vector<NodeImpl> NodeImpls;
+
+    bool inbounds(Node NodeIndex) const {
+        return NodeIndex < NodeImpls.size();
     }
 
-    bool operator!=(const Edge &E) const { return !operator==(E); }
-  };
-
-  struct NodeImpl {
-    std::vector<Edge> Edges;
-  };
-
-  std::vector<NodeImpl> NodeImpls;
-
-  bool inbounds(Node NodeIndex) const { return NodeIndex < NodeImpls.size(); }
-
-  const NodeImpl &getNode(Node N) const { return NodeImpls[N]; }
-  NodeImpl &getNode(Node N) { return NodeImpls[N]; }
+    const NodeImpl &getNode(Node N) const {
+        return NodeImpls[N];
+    }
+    NodeImpl &getNode(Node N) {
+        return NodeImpls[N];
+    }
 
 public:
-  // ----- Various Edge iterators for the graph ----- //
+    // ----- Various Edge iterators for the graph ----- //
 
-  // \brief Iterator for edges. Because this graph is bidirected, we don't
-  // allow modificaiton of the edges using this iterator. Additionally, the
-  // iterator becomes invalid if you add edges to or from the node you're
-  // getting the edges of.
-  struct EdgeIterator : public std::iterator<std::forward_iterator_tag,
-                                             std::tuple<EdgeTypeT, Node *>> {
-    EdgeIterator(const typename std::vector<Edge>::const_iterator &Iter)
-        : Current(Iter) {}
+    // \brief Iterator for edges. Because this graph is bidirected, we don't
+    // allow modificaiton of the edges using this iterator. Additionally, the
+    // iterator becomes invalid if you add edges to or from the node you're
+    // getting the edges of.
+    struct EdgeIterator : public std::iterator<std::forward_iterator_tag,
+            std::tuple<EdgeTypeT, Node *>> {
+        EdgeIterator(const typename std::vector<Edge>::const_iterator &Iter)
+            : Current(Iter) {}
 
-    EdgeIterator(NodeImpl &Impl) : Current(Impl.begin()) {}
+        EdgeIterator(NodeImpl &Impl) : Current(Impl.begin()) {}
 
-    EdgeIterator &operator++() {
-      ++Current;
-      return *this;
+        EdgeIterator &operator++() {
+            ++Current;
+            return *this;
+        }
+
+        EdgeIterator operator++(int) {
+            EdgeIterator Copy(Current);
+            operator++();
+            return Copy;
+        }
+
+        std::tuple<EdgeTypeT, Node> &operator*() {
+            Store = std::make_tuple(Current->Weight, Current->Other);
+            return Store;
+        }
+
+        bool operator==(const EdgeIterator &Other) const {
+            return Current == Other.Current;
+        }
+
+        bool operator!=(const EdgeIterator &Other) const {
+            return !operator==(Other);
+        }
+
+    private:
+        typename std::vector<Edge>::const_iterator Current;
+        std::tuple<EdgeTypeT, Node> Store;
+    };
+
+    // Wrapper for EdgeIterator with begin()/end() calls.
+    struct EdgeIterable {
+        EdgeIterable(const std::vector<Edge> &Edges)
+            : BeginIter(Edges.begin()), EndIter(Edges.end()) {}
+
+        EdgeIterator begin() {
+            return EdgeIterator(BeginIter);
+        }
+
+        EdgeIterator end() {
+            return EdgeIterator(EndIter);
+        }
+
+    private:
+        typename std::vector<Edge>::const_iterator BeginIter;
+        typename std::vector<Edge>::const_iterator EndIter;
+    };
+
+    // ----- Actual graph-related things ----- //
+
+    WeightedBidirectionalGraph() {}
+
+    WeightedBidirectionalGraph(WeightedBidirectionalGraph<EdgeTypeT> &&Other)
+        : NodeImpls(std::move(Other.NodeImpls)) {}
+
+    WeightedBidirectionalGraph<EdgeTypeT> &
+    operator=(WeightedBidirectionalGraph<EdgeTypeT> &&Other) {
+        NodeImpls = std::move(Other.NodeImpls);
+        return *this;
     }
 
-    EdgeIterator operator++(int) {
-      EdgeIterator Copy(Current);
-      operator++();
-      return Copy;
+    Node addNode() {
+        auto Index = NodeImpls.size();
+        auto NewNode = Node(Index);
+        NodeImpls.push_back(NodeImpl());
+        return NewNode;
     }
 
-    std::tuple<EdgeTypeT, Node> &operator*() {
-      Store = std::make_tuple(Current->Weight, Current->Other);
-      return Store;
+    void addEdge(Node From, Node To, const EdgeTypeT &Weight,
+                 const EdgeTypeT &ReverseWeight) {
+        assert(inbounds(From));
+        assert(inbounds(To));
+        auto &FromNode = getNode(From);
+        auto &ToNode = getNode(To);
+        FromNode.Edges.push_back(Edge(Weight, To));
+        ToNode.Edges.push_back(Edge(ReverseWeight, From));
     }
 
-    bool operator==(const EdgeIterator &Other) const {
-      return Current == Other.Current;
+    EdgeIterable edgesFor(const Node &N) const {
+        const auto &Node = getNode(N);
+        return EdgeIterable(Node.Edges);
     }
 
-    bool operator!=(const EdgeIterator &Other) const {
-      return !operator==(Other);
+    bool empty() const {
+        return NodeImpls.empty();
+    }
+    std::size_t size() const {
+        return NodeImpls.size();
     }
 
-  private:
-    typename std::vector<Edge>::const_iterator Current;
-    std::tuple<EdgeTypeT, Node> Store;
-  };
-
-  // Wrapper for EdgeIterator with begin()/end() calls.
-  struct EdgeIterable {
-    EdgeIterable(const std::vector<Edge> &Edges)
-        : BeginIter(Edges.begin()), EndIter(Edges.end()) {}
-
-    EdgeIterator begin() { return EdgeIterator(BeginIter); }
-
-    EdgeIterator end() { return EdgeIterator(EndIter); }
-
-  private:
-    typename std::vector<Edge>::const_iterator BeginIter;
-    typename std::vector<Edge>::const_iterator EndIter;
-  };
-
-  // ----- Actual graph-related things ----- //
-
-  WeightedBidirectionalGraph() {}
-
-  WeightedBidirectionalGraph(WeightedBidirectionalGraph<EdgeTypeT> &&Other)
-      : NodeImpls(std::move(Other.NodeImpls)) {}
-
-  WeightedBidirectionalGraph<EdgeTypeT> &
-  operator=(WeightedBidirectionalGraph<EdgeTypeT> &&Other) {
-    NodeImpls = std::move(Other.NodeImpls);
-    return *this;
-  }
-
-  Node addNode() {
-    auto Index = NodeImpls.size();
-    auto NewNode = Node(Index);
-    NodeImpls.push_back(NodeImpl());
-    return NewNode;
-  }
-
-  void addEdge(Node From, Node To, const EdgeTypeT &Weight,
-               const EdgeTypeT &ReverseWeight) {
-    assert(inbounds(From));
-    assert(inbounds(To));
-    auto &FromNode = getNode(From);
-    auto &ToNode = getNode(To);
-    FromNode.Edges.push_back(Edge(Weight, To));
-    ToNode.Edges.push_back(Edge(ReverseWeight, From));
-  }
-
-  EdgeIterable edgesFor(const Node &N) const {
-    const auto &Node = getNode(N);
-    return EdgeIterable(Node.Edges);
-  }
-
-  bool empty() const { return NodeImpls.empty(); }
-  std::size_t size() const { return NodeImpls.size(); }
-
-  // \brief Gets an arbitrary node in the graph as a starting point for
-  // traversal.
-  Node getEntryNode() {
-    assert(inbounds(StartNode));
-    return StartNode;
-  }
+    // \brief Gets an arbitrary node in the graph as a starting point for
+    // traversal.
+    Node getEntryNode() {
+        assert(inbounds(StartNode));
+        return StartNode;
+    }
 };
 
 typedef WeightedBidirectionalGraph<std::pair<EdgeType, StratifiedAttrs>> GraphT;
@@ -706,7 +738,7 @@ static RegisterPass<CauliflowerAndersenAA> X("dyck-aa", "Cauliflower's CFL-R ver
 static RegisterAnalysisGroup<AliasAnalysis> Y(X);
 
 ModulePass* createCauliflowerAndersenAAPass() {
-  return new CauliflowerAndersenAA();
+    return new CauliflowerAndersenAA();
 }
 
 //===----------------------------------------------------------------------===//
@@ -739,96 +771,96 @@ static void buildGraphFrom(CauliflowerAndersenAA &, Function *,
 static FunctionInfo buildSetsFrom(CauliflowerAndersenAA &, Function *);
 
 static Optional<Function *> parentFunctionOfValue(Value *Val) {
-  if (auto *Inst = dyn_cast<Instruction>(Val)) {
-    auto *Bb = Inst->getParent();
-    return Bb->getParent();
-  }
+    if (auto *Inst = dyn_cast<Instruction>(Val)) {
+        auto *Bb = Inst->getParent();
+        return Bb->getParent();
+    }
 
-  if (auto *Arg = dyn_cast<Argument>(Val))
-    return Arg->getParent();
-  return NoneType();
+    if (auto *Arg = dyn_cast<Argument>(Val))
+        return Arg->getParent();
+    return NoneType();
 }
 
 template <typename Inst>
 static bool getPossibleTargets(Inst *Call,
                                SmallVectorImpl<Function *> &Output) {
-  if (auto *Fn = Call->getCalledFunction()) {
-    Output.push_back(Fn);
-    return true;
-  }
+    if (auto *Fn = Call->getCalledFunction()) {
+        Output.push_back(Fn);
+        return true;
+    }
 
-  // TODO: If the call is indirect, we might be able to enumerate all potential
-  // targets of the call and return them, rather than just failing.
-  return false;
+    // TODO: If the call is indirect, we might be able to enumerate all potential
+    // targets of the call and return them, rather than just failing.
+    return false;
 }
 
 static Optional<Value *> getTargetValue(Instruction *Inst) {
-  GetTargetValueVisitor V;
-  return V.visit(Inst);
+    GetTargetValueVisitor V;
+    return V.visit(Inst);
 }
 
 static bool hasUsefulEdges(Instruction *Inst) {
-  bool IsNonInvokeTerminator =
-      isa<TerminatorInst>(Inst) && !isa<InvokeInst>(Inst);
-  return !isa<CmpInst>(Inst) && !isa<FenceInst>(Inst) && !IsNonInvokeTerminator;
+    bool IsNonInvokeTerminator =
+        isa<TerminatorInst>(Inst) && !isa<InvokeInst>(Inst);
+    return !isa<CmpInst>(Inst) && !isa<FenceInst>(Inst) && !IsNonInvokeTerminator;
 }
 
 static Optional<StratifiedAttr> valueToAttrIndex(Value *Val) {
-  if (isa<GlobalValue>(Val))
-    return AttrGlobalIndex;
+    if (isa<GlobalValue>(Val))
+        return AttrGlobalIndex;
 
-  if (auto *Arg = dyn_cast<Argument>(Val))
-    if (!Arg->hasNoAliasAttr())
-      return argNumberToAttrIndex(Arg->getArgNo());
-  return NoneType();
+    if (auto *Arg = dyn_cast<Argument>(Val))
+        if (!Arg->hasNoAliasAttr())
+            return argNumberToAttrIndex(Arg->getArgNo());
+    return NoneType();
 }
 
 static StratifiedAttr argNumberToAttrIndex(unsigned ArgNum) {
-  if (ArgNum > AttrMaxNumArgs)
-    return AttrAllIndex;
-  return ArgNum + AttrFirstArgIndex;
+    if (ArgNum > AttrMaxNumArgs)
+        return AttrAllIndex;
+    return ArgNum + AttrFirstArgIndex;
 }
 
 static EdgeType flipWeight(EdgeType Initial) {
-  switch (Initial) {
-  case EdgeType::Assign:
-    return EdgeType::Assign;
-  case EdgeType::Dereference:
-    return EdgeType::Reference;
-  case EdgeType::Reference:
-    return EdgeType::Dereference;
-  }
-  llvm_unreachable("Incomplete coverage of EdgeType enum");
+    switch (Initial) {
+    case EdgeType::Assign:
+        return EdgeType::Assign;
+    case EdgeType::Dereference:
+        return EdgeType::Reference;
+    case EdgeType::Reference:
+        return EdgeType::Dereference;
+    }
+    llvm_unreachable("Incomplete coverage of EdgeType enum");
 }
 
 static void argsToEdges(CauliflowerAndersenAA &Analysis, Instruction *Inst,
                         SmallVectorImpl<Edge> &Output) {
-  GetEdgesVisitor v(Analysis, Output);
-  v.visit(Inst);
+    GetEdgesVisitor v(Analysis, Output);
+    v.visit(Inst);
 }
 
 static Level directionOfEdgeType(EdgeType Weight) {
-  switch (Weight) {
-  case EdgeType::Reference:
-    return Level::Above;
-  case EdgeType::Dereference:
-    return Level::Below;
-  case EdgeType::Assign:
-    return Level::Same;
-  }
-  llvm_unreachable("Incomplete switch coverage");
+    switch (Weight) {
+    case EdgeType::Reference:
+        return Level::Above;
+    case EdgeType::Dereference:
+        return Level::Below;
+    case EdgeType::Assign:
+        return Level::Same;
+    }
+    llvm_unreachable("Incomplete switch coverage");
 }
 
 static std::string weightName(EdgeType Weight) {
-  switch (Weight) {
-  case EdgeType::Reference:
-    return "ref";
-  case EdgeType::Dereference:
-    return "der";
-  case EdgeType::Assign:
-    return "asg";
-  }
-  llvm_unreachable("Incomplete switch coverage");
+    switch (Weight) {
+    case EdgeType::Reference:
+        return "ref";
+    case EdgeType::Dereference:
+        return "der";
+    case EdgeType::Assign:
+        return "asg";
+    }
+    llvm_unreachable("Incomplete switch coverage");
 }
 
 // Aside: We may remove graph construction entirely, because it doesn't really
@@ -838,201 +870,201 @@ static std::string weightName(EdgeType Weight) {
 static void buildGraphFrom(CauliflowerAndersenAA &Analysis, Function *Fn,
                            SmallVectorImpl<Value *> &ReturnedValues,
                            NodeMapT &Map, GraphT &Graph) {
-  const auto findOrInsertNode = [&Map, &Graph](Value *Val) {
-    auto Pair = Map.insert(std::make_pair(Val, GraphT::Node()));
-    auto &Iter = Pair.first;
-    if (Pair.second) {
-      auto NewNode = Graph.addNode();
-      Iter->second = NewNode;
+    const auto findOrInsertNode = [&Map, &Graph](Value *Val) {
+        auto Pair = Map.insert(std::make_pair(Val, GraphT::Node()));
+        auto &Iter = Pair.first;
+        if (Pair.second) {
+            auto NewNode = Graph.addNode();
+            Iter->second = NewNode;
+        }
+        return Iter->second;
+    };
+
+    errs() << Fn->getName() << " --\n";
+
+    SmallVector<Edge, 8> Edges;
+    for (auto &Bb : Fn->getBasicBlockList()) {
+        for (auto &Inst : Bb.getInstList()) {
+            // We don't want the edges of most "return" instructions, but we *do* want
+            // to know what can be returned.
+            if (auto *Ret = dyn_cast<ReturnInst>(&Inst))
+                ReturnedValues.push_back(Ret);
+
+            if (!hasUsefulEdges(&Inst))
+                continue;
+
+            Edges.clear();
+            argsToEdges(Analysis, &Inst, Edges);
+
+            // In the case of an unused alloca (or similar), edges may be empty. Note
+            // that it exists so we can potentially answer NoAlias.
+            if (Edges.empty()) {
+                auto MaybeVal = getTargetValue(&Inst);
+                assert(MaybeVal.hasValue());
+                auto *Target = *MaybeVal;
+                findOrInsertNode(Target);
+                continue;
+            }
+
+            for (const Edge &E : Edges) {
+                auto To = findOrInsertNode(E.To);
+                auto From = findOrInsertNode(E.From);
+                auto FlippedWeight = flipWeight(E.Weight);
+                auto Attrs = E.AdditionalAttrs;
+                errs() << *(E.From) << " -> " << *(E.To) << " =" << weightName(E.Weight) << "\n";
+                Graph.addEdge(From, To, std::make_pair(E.Weight, Attrs),
+                              std::make_pair(FlippedWeight, Attrs));
+            }
+        }
     }
-    return Iter->second;
-  };
-
-  errs() << Fn->getName() << " --\n";
-
-  SmallVector<Edge, 8> Edges;
-  for (auto &Bb : Fn->getBasicBlockList()) {
-    for (auto &Inst : Bb.getInstList()) {
-      // We don't want the edges of most "return" instructions, but we *do* want
-      // to know what can be returned.
-      if (auto *Ret = dyn_cast<ReturnInst>(&Inst))
-        ReturnedValues.push_back(Ret);
-
-      if (!hasUsefulEdges(&Inst))
-        continue;
-
-      Edges.clear();
-      argsToEdges(Analysis, &Inst, Edges);
-
-      // In the case of an unused alloca (or similar), edges may be empty. Note
-      // that it exists so we can potentially answer NoAlias.
-      if (Edges.empty()) {
-        auto MaybeVal = getTargetValue(&Inst);
-        assert(MaybeVal.hasValue());
-        auto *Target = *MaybeVal;
-        findOrInsertNode(Target);
-        continue;
-      }
-
-      for (const Edge &E : Edges) {
-        auto To = findOrInsertNode(E.To);
-        auto From = findOrInsertNode(E.From);
-        auto FlippedWeight = flipWeight(E.Weight);
-        auto Attrs = E.AdditionalAttrs;
-        errs() << From << " -> " << To << " =" << weightName(E.Weight) << "\n";
-        Graph.addEdge(From, To, std::make_pair(E.Weight, Attrs),
-                                std::make_pair(FlippedWeight, Attrs));
-      }
-    }
-  }
 }
 
 static FunctionInfo buildSetsFrom(CauliflowerAndersenAA &Analysis, Function *Fn) {
-  NodeMapT Map;
-  GraphT Graph;
-  SmallVector<Value *, 4> ReturnedValues;
+    NodeMapT Map;
+    GraphT Graph;
+    SmallVector<Value *, 4> ReturnedValues;
 
-  buildGraphFrom(Analysis, Fn, ReturnedValues, Map, Graph);
+    buildGraphFrom(Analysis, Fn, ReturnedValues, Map, Graph);
 
-  DenseMap<GraphT::Node, Value *> NodeValueMap;
-  NodeValueMap.resize(Map.size());
-  for (const auto &Pair : Map)
-    NodeValueMap.insert(std::make_pair(Pair.second, Pair.first));
+    DenseMap<GraphT::Node, Value *> NodeValueMap;
+    NodeValueMap.resize(Map.size());
+    for (const auto &Pair : Map)
+        NodeValueMap.insert(std::make_pair(Pair.second, Pair.first));
 
-  const auto findValueOrDie = [&NodeValueMap](GraphT::Node Node) {
-    auto ValIter = NodeValueMap.find(Node);
-    assert(ValIter != NodeValueMap.end());
-    return ValIter->second;
-  };
+    const auto findValueOrDie = [&NodeValueMap](GraphT::Node Node) {
+        auto ValIter = NodeValueMap.find(Node);
+        assert(ValIter != NodeValueMap.end());
+        return ValIter->second;
+    };
 
-  StratifiedSetsBuilder<Value *> Builder;
+    StratifiedSetsBuilder<Value *> Builder;
 
-  SmallVector<GraphT::Node, 16> Worklist;
-  for (auto &Pair : Map) {
-    Worklist.clear();
+    SmallVector<GraphT::Node, 16> Worklist;
+    for (auto &Pair : Map) {
+        Worklist.clear();
 
-    auto *Value = Pair.first;
-    Builder.add(Value);
-    auto InitialNode = Pair.second;
-    Worklist.push_back(InitialNode);
-    while (!Worklist.empty()) {
-      auto Node = Worklist.pop_back_val();
-      auto *CurValue = findValueOrDie(Node);
-      if (isa<Constant>(CurValue) && !isa<GlobalValue>(CurValue))
-        continue;
+        auto *Value = Pair.first;
+        Builder.add(Value);
+        auto InitialNode = Pair.second;
+        Worklist.push_back(InitialNode);
+        while (!Worklist.empty()) {
+            auto Node = Worklist.pop_back_val();
+            auto *CurValue = findValueOrDie(Node);
+            if (isa<Constant>(CurValue) && !isa<GlobalValue>(CurValue))
+                continue;
 
-      for (const auto &EdgeTuple : Graph.edgesFor(Node)) {
-        auto Weight = std::get<0>(EdgeTuple);
-        auto Label = Weight.first;
-        auto &OtherNode = std::get<1>(EdgeTuple);
-        auto *OtherValue = findValueOrDie(OtherNode);
+            for (const auto &EdgeTuple : Graph.edgesFor(Node)) {
+                auto Weight = std::get<0>(EdgeTuple);
+                auto Label = Weight.first;
+                auto &OtherNode = std::get<1>(EdgeTuple);
+                auto *OtherValue = findValueOrDie(OtherNode);
 
-        if (isa<Constant>(OtherValue) && !isa<GlobalValue>(OtherValue))
-          continue;
+                if (isa<Constant>(OtherValue) && !isa<GlobalValue>(OtherValue))
+                    continue;
 
-        bool Added;
-        switch (directionOfEdgeType(Label)) {
-        case Level::Above:
-          Added = Builder.addAbove(CurValue, OtherValue);
-          break;
-        case Level::Below:
-          Added = Builder.addBelow(CurValue, OtherValue);
-          break;
-        case Level::Same:
-          Added = Builder.addWith(CurValue, OtherValue);
-          break;
+                bool Added;
+                switch (directionOfEdgeType(Label)) {
+                case Level::Above:
+                    Added = Builder.addAbove(CurValue, OtherValue);
+                    break;
+                case Level::Below:
+                    Added = Builder.addBelow(CurValue, OtherValue);
+                    break;
+                case Level::Same:
+                    Added = Builder.addWith(CurValue, OtherValue);
+                    break;
+                }
+
+                if (Added) {
+                    auto Aliasing = Weight.second;
+                    if (auto MaybeCurIndex = valueToAttrIndex(CurValue))
+                        Aliasing.set(*MaybeCurIndex);
+                    if (auto MaybeOtherIndex = valueToAttrIndex(OtherValue))
+                        Aliasing.set(*MaybeOtherIndex);
+                    Builder.noteAttributes(CurValue, Aliasing);
+                    Builder.noteAttributes(OtherValue, Aliasing);
+                    Worklist.push_back(OtherNode);
+                }
+            }
         }
-
-        if (Added) {
-          auto Aliasing = Weight.second;
-          if (auto MaybeCurIndex = valueToAttrIndex(CurValue))
-            Aliasing.set(*MaybeCurIndex);
-          if (auto MaybeOtherIndex = valueToAttrIndex(OtherValue))
-            Aliasing.set(*MaybeOtherIndex);
-          Builder.noteAttributes(CurValue, Aliasing);
-          Builder.noteAttributes(OtherValue, Aliasing);
-          Worklist.push_back(OtherNode);
-        }
-      }
     }
-  }
 
-  // There are times when we end up with parameters not in our graph (i.e. if
-  // it's only used as the condition of a branch). Other bits of code depend on
-  // things that were present during construction being present in the graph.
-  // So, we add all present arguments here.
-  for (auto &Arg : Fn->args()) {
-    Builder.add(&Arg);
-  }
+    // There are times when we end up with parameters not in our graph (i.e. if
+    // it's only used as the condition of a branch). Other bits of code depend on
+    // things that were present during construction being present in the graph.
+    // So, we add all present arguments here.
+    for (auto &Arg : Fn->args()) {
+        Builder.add(&Arg);
+    }
 
-  return FunctionInfo(Builder.build(), std::move(ReturnedValues));
+    return FunctionInfo(Builder.build(), std::move(ReturnedValues));
 }
 
 void CauliflowerAndersenAA::scan(Function *Fn) {
-  auto InsertPair = Cache.insert(std::make_pair(Fn, Optional<FunctionInfo>()));
-  (void)InsertPair;
-  assert(InsertPair.second &&
-         "Trying to scan a function that has already been cached");
+    auto InsertPair = Cache.insert(std::make_pair(Fn, Optional<FunctionInfo>()));
+    (void)InsertPair;
+    assert(InsertPair.second &&
+           "Trying to scan a function that has already been cached");
 
-  FunctionInfo Info(buildSetsFrom(*this, Fn));
-  Cache[Fn] = std::move(Info);
-  Handles.push_front(FunctionHandle(Fn, this));
+    FunctionInfo Info(buildSetsFrom(*this, Fn));
+    Cache[Fn] = std::move(Info);
+    Handles.push_front(FunctionHandle(Fn, this));
 }
 
 AliasAnalysis::AliasResult
 CauliflowerAndersenAA::query(const AliasAnalysis::Location &LocA,
-                        const AliasAnalysis::Location &LocB) {
-  auto *ValA = const_cast<Value *>(LocA.Ptr);
-  auto *ValB = const_cast<Value *>(LocB.Ptr);
+                             const AliasAnalysis::Location &LocB) {
+    auto *ValA = const_cast<Value *>(LocA.Ptr);
+    auto *ValB = const_cast<Value *>(LocB.Ptr);
 
-  Function *Fn = nullptr;
-  auto MaybeFnA = parentFunctionOfValue(ValA);
-  auto MaybeFnB = parentFunctionOfValue(ValB);
-  if (!MaybeFnA.hasValue() && !MaybeFnB.hasValue()) {
-    llvm_unreachable("Don't know how to extract the parent function "
-                     "from values A or B");
-  }
+    Function *Fn = nullptr;
+    auto MaybeFnA = parentFunctionOfValue(ValA);
+    auto MaybeFnB = parentFunctionOfValue(ValB);
+    if (!MaybeFnA.hasValue() && !MaybeFnB.hasValue()) {
+        llvm_unreachable("Don't know how to extract the parent function "
+                         "from values A or B");
+    }
 
-  if (MaybeFnA.hasValue()) {
-    Fn = *MaybeFnA;
-    assert((!MaybeFnB.hasValue() || *MaybeFnB == *MaybeFnA) &&
-           "Interprocedural queries not supported");
-  } else {
-    Fn = *MaybeFnB;
-  }
+    if (MaybeFnA.hasValue()) {
+        Fn = *MaybeFnA;
+        assert((!MaybeFnB.hasValue() || *MaybeFnB == *MaybeFnA) &&
+               "Interprocedural queries not supported");
+    } else {
+        Fn = *MaybeFnB;
+    }
 
-  assert(Fn != nullptr);
-  auto &MaybeInfo = ensureCached(Fn);
-  assert(MaybeInfo.hasValue());
+    assert(Fn != nullptr);
+    auto &MaybeInfo = ensureCached(Fn);
+    assert(MaybeInfo.hasValue());
 
-  auto &Sets = MaybeInfo->Sets;
-  auto MaybeA = Sets.find(ValA);
-  if (!MaybeA.hasValue())
-    return AliasAnalysis::MayAlias;
+    auto &Sets = MaybeInfo->Sets;
+    auto MaybeA = Sets.find(ValA);
+    if (!MaybeA.hasValue())
+        return AliasAnalysis::MayAlias;
 
-  auto MaybeB = Sets.find(ValB);
-  if (!MaybeB.hasValue())
-    return AliasAnalysis::MayAlias;
+    auto MaybeB = Sets.find(ValB);
+    if (!MaybeB.hasValue())
+        return AliasAnalysis::MayAlias;
 
-  auto SetA = *MaybeA;
-  auto SetB = *MaybeB;
+    auto SetA = *MaybeA;
+    auto SetB = *MaybeB;
 
-  if (SetA.Index == SetB.Index)
-    return AliasAnalysis::PartialAlias;
+    if (SetA.Index == SetB.Index)
+        return AliasAnalysis::PartialAlias;
 
-  auto AttrsA = Sets.getLink(SetA.Index).Attrs;
-  auto AttrsB = Sets.getLink(SetB.Index).Attrs;
-  // Stratified set attributes are used as markets to signify whether a member
-  // of a StratifiedSet (or a member of a set above the current set) has 
-  // interacted with either arguments or globals. "Interacted with" meaning
-  // its value may be different depending on the value of an argument or 
-  // global. The thought behind this is that, because arguments and globals
-  // may alias each other, if AttrsA and AttrsB have touched args/globals,
-  // we must conservatively say that they alias. However, if at least one of 
-  // the sets has no values that could legally be altered by changing the value 
-  // of an argument or global, then we don't have to be as conservative.
-  if (AttrsA.any() && AttrsB.any())
-    return AliasAnalysis::MayAlias;
+    auto AttrsA = Sets.getLink(SetA.Index).Attrs;
+    auto AttrsB = Sets.getLink(SetB.Index).Attrs;
+    // Stratified set attributes are used as markets to signify whether a member
+    // of a StratifiedSet (or a member of a set above the current set) has
+    // interacted with either arguments or globals. "Interacted with" meaning
+    // its value may be different depending on the value of an argument or
+    // global. The thought behind this is that, because arguments and globals
+    // may alias each other, if AttrsA and AttrsB have touched args/globals,
+    // we must conservatively say that they alias. However, if at least one of
+    // the sets has no values that could legally be altered by changing the value
+    // of an argument or global, then we don't have to be as conservative.
+    if (AttrsA.any() && AttrsB.any())
+        return AliasAnalysis::MayAlias;
 
-  return AliasAnalysis::NoAlias;
+    return AliasAnalysis::NoAlias;
 }

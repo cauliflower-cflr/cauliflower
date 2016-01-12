@@ -1,0 +1,12 @@
+ref <- vert . heap;
+assign<- vert . vert;
+load <- vert . vert;
+store <- vert . vert;
+pointsto <- vert . heap;
+alias <- vert . vert;
+
+pointsto -> ref;
+pointsto -> assign, pointsto;
+pointsto -> load, pointsto, -pointsto, -store, pointsto;
+alias -> pointsto, -pointsto;
+

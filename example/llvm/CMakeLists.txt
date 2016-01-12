@@ -16,7 +16,7 @@ else()
 	message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${LLVM_INCLUDE_DIRS} ../../include/cpp-btree-1.0.1/ ../../include/)
 add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory (cauli)
