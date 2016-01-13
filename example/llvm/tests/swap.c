@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-void swap(int** a, int** b){
-    int* tmp = *a;
-    *a = *b;
-    *b = tmp;
+void swap(int** m, int** n){
+    int* tmp = *m;
+    *m = *n;
+    *n = tmp;
 }
 
 int main(int argc, char** argv){
