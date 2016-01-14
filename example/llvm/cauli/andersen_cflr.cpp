@@ -16,24 +16,47 @@ using namespace cflr;
 
 namespace {
 
+void dumpV(const Value* val){
+    if(val->hasName()) errs() << val->getName();
+    else errs() << *val;
+}
+
+void dumpVV(std::string name, const relation<cflr::andersen_semi_naive::adt_t>& rel, registrar_group<const Value*,unsigned>& regs){
+    relation_buffer<const Value*,const Value*> tmp(regs.select<0,0>());
+    rel.export_buffer(tmp);
+    for(auto& row : tmp.data){
+        errs() << "  ";
+        dumpV(std::get<0>(regs.group).get(row[0]));
+        errs() << " # " << name << " # ";
+        dumpV(std::get<0>(regs.group).get(row[1]));
+        errs() << "\n";
+    }
+}
+void dumpVH(std::string name, const relation<cflr::andersen_semi_naive::adt_t>& rel, registrar_group<const Value*,unsigned>& regs){
+    relation_buffer<const Value*,unsigned> tmp(regs.select<0,1>());
+    rel.export_buffer(tmp);
+    for(auto& row : tmp.data){
+        errs() << "  ";
+        dumpV(std::get<0>(regs.group).get(row[0]));
+        errs() << " # " << name << " # H" << std::get<1>(regs.group).get(row[1]) << "\n";
+    }
+}
+
 struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<CauliAA, void> {
+    typedef andersen_semi_naive P;
     static char ID;
     unsigned num_allocs = 0;
-    int num = 0;
 
-    registrar_group<Value*,unsigned> regs;
-    relation_buffer<Value*,unsigned> buf_re;
-    relation_buffer<Value*,Value*> buf_as;
-    relation_buffer<Value*,Value*> buf_lo;
-    relation_buffer<Value*,Value*> buf_st;
-    relation_buffer<Value*,unsigned> buf_pt;
-    relation_buffer<Value*,Value*> buf_al;
+    registrar_group<const Value*,unsigned> regs;
+    relation_buffer<const Value*,unsigned> buf_re;
+    relation_buffer<const Value*,const Value*> buf_as;
+    relation_buffer<const Value*,const Value*> buf_lo;
+    relation_buffer<const Value*,const Value*> buf_st;
+    relation_buffer<const Value*,unsigned> buf_pt;
+    relation_buffer<const Value*,const Value*> buf_al;
+    P::rels_t relations;
 
-    CauliAA() : ModulePass(ID), regs(), buf_re(regs.select<0,1>()), buf_as(regs.select<0,0>()), buf_lo(regs.select<0,0>()), buf_st(regs.select<0,0>()), buf_pt(regs.select<0,1>()), buf_al(regs.select<0,0>()) {}
-
-    ~CauliAA() {
-        errs() << "TOLD " << num << "\n";
-    }
+    CauliAA() : ModulePass(ID), regs(), buf_re(regs.select<0,1>()), buf_as(regs.select<0,0>()), buf_lo(regs.select<0,0>()), buf_st(regs.select<0,0>()), buf_pt(regs.select<0,1>()), buf_al(regs.select<0,0>()), relations{relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1)} {}
 
     //
     // Module Pass
@@ -55,9 +78,7 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
         errs() << "==" << count << "==\n";
         //errs().write_escaped(m.getName()) << '\n';
         // import as relations
-        typedef andersen_semi_naive P;
         P::vols_t vols = regs.volumes();
-        P::rels_t relations = {relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1),relation<P::adt_t>(1)};
         relations[0].import_buffer(buf_re);
         relations[1].import_buffer(buf_as);
         relations[2].import_buffer(buf_lo);
@@ -65,19 +86,14 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
         relations[4].import_buffer(buf_pt);
         relations[5].import_buffer(buf_al);
         //solve
+        P::solve(vols, relations);
         //print the relations
-        std::cerr << "__ref__\n";
-        relations[0].dump(std::cerr);
-        std::cerr << "__assign__\n";
-        relations[1].dump(std::cerr);
-        std::cerr << "__load__\n";
-        relations[2].dump(std::cerr);
-        std::cerr << "__store__\n";
-        relations[3].dump(std::cerr);
-        std::cerr << "__pointsto__\n";
-        relations[4].dump(std::cerr);
-        std::cerr << "__alias__\n";
-        relations[5].dump(std::cerr);
+        dumpVH("ref", relations[0], regs);
+        dumpVV("assign", relations[1], regs);
+        dumpVV("load", relations[2], regs);
+        dumpVV("store", relations[3], regs);
+        dumpVH("pointsto", relations[4], regs);
+        dumpVV("alias", relations[5], regs);
         return false;
     }
 
@@ -96,7 +112,9 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
     }
 
     AliasAnalysis::AliasResult alias(const Location& a, const Location& b) override {
-        this->num++;
+        auto aval = std::get<0>(regs.group).get_or_add(a.Ptr);
+        auto bval = std::get<0>(regs.group).get_or_add(b.Ptr);
+        if(!relations[5].adts[0].query(aval, bval)) return AliasResult::NoAlias;
         return AliasAnalysis::alias(a, b);
     }
 
@@ -115,12 +133,12 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
             //parameters assigned to arguments
             unsigned cur = 0;
             for(auto i = Fn->arg_begin(), e = Fn->arg_end(); i!=e; ++i){
-                buf_as.add(relation_buffer<Value*, Value*>::outer_type {Inst.getArgOperand(cur), &(*i)});
+                buf_as.add(relation_buffer<const Value*, const Value*>::outer_type {Inst.getArgOperand(cur), &(*i)});
                 ++cur;
             }
             assert(cur == Inst.getNumArgOperands());
             //intrinsic return (the function itself) assigned to return
-            buf_as.add(relation_buffer<Value*, Value*>::outer_type {Fn, &Inst});
+            buf_as.add(relation_buffer<const Value*, const Value*>::outer_type {Fn, &Inst});
         } else {
             //TODO unknown functions
             llvm_unreachable("Function with unknown linkage");

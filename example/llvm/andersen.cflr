@@ -7,6 +7,6 @@ alias <- vert . vert;
 
 pointsto -> ref;
 pointsto -> assign, pointsto;
-pointsto -> load, pointsto, -pointsto, -store, pointsto;
+pointsto -> load, pointsto, -pointsto, store, pointsto;
 alias -> pointsto, -pointsto;
 

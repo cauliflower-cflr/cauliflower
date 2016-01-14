@@ -280,6 +280,11 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
         }
     }
 
+    bool query(ident from, ident to){
+        typename M::const_iterator it = forwards.find(from);
+        return it != forwards.end() && it->second.find(to) != it->second.end();
+    }
+
     void dump(std::ostream& os) const {
         for(const auto& m : forwards){
             os << m.first << " ->";
