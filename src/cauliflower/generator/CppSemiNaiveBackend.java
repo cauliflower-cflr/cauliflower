@@ -263,6 +263,7 @@ public class CppSemiNaiveBackend implements Backend{
         }
         out.println("};");
         // TODO initialise deltas in-place via some kind of deep copy
+        // i.e. deep copy the whole relation, instead of the individual ADTs
         for(int l=0; l<prob.labels.size(); l++){
             out.println("for(unsigned i=0; i<relations[" + l + "].adts.size(); ++i) relations[" + l + "].adts[i].deep_copy(deltas[" + l + "].adts[i]);");
         }
