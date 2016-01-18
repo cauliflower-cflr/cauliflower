@@ -37,6 +37,11 @@ private:
     std::vector<T> it;
 };
 
+template<unsigned BASE>
+constexpr unsigned log(unsigned i){
+    return i < BASE ? 0 : log<BASE>(i/BASE) + 1;
+}
+
 /// dependency_info, generate the dependency ordering, given a list of dependencies
 /// this is runtme information (template subsystem cant handle Tarjan's)
 struct dependency_info {
