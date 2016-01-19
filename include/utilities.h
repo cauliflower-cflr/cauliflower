@@ -37,9 +37,21 @@ private:
     std::vector<T> it;
 };
 
+/// statically compute the logarithm of i to base BASE
 template<unsigned BASE>
 constexpr unsigned log(unsigned i){
     return i < BASE ? 0 : log<BASE>(i/BASE) + 1;
+}
+
+/// statically compute the square root of i
+template<typename I> constexpr I csqrt_idx(unsigned idx, I cur){
+    return cur + (1 << (idx-1));
+}
+template<typename I> constexpr I csqrt_help(unsigned idx, I cur, I target){
+    return idx == 0 ? cur : csqrt_help(idx-1, csqrt_idx(idx, cur)*csqrt_idx(idx, cur) > target ? cur: csqrt_idx(idx, cur), target);
+}
+template<typename I> constexpr I csqrt(I num){
+    return csqrt_help<I>(sizeof(I)*4, 0, num);
 }
 
 /// dependency_info, generate the dependency ordering, given a list of dependencies
