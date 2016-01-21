@@ -66,20 +66,88 @@ struct concise_tree;
 
 struct concise_iterator {
     typedef std::pair<ident, ident> value_type;
-    const concise_tree& ct;
-    std::array<unsigned, sizeof(ident)*8> istack;
-    std::array<uint8_t, sizeof(ident)*8> qstack;
-    unsigned idx;
-    unsigned qua;
-    index_t cur;
-    value_type nxt;
-    concise_iterator(const concise_tree& c) : ct(c) {}
+
+    static const unsigned index_size = sizeof(index_t)*8;
+    static const unsigned index_sl = csqrt(index_size);
+    static const unsigned min_h = log<2>(index_sl*2);
+
+    std::vector<node_t>::const_iterator it;
+    std::vector<node_t>::const_iterator end;
+    std::array<ident, sizeof(ident)*8*4> rstack;
+    std::array<ident, sizeof(ident)*8*4> cstack;
+    std::array<uint8_t, sizeof(ident)*8*4> hstack;
+    uint8_t q;
+    uint8_t b;
+    unsigned d;
+    value_type val;
+
+    concise_iterator(const std::vector<node_t>& ct, unsigned h) : it(ct.begin()), end(ct.end()), q(4), b(index_size), d(1) {
+        rstack[0] = 0;
+        cstack[0] = 0;
+        hstack[0] = h;
+        advance();
+    }
+
+    concise_iterator(const std::vector<node_t>& ct) : it(ct.end()), d(0) {}
 
     bool operator==(const concise_iterator& other) const {
-        return &ct == &(other.ct) && idx == other.idx && qua == other.qua && cur == other.cur;
+        return it == other.it && ((it == end) || (q == other.q && b == other.b));
     }
+
     bool operator!=(const concise_iterator& other) const {
-        return !(other == *this);
+        return !(*this == other);
+    }
+
+    value_type operator*() const {
+        return val;
+    }
+
+    const value_type* operator->() const {
+        return &val;
+    }
+
+    concise_iterator& operator++(){
+        advance();
+        return *this;
+    }
+
+private:
+
+    void advance(){
+        while(true){
+            if (b < index_size) {
+                if(((it->at(q)) >> b)&1){
+                    val = {rstack[d] + b/index_sl + ((q/2)*index_sl), cstack[d] + b%index_sl + ((q%2)*index_sl)};
+                    b++;
+                    if(b == index_size) q++;
+                    return;
+                } else b++;
+                if(b == index_size) q++;
+            } else if (q < 4) {
+                if (it->at(q) != 0){
+                    b = 0;
+                } else q++;
+            } else {
+                d--;
+                unsigned h = hstack[d];
+                ident r = rstack[d];
+                ident c = cstack[d];
+                if(h == min_h) q = 0;
+                else {
+                    unsigned sl = 1<<(h-1);
+                    for(int qu=3; qu>=0; qu--) if (it->at(qu) != 0) { // push to stack in reverse order
+                        rstack[d] = r + ((qu/2)*sl);
+                        cstack[d] = c + ((qu%2)*sl);
+                        hstack[d] = h-1;
+                        d++;
+                    }
+                }
+            }
+            if(q == 4 && b == index_size){
+                it++;
+                if(it == end) return;
+            }
+        }
     }
 };
 
@@ -147,25 +215,66 @@ struct concise_tree{
     }
 
     concise_iterator begin() const{
-        concise_iterator ret(*this);
-        return ret;
+        return concise_iterator(tree, height);
     }
 
     concise_iterator end() const{
-        concise_iterator ret(*this);
-        ret.idx = tree.size()-1;
-        ret.qua = 3;
-        ret.cur = 0;
-        return ret;
+        return concise_iterator(tree);
+    }
+
+    void deep_copy(concise_tree& into) const {
+        into.height = height;
+        into.tree = tree; // vector copy operation
+    }
+
+    void union_copy(const concise_tree& other){
+
+    }
+
+    void union_absorb(concise_tree& other){
+        union_copy(other);
     }
 
     void dump(std::ostream& out) const {
-        for(const auto& n : tree) {
-            for(unsigned i=0; i<4; i++){
-                out << (i?",":"(") << std::setw(16) << std::setfill('0') << std::hex << n[i];
-            }
-            out << ")\n";
+        unsigned prt = 0;
+        for(auto i=begin(), e=end(); i!=e; ++i){
+             out << "(" << i->first << "," << i->second << ")" << (++prt % 8 == 0 ? "\n" : "\t");
         }
+        // ident rstack[4*height];
+        // ident cstack[4*height];
+        // unsigned hstack[4*height];
+        // rstack[0] = 0;
+        // cstack[0] = 0;
+        // hstack[0] = height;
+        // unsigned dpth = 1;
+        // unsigned prt = 0;
+        // for(const auto& n : tree) {
+        //     // for(unsigned i=0; i<4; i++){
+        //     //     out << (i?",":"(") << std::setw(16) << std::setfill('0') << std::hex << n[i];
+        //     // }
+        //     // out << ")\n";
+        //     dpth--;
+        //     unsigned h = hstack[dpth];
+        //     ident r = rstack[dpth];
+        //     ident c = cstack[dpth];
+        //     if (h == node_height) {
+        //         for(unsigned q=0; q<4; q++) for(unsigned b=0; b<index_bits; b++) {
+        //             ident rx = b/index_sl + ((q/2)*index_sl);
+        //             ident cx = b%index_sl + ((q%2)*index_sl);
+        //             if((n[q] >> b) & 1){
+        //                 out << "(" << (rx+r) << "," << (cx+c) << ")" << (++prt % 8 == 0 ? "\n" : "\t");
+        //             }
+        //         }
+        //     } else {
+        //         unsigned sl = 1<<(h-1);
+        //         for(int q=3; q>=0; q--) if (n[q] != 0) { // push to stack in reverse order
+        //             rstack[dpth] = r + ((q/2)*sl);
+        //             cstack[dpth] = c + ((q%2)*sl);
+        //             hstack[dpth] = h-1;
+        //             dpth++;
+        //         }
+        //     }
+        // }
     }
 
     void dump() const {
