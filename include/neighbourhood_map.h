@@ -297,10 +297,11 @@ struct neighbourhood_map : public adt<neighbourhood_map<M, S>, neighbourhood_ite
 
     static neighbourhood_map<M, S> identity(unsigned max_ident){
         neighbourhood_map<M, S> ret;
+        ret.initialise_import();
         for(ident i=0; i<max_ident; i++){
-            std::pair<typename M::iterator, bool> ins = ret.forwards.insert({i, S()});
-            ins.first->second.insert(i);
+            ret.import(i, i);
         }
+        ret.finalise_import();
         return ret;
     }
 

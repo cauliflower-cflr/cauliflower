@@ -10,7 +10,8 @@ import java.util.List;
  */
 public enum Adt {
     Std("neighbourhood_map<std::map<ident, std::set<ident>>, std::set<ident>>", "neighbourhood_map.h", "<map>", "<set>"),
-    Btree("neighbourhood_map<btree::btree_map<ident, btree::btree_set<ident>>, btree::btree_set<ident>>", "neighbourhood_map.h", "\"btree_map.h\"", "\"btree_set.h\"");
+    Btree("neighbourhood_map<btree::btree_map<ident, btree::btree_set<ident>>, btree::btree_set<ident>>", "neighbourhood_map.h", "\"btree_map.h\"", "\"btree_set.h\""),
+    Souffle("pmap", "pmap.h");
     // TODO Quadtree("concise_tree", "concise_tree.h");
 
     public final String typename;
