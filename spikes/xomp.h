@@ -84,11 +84,11 @@ struct jvpt_semi_naive {
         relation<adt_t> cur_delta(deltas[5].volume());
         cur_delta.swap_contents(deltas[5]);
         omp_init_lock(&r5l);
-#pragma omp parallel
+//#pragma omp parallel
         {
-#pragma omp single
+//#pragma omp sections
             {
-#pragma omp task
+//#pragma omp section
                 {
         // Label 5, occurance 0, rule 5 -> -1 5
         if(!relations[1].adts[0].empty()) {
@@ -100,9 +100,9 @@ struct jvpt_semi_naive {
             relations[5].adts[0].union_absorb(tmp0);
             omp_unset_lock(&r5l);
         }
-                //}
-//#pragma omp task
-                //{
+                }
+//#pragma omp section
+                {
         // Label 5, occurance 0, rule 5 -> 4 5
         if(!relations[4].adts[0].empty()) {
             adt_t tmp0;
@@ -115,7 +115,7 @@ struct jvpt_semi_naive {
         }
                 }
         // Label 5, occurance 0, rule 6[0] -> -2[0] 5
-#pragma omp task
+//#pragma omp section
         for(unsigned f0=0; f0<volume[0]; ++f0) if(!relations[2].adts[f0].empty()) {
                 adt_t tmp0;
                 relations[2].adts[f0].compose<true, false>(cur_delta.adts[0], tmp0);
@@ -124,7 +124,7 @@ struct jvpt_semi_naive {
                 relations[6].adts[f0].union_absorb(tmp0);
             }
         // Label 5, occurance 0, rule 7[0] -> 3[0] 5
-#pragma omp task
+//#pragma omp section
         for(unsigned f0=0; f0<volume[0]; ++f0) if(!relations[3].adts[f0].empty()) {
                 adt_t tmp0;
                 relations[3].adts[f0].compose<false, false>(cur_delta.adts[0], tmp0);
@@ -170,25 +170,25 @@ struct jvpt_semi_naive {
         // Delta initialisation
         rels_t deltas {relation<adt_t>(relations[0].adts.size()), relation<adt_t>(relations[1].adts.size()), relation<adt_t>(relations[2].adts.size()), relation<adt_t>(relations[3].adts.size()), relation<adt_t>(relations[4].adts.size()), relation<adt_t>(relations[5].adts.size()), relation<adt_t>(relations[6].adts.size()), relation<adt_t>(relations[7].adts.size())};
         time1 = omp_get_wtime();
-#pragma omp parallel
+//#pragma omp parallel
         {
-#pragma omp single
+//#pragma omp single
             {
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[0].adts.size(); ++i) relations[0].adts[i].deep_copy(deltas[0].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[1].adts.size(); ++i) relations[1].adts[i].deep_copy(deltas[1].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[2].adts.size(); ++i) relations[2].adts[i].deep_copy(deltas[2].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[3].adts.size(); ++i) relations[3].adts[i].deep_copy(deltas[3].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[4].adts.size(); ++i) relations[4].adts[i].deep_copy(deltas[4].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[5].adts.size(); ++i) relations[5].adts[i].deep_copy(deltas[5].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[6].adts.size(); ++i) relations[6].adts[i].deep_copy(deltas[6].adts[i]);
-#pragma omp task
+//#pragma omp task
                 for(unsigned i=0; i<relations[7].adts.size(); ++i) relations[7].adts[i].deep_copy(deltas[7].adts[i]);
             }
         }

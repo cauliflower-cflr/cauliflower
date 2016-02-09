@@ -5,7 +5,7 @@ import ycm_core
 # compilation database set (by default, one is not set).
 # CHANGE THIS LIST OF FLAGS. YES, THIS IS THE DROID YOU HAVE BEEN LOOKING FOR.
 flags = [
-#'-Wall',
+'-Wall',
 #'-Wextra',
 #'-Werror',
 #'-Wc++98-compat',
@@ -33,7 +33,7 @@ flags = [
 '-I', '.',
 '-I', 'include/',
 '-I', 'include/cpp-btree-1.0.1/',
-#'-I', '/usr/lib/gcc/x86_64-linux-gnu/5/include/',
+'-I', '.omp/',
 ]
 
 
