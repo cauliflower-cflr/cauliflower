@@ -25,7 +25,7 @@ for EG in `find $MDIR -name "*.cflr"`; do
     FN=$(basename "$EG")
     NAME=${FN%.*}
     echo java -cp $JAR cauliflower.Main -a "$ADT" -sn $MDIR/../spikes/${NAME}.h -cs $MDIR/../spikes/${NAME}.cpp $EG
-    java -cp $JAR cauliflower.Main -a Std -sn $MDIR/../spikes/${NAME}.h -cs $MDIR/../spikes/${NAME}.cpp $EG
+    java -cp $JAR cauliflower.Main -a "$ADT" -sn $MDIR/../spikes/${NAME}.h -cs $MDIR/../spikes/${NAME}.cpp $EG
     astyle -Yn $MDIR/../spikes/${NAME}.h $MDIR/../spikes/${NAME}.cpp
 done
 make -C $MDIR/.. -j4

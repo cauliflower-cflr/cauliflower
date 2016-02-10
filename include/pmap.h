@@ -11,15 +11,41 @@
 #define __PMAP_H__
 
 #include "adt.h"
-#include "BTree.h"
+#include "Trie.h"
 
 namespace cflr {
 
-struct pmap : public adt<pmap, btree_set<std::pair<ident, ident>>::const_iterator>{
+struct pmap;
+
+struct pmap_iterator{
+    typedef Trie<2>::iterator ty;
+    ty internal;
+    std::pair<ident, ident> cur;
+    pmap_iterator(ty inter) : internal(inter) {}
+    pmap_iterator operator++(){ return ++internal; }
+    bool operator==(const pmap_iterator& other){ return other.internal == internal; }
+    bool operator!=(const pmap_iterator& other){ return other.internal != internal; }
+    const std::pair<ident, ident>* operator->() {
+        cur = {(*internal)[0], (*internal)[1]};
+        return &cur;
+    }
+};
+
+namespace template_internals {
+
+/// Helper template to perform intersection when transpose-configuration is known statically
+template<bool, bool> inline void compose_h(const pmap&, const pmap&, pmap&);
+
+/// Helper template to perform intersection when transpose-configuration is known statically
+template<bool, bool> inline void intersect_h(const pmap&, const pmap&, pmap&);
+
+} // end namespace template_internals
+
+struct pmap : public adt<pmap, pmap_iterator>{
 
     typedef std::pair<ident, ident> value_type;
-    typedef btree_set<value_type> tree_t;
-    typedef tree_t::const_iterator iterator;
+    typedef Trie<2> tree_t;
+    typedef pmap_iterator iterator;
 
     tree_t forwards;
     tree_t backwards;
@@ -35,21 +61,21 @@ struct pmap : public adt<pmap, btree_set<std::pair<ident, ident>>::const_iterato
 
     void initialise_import() {} // do nothing
     void import(ident from, ident to){
-        forwards.insert({from, to});
-        forwards.insert({to, from});
+        forwards.insert({{from, to}});
+        backwards.insert({{to,  from}});
     }
     void finalise_import() {} // do nothing
 
     iterator begin() const {
-        return forwards.begin();
+        return pmap_iterator(forwards.begin());
     }
     iterator end() const {
-        return forwards.end();
+        return pmap_iterator(forwards.end());
     }
 
     void deep_copy(pmap& into) const {
-        into.forwards = forwards;
-        into.backwards = backwards;
+        into.forwards.insertAll(forwards);
+        into.backwards.insertAll(backwards);
     }
 
     void union_copy(const pmap& other) {
@@ -63,31 +89,30 @@ struct pmap : public adt<pmap, btree_set<std::pair<ident, ident>>::const_iterato
     }
 
     template<bool TMe, bool TOther> void intersect(const pmap& other, pmap& into) const{
+        template_internals::intersect_h<TMe, TOther>(*this, other, into);
     }
 
     template<bool TMe, bool TOther> void compose(const pmap& other, pmap& into) const{
+        template_internals::compose_h<TMe, TOther>(*this, other, into);
     }
 
     void difference(const pmap& other){
         tree_t newf;
         tree_t newb;
 
-        auto oi = other.forwards.begin();
-        auto oe = other.forwards.end();
         for(auto i=forwards.begin(), e=forwards.end(); i!=e; ++i){
-            while(oi != oe && *i > *oi) ++oi;
-            if((*oi).first != (*i).first && (*oi).second != (*i).second){
+            if(!other.forwards.contains(*i)){
                 newf.insert(*i);
-                newb.insert({(*i).second, (*i).first});
+                newb.insert({{i->data[1], i->data[0]}});
             }
         }
 
-        forwards.swap(newf);
-        backwards.swap(newb);
+        std::swap(forwards, newf);
+        std::swap(backwards, newb);
     }
 
     bool query(ident from, ident to){
-        return forwards.find({from, to}) != forwards.end();
+        return forwards.contains({{from, to}});
     }
 
     void dump(std::ostream& os) const {
@@ -100,10 +125,92 @@ struct pmap : public adt<pmap, btree_set<std::pair<ident, ident>>::const_iterato
             ret.import(i, i);
         }
         ret.finalise_import();
-        return pmap();
+        return ret;
     }
 
 };
+
+namespace template_internals {
+
+template<> inline void intersect_h<false, false>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.forwards){
+        if(other.forwards.contains(m)){ // TODO use pair of iterators
+            into.import(m[0], m[1]);
+        }
+    }
+    into.finalise_import();
+}
+template<> inline void intersect_h<false, true>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.forwards){
+        if(other.backwards.contains(m)){ // TODO use pair of iterators
+            into.import(m[0], m[1]);
+        }
+    }
+    into.finalise_import();
+}
+template<> inline void intersect_h<true, false>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.backwards){
+        if(other.forwards.contains(m)){ // TODO use pair of iterators
+            into.import(m[0], m[1]);
+        }
+    }
+    into.finalise_import();
+}
+template<> inline void intersect_h<true, true>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.backwards){
+        if(other.backwards.contains(m)){ // TODO use pair of iterators
+            into.import(m[0], m[1]);
+        }
+    }
+    into.finalise_import();
+}
+
+template<> inline void compose_h<false, false>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    auto parts = me.backwards.partition(50); // because random number thats why!
+#pragma omp parallel for schedule(auto)
+    for(unsigned i=0; i<parts.size(); ++i){
+        for(const auto& m : parts[i]){
+            for(const auto& o : other.forwards.getBoundaries<1>(m)){
+                into.import(m[1], o[1]);
+            }
+        }
+    }
+    into.finalise_import();
+}
+template<> inline void compose_h<false, true>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.backwards){
+        for(const auto& o : other.backwards.getBoundaries<1>(m)){
+            into.import(m[1], o[1]);
+        }
+    }
+    into.finalise_import();
+}
+template<> inline void compose_h<true, false>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.forwards){
+        for(const auto& o : other.forwards.getBoundaries<1>(m)){
+            into.import(m[1], o[1]);
+        }
+    }
+    into.finalise_import();
+}
+template<> inline void compose_h<true, true>(const pmap& me, const pmap& other, pmap& into){
+    into.initialise_import();
+    for(const auto& m : me.forwards){
+        for(const auto& o : other.backwards.getBoundaries<1>(m)){
+            into.import(m[1], o[1]);
+        }
+    }
+    into.finalise_import();
+}
+
+} // end namespace template_internals
 
 }
 
