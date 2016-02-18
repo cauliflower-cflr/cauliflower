@@ -43,7 +43,7 @@ struct concise_tree_order{
     typedef std::pair<ident, ident> import_t;
     const unsigned height;
     concise_tree_order(unsigned h) : height(h) {}
-    bool operator()(const import_t& a, import_t& b){
+    bool operator()(const import_t& a, const import_t& b){
         unsigned aq, bq;
         // can be made even faster: max(leading_zero(a.first ^ b.first), leading_zero(a.second ^ b.second))
         for(int i=height; i>=0; i--){

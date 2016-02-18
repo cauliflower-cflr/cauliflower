@@ -54,6 +54,10 @@ struct pmap : public adt<pmap, pmap_iterator>{
         return forwards.empty();
     }
 
+    size_t size() const {
+        return forwards.size();
+    }
+
     void clear() {
         forwards.clear();
         backwards.clear();
@@ -184,27 +188,39 @@ template<> inline void compose_h<false, false>(const pmap& me, const pmap& other
 }
 template<> inline void compose_h<false, true>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    for(const auto& m : me.backwards){
-        for(const auto& o : other.backwards.getBoundaries<1>(m)){
-            into.import(m[1], o[1]);
+    auto parts = me.backwards.partition(50); // because random number thats why!
+#pragma omp parallel for schedule(auto)
+    for(unsigned i=0; i<parts.size(); ++i){
+        for(const auto& m : parts[i]){
+            for(const auto& o : other.backwards.getBoundaries<1>(m)){
+                into.import(m[1], o[1]);
+            }
         }
     }
     into.finalise_import();
 }
 template<> inline void compose_h<true, false>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    for(const auto& m : me.forwards){
-        for(const auto& o : other.forwards.getBoundaries<1>(m)){
-            into.import(m[1], o[1]);
+    auto parts = me.forwards.partition(50); // because random number thats why!
+#pragma omp parallel for schedule(auto)
+    for(unsigned i=0; i<parts.size(); ++i){
+        for(const auto& m : parts[i]){
+            for(const auto& o : other.forwards.getBoundaries<1>(m)){
+                into.import(m[1], o[1]);
+            }
         }
     }
     into.finalise_import();
 }
 template<> inline void compose_h<true, true>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    for(const auto& m : me.forwards){
-        for(const auto& o : other.backwards.getBoundaries<1>(m)){
-            into.import(m[1], o[1]);
+    auto parts = me.forwards.partition(50); // because random number thats why!
+#pragma omp parallel for schedule(auto)
+    for(unsigned i=0; i<parts.size(); ++i){
+        for(const auto& m : parts[i]){
+            for(const auto& o : other.backwards.getBoundaries<1>(m)){
+                into.import(m[1], o[1]);
+            }
         }
     }
     into.finalise_import();

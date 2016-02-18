@@ -16,16 +16,16 @@ gradle -p $MDIR/.. jar
 
 JAR=$(readlink -f `find $MDIR/.. -iname "cauliflower*.jar"`)
 
-ADT="Std"
-if [ $# -gt 0 ]; then
-    ADT="$1"
-fi
-
 for EG in `find $MDIR -name "*.cflr"`; do
-    FN=$(basename "$EG")
-    NAME=${FN%.*}
-    echo java -cp $JAR cauliflower.Main -a "$ADT" -sn $MDIR/../spikes/${NAME}.h -cs $MDIR/../spikes/${NAME}.cpp $EG
-    java -cp $JAR cauliflower.Main -a "$ADT" -sn $MDIR/../spikes/${NAME}.h -cs $MDIR/../spikes/${NAME}.cpp $EG
-    astyle -Yn $MDIR/../spikes/${NAME}.h $MDIR/../spikes/${NAME}.cpp
+    for ADT in Std Btree Souffle; do
+        FN=$(basename "$EG")
+        NAME=${FN%.*}
+        C_FI="$MDIR/../spikes/${NAME}_$ADT.cpp"
+        H_FI="$MDIR/../spikes/${NAME}_$ADT.h"
+        CMD="java -cp $JAR cauliflower.Main -a $ADT -sn $H_FI -cs $C_FI $EG"
+        echo $CMD
+        $CMD
+        astyle -Yn $H_FI $C_FI
+    done
 done
 make -C $MDIR/.. -j4
