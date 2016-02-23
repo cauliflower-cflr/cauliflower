@@ -1,0 +1,11 @@
+a <- v . v;
+b <- v . v;
+c <- v . v;
+d <- v . v;
+e <- v . v;
+f <- v . v;
+g <- v . v;
+
+e -> a, b;
+f -> c, d;
+g -> e, f;
