@@ -286,7 +286,7 @@ struct concise_tree{
      */
 
     static constexpr node_t identity_node(){
-        return node_t{identity_index, 0, 0, identity_index};
+        return node_t{{identity_index, 0, 0, identity_index}};
     }
 
     /// node_next, return the offset to the subtree at quadrant q after n

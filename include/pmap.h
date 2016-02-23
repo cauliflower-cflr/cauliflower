@@ -175,7 +175,7 @@ template<> inline void intersect_h<true, true>(const pmap& me, const pmap& other
 
 template<> inline void compose_h<false, false>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    auto parts = me.backwards.partition(50); // because random number thats why!
+    auto parts = me.backwards.partition(400); // because random number thats why!
 #pragma omp parallel for schedule(auto)
     for(unsigned i=0; i<parts.size(); ++i){
         for(const auto& m : parts[i]){
@@ -188,7 +188,7 @@ template<> inline void compose_h<false, false>(const pmap& me, const pmap& other
 }
 template<> inline void compose_h<false, true>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    auto parts = me.backwards.partition(50); // because random number thats why!
+    auto parts = me.backwards.partition(400); // because random number thats why!
 #pragma omp parallel for schedule(auto)
     for(unsigned i=0; i<parts.size(); ++i){
         for(const auto& m : parts[i]){
@@ -201,7 +201,7 @@ template<> inline void compose_h<false, true>(const pmap& me, const pmap& other,
 }
 template<> inline void compose_h<true, false>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    auto parts = me.forwards.partition(50); // because random number thats why!
+    auto parts = me.forwards.partition(400); // because random number thats why!
 #pragma omp parallel for schedule(auto)
     for(unsigned i=0; i<parts.size(); ++i){
         for(const auto& m : parts[i]){
@@ -214,7 +214,7 @@ template<> inline void compose_h<true, false>(const pmap& me, const pmap& other,
 }
 template<> inline void compose_h<true, true>(const pmap& me, const pmap& other, pmap& into){
     into.initialise_import();
-    auto parts = me.forwards.partition(50); // because random number thats why!
+    auto parts = me.forwards.partition(400); // because random number thats why!
 #pragma omp parallel for schedule(auto)
     for(unsigned i=0; i<parts.size(); ++i){
         for(const auto& m : parts[i]){
