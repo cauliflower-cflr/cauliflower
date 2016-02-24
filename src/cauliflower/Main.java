@@ -1,9 +1,6 @@
 package cauliflower;
 
-import cauliflower.generator.Adt;
-import cauliflower.generator.CppCSVBackend;
-import cauliflower.generator.CppSemiNaiveBackend;
-import cauliflower.generator.DebugBackend;
+import cauliflower.generator.*;
 import cauliflower.parser.CFLRParser;
 import cauliflower.parser.ParseFile;
 import cauliflower.parser.SimpleParser;
@@ -26,6 +23,7 @@ public class Main {
                 .append("before the input grammar:\n")
                 .append("  -sn <file>  Write a semi-naive solver to <file>\n")
                 .append("  -cs <file>  Write a frontend which reads CSV files to <file>\n")
+                .append("  -dl <file>  Write a Datalog specification to <file>\n")
                 .append("Options:\n")
                 .append("  -a <adt>    Uses <adt> as the abstract data-type\n")
                 .append("  -v          Verbose mode\n")
@@ -39,6 +37,7 @@ public class Main {
                 boolean verbose = false;
                 String curSN = null;
                 String curCS = null;
+                String curDL = null;
                 Adt curAdt = Adt.Btree;
                 while (i < args.length) {
                     if (args[i].equals("-h") || args[i].equals("--help")) {
@@ -48,6 +47,8 @@ public class Main {
                         verbose = true;
                     } else if(args[i].equals("-a")) {
                         curAdt = Adt.valueOf(args[++i]);
+                    } else if(args[i].equals("-dl")){
+                        curDL = args[++i];
                     } else if(args[i].equals("-sn")){
                         curSN = args[++i];
                     } else if(args[i].equals("-cs")){
@@ -70,8 +71,14 @@ public class Main {
                                 ps2.close();
                             }
                         }
+                        if(curDL != null){
+                            PrintStream dlps = new PrintStream(new FileOutputStream(curDL));
+                            new SouffleBackend(dlps).generate(name, po.problem);
+                            dlps.close();
+                        }
                         curSN = null;
                         curCS = null;
+                        curDL = null;
                     }
                     i++;
                 }

@@ -1,0 +1,7 @@
+a <- v . v;
+b <- v . v;
+c <- v . v;
+d <- v . v;
+e <- v . v;
+
+e -> a, b, c, d;
