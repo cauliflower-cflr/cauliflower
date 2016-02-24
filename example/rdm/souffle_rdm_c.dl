@@ -1,4 +1,4 @@
-.type V
+.type v
 
 .decl a(f:v, t:v) input
 .decl b(f:v, t:v) input

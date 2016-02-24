@@ -1,0 +1,7 @@
+.type v
+
+.decl a(f:v, t:v) input
+.decl b(f:v, t:v) input
+.decl e(f:v, t:v) printsize
+
+e(v, x) :- a(v, w), b(w, x).

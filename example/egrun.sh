@@ -25,7 +25,7 @@ for EG in `find $MDIR -name "*.cflr"`; do
         CMD="java -cp $JAR cauliflower.Main -a $ADT -sn $H_FI -cs $C_FI $EG"
         echo $CMD
         $CMD
-        astyle -Yn $H_FI $C_FI
+        which astyle 2>/dev/null && astyle -Yn $H_FI $C_FI
     done
 done
 make -C $MDIR/.. -j4
