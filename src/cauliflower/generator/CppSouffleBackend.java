@@ -1,5 +1,6 @@
 package cauliflower.generator;
 
+import cauliflower.cflr.Label;
 import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
 import cauliflower.util.CFLRException;
@@ -9,6 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * CppSemiNaiveBackend.java
@@ -129,49 +131,53 @@ public class CppSouffleBackend implements Backend{
             out.println("adt_t::tree_t::entry_type fwd({{iter1[0], iter" + numIters + "[1]}});");
             // update the temporary output
             String target = labelRel("relations[" + rule.head.label + "]", rule.head);
-            out.println("if(!" + target + ".forwards.contains(fwd)){"); // TODO hints
+            out.println("if(!" + target + ".forwards.contains(fwd, hint_rel" + rule.head.label + ")){");
             out.println("tmp_forwards.insert(fwd);");
             out.println("tmp_backwards.insert({{iter" + numIters + "[1], iter1[0]}});");
             closeCounter++;
 
             // close all the scopes, except the parallel scope
-            for(int i=0; i<closeCounter-1; i++) out.println("}");
+            for(int i=0; i<closeCounter; i++) out.println("}");
             // update the relation and delta with their respective news:
             String targetDelt = labelRel("deltas[" + rule.head.label + "]", rule.head);
-            out.println("#pragma omp sections");
-            out.println("{");
-            out.println("#pragma omp section");
-            out.println("{");
+            //out.println("#pragma omp sections");
+            //out.println("{");
+            //out.println("#pragma omp section");
+            //out.println("{");
             out.println(target + ".forwards.insertAll(tmp_forwards);");
-            out.println("}");
-            out.println("#pragma omp section");
-            out.println("{");
+            //out.println("}");
+            //out.println("#pragma omp section");
+            //out.println("{");
             out.println(target + ".backwards.insertAll(tmp_backwards);");
-            out.println("}");
-            out.println("#pragma omp section");
-            out.println("{");
+            //out.println("}");
+            //out.println("#pragma omp section");
+            //out.println("{");
             out.println(targetDelt + ".forwards.insertAll(tmp_forwards);");
-            out.println("}");
-            out.println("#pragma omp section");
-            out.println("{");
+            //out.println("}");
+            //out.println("#pragma omp section");
+            //out.println("{");
             out.println(targetDelt + ".backwards.insertAll(tmp_backwards);");
-            out.println("}");
-            out.println("}");//closes sections
-            out.println("}");//closes parallel scope
+            //out.println("}");
+            //out.println("}");//closes sections
+            //out.println("}");//closes parallel scope
         }
 
         @Override
         public void visitLbl(Rule.Lbl l) {
             String rel = labelRel("relations[" + l.label + "]", l);
+            String ctxtHint = "hint_rel" + l.label;
             if(l.label == deltaLabel){
-                if(deltaOccurrence == deltasEncountered) rel = labelRel("cur_delta", l);
+                if(deltaOccurrence == deltasEncountered){
+                    rel = labelRel("cur_delta", l);
+                    ctxtHint = "hint_dlt" + l.label;
+                }
                 deltasEncountered++;
             }
             //TODO begin with a smarter relation (i.e. the one that joins with the delta, minimal skew)
             rel = rel + (shouldReverse ? ".backwards" : ".forwards");
             if(partitioned){
                 //project the equality range
-                out.println("auto range" + numIters + " = " + rel + ".getBoundaries<1>({{iter" + numIters + "[1], 0}});"); // TODO hints
+                out.println("auto range" + numIters + " = " + rel + ".getBoundaries<1>({{iter" + numIters + "[1], 0}}, " + ctxtHint + ");");
                 //iterate over the relation
                 out.println("for(const auto& iter" + (numIters+1) + " : range" + numIters + ") {");
                 closeCounter++;
@@ -181,6 +187,11 @@ public class CppSouffleBackend implements Backend{
                 out.println("auto primary_partition = " + rel + ".partition(" + PARTITION_COUNT + ");");
                 out.println("# pragma omp parallel");
                 out.println("{");
+                // create the join hints
+                Stream.concat(Stream.of(rule.head), rule.dependencies.stream()).map(lb -> lb.label).distinct().forEach(i -> {
+                    out.println("adt_t::tree_t::op_context hint_rel" + i + ";");
+                });
+                out.println("adt_t::tree_t::op_context hint_dlt" + deltaLabel + ";");
                 // for each partition in parallel
                 out.println("# pragma omp for schedule(dynamic)"); // TODO different schedules
                 out.println("for (auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index){");
