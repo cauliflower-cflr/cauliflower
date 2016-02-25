@@ -134,15 +134,30 @@ public class CppSouffleBackend implements Backend{
             out.println("tmp_backwards.insert({{iter" + numIters + "[1], iter1[0]}});");
             closeCounter++;
 
-            // close all the scopes
-            for(int i=0; i<closeCounter; i++) out.println("}");
+            // close all the scopes, except the parallel scope
+            for(int i=0; i<closeCounter-1; i++) out.println("}");
             // update the relation and delta with their respective news:
-            // TODO omp_section this
             String targetDelt = labelRel("deltas[" + rule.head.label + "]", rule.head);
+            out.println("#pragma omp sections");
+            out.println("{");
+            out.println("#pragma omp section");
+            out.println("{");
             out.println(target + ".forwards.insertAll(tmp_forwards);");
+            out.println("}");
+            out.println("#pragma omp section");
+            out.println("{");
             out.println(target + ".backwards.insertAll(tmp_backwards);");
+            out.println("}");
+            out.println("#pragma omp section");
+            out.println("{");
             out.println(targetDelt + ".forwards.insertAll(tmp_forwards);");
+            out.println("}");
+            out.println("#pragma omp section");
+            out.println("{");
             out.println(targetDelt + ".backwards.insertAll(tmp_backwards);");
+            out.println("}");
+            out.println("}");//closes sections
+            out.println("}");//closes parallel scope
         }
 
         @Override
