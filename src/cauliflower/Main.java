@@ -63,7 +63,7 @@ public class Main {
                         if(curSN != null) {
                             File snf = new File(curSN);
                             PrintStream ps = new PrintStream(new FileOutputStream(snf));
-                            new CppSemiNaiveBackend(curAdt, ps).generate(name, po.problem);
+                            new CppSouffleBackend(curAdt, ps).generate(name, po.problem);
                             ps.close();
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));

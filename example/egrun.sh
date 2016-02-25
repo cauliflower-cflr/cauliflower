@@ -20,8 +20,8 @@ for EG in `find $MDIR -name "*.cflr"`; do
     for ADT in Std Btree Souffle; do
         FN=$(basename "$EG")
         NAME=${FN%.*}
-        C_FI="$MDIR/../spikes/${NAME}_$ADT.cpp"
-        H_FI="$MDIR/../spikes/${NAME}_$ADT.h"
+        C_FI="$MDIR/../spikes/${NAME}_${ADT}_EG.cpp"
+        H_FI="$MDIR/../spikes/${NAME}_${ADT}_EG.h"
         CMD="java -cp $JAR cauliflower.Main -a $ADT -sn $H_FI -cs $C_FI $EG"
         echo $CMD
         $CMD

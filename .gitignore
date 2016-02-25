@@ -8,3 +8,6 @@ build/
 # misc #
 .*.swp
 *.pyc
+spikes/*_EG.cpp
+spikes/*_EG.h
+
