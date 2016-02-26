@@ -54,11 +54,13 @@ public class CppSouffleBackend implements Backend{
 
     private void generateImports(){
         out.println("#include <array>");
+        out.println("#include <omp.h>");
         for(String imp : adt.imports){
             out.println("#include " + imp);
         }
         out.println("#include \"" + adt.importLoc + "\"");
         out.println("#include \"relation.h\"");
+        out.println("#include \"Util.h\"");
     }
 
     public static String className(String problemName){
@@ -223,6 +225,7 @@ public class CppSouffleBackend implements Backend{
         Rule rule = prob.rules.get(r);
         // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
         out.println("// Label " + l + ", occurrence " + occurrence + ", rule " + prob.rules.get(r).toString());
+        generateTimeStart("eval" + l + "_" + occurrence + "_" + r);
         Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
         for(int ident : fieldIdents.keySet()){ // TODO irrelevant field: if get[1] > 0...
             out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
@@ -236,6 +239,7 @@ public class CppSouffleBackend implements Backend{
         RuleCascadeGenerator gen = new RuleCascadeGenerator(l, occurrence, r, rule, prob);
         gen.generate();
         out.println("}"); // close the ifs
+        generateTimeEnd("eval" + l + "_" + occurrence + "_" + r);
     }
 
     private String deltaExpansionFunctionName(int lbl, boolean argTypes){
@@ -296,7 +300,11 @@ public class CppSouffleBackend implements Backend{
             // TODO early exit evaluation when we reach known code
             out.println("while(true){");
             for(int cc : scc){
-                out.println("if (!deltas[" + cc + "].empty()){ " + deltaExpansionFunctionName(cc, false) + "; continue; }");
+                out.println("if (!deltas[" + cc + "].empty()){");
+                generateTimeStart("delta" + cc);
+                out.println(deltaExpansionFunctionName(cc, false) + ";");
+                generateTimeEnd("delta" + cc);
+                out.println("continue; }");
             }
             out.println("break;");
             out.println("}");
@@ -307,6 +315,26 @@ public class CppSouffleBackend implements Backend{
     private void endScope(String problemName){
         out.println("}; // end struct " + problemName + "_semi_naive");
         out.println("} // end namespace cflr");
+    }
+
+    private void generateTimeStart(String name){
+        out.println("auto tstart_" + name + " = now();");
+    }
+
+    private void generateTimeEnd(String name){
+        out.println("auto tend_" + name + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tstart_" + name + ", tend_" + name + ") << std::endl;");
+    }
+
+    private void generateCounterDecl(String name){
+        out.println("unsigned ctr_" + name + " = 0;");
+    }
+
+    private void generateCounterIncr(String name){
+        out.println("ctr_" + name + "++;");
+    }
+
+    private void generateCounterReport(String name){
+        out.println("std::cerr << \"COUNT \" << omp_get_thread_num() << \" " + name + " \" << ctr_" + name + " << std::endl;");
     }
 
 }
