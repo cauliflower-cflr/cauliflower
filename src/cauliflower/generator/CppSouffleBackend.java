@@ -25,10 +25,12 @@ public class CppSouffleBackend implements Backend{
 
     private final Adt adt;
     private final PrintStream out;
+    private final boolean useTimers;
 
-    public CppSouffleBackend(Adt adt, PrintStream out){
+    public CppSouffleBackend(Adt adt, PrintStream out, boolean timers){
         this.adt = Adt.Souffle; // force this ADT
         this.out = out;
+        this.useTimers = timers;
     }
 
     @Override
@@ -107,18 +109,20 @@ public class CppSouffleBackend implements Backend{
         final int ruleIndex;
         final Rule rule;
         final Problem prob;
+        final boolean doParallel;
         int closeCounter = 0; // closing braces for the variable number of opened ones
         int deltasEncountered = 0;
         boolean partitioned = false;
         boolean shouldReverse = false;
         private int numIters;
 
-        public RuleCascadeGenerator(int dlbl, int docc, int ri, Rule r, Problem p){
+        public RuleCascadeGenerator(int dlbl, int docc, int ri, Rule r, Problem p, boolean doParallel){
             deltaLabel = dlbl;
             deltaOccurrence = docc;
             ruleIndex = ri;
             rule = r;
             prob = p;
+            this.doParallel = doParallel;
         }
 
         public void generate(){
@@ -187,7 +191,7 @@ public class CppSouffleBackend implements Backend{
             } else {
                 //iterate over the primary label after partitioning
                 out.println("auto primary_partition = " + rel + ".partition(" + PARTITION_COUNT + ");");
-                out.println("# pragma omp parallel");
+                if(doParallel) out.println("# pragma omp parallel");
                 out.println("{");
                 // create the join hints
                 Stream.concat(Stream.of(rule.head), rule.dependencies.stream()).map(lb -> lb.label).distinct().forEach(i -> {
@@ -195,7 +199,7 @@ public class CppSouffleBackend implements Backend{
                 });
                 out.println("adt_t::tree_t::op_context hint_dlt" + deltaLabel + ";");
                 // for each partition in parallel
-                out.println("# pragma omp for schedule(dynamic)"); // TODO different schedules
+                if(doParallel) out.println("# pragma omp for schedule(dynamic)"); // TODO different schedules
                 out.println("for (auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index){");
                 out.println("for(const auto& iter" + (numIters+1) + " : *primary_index){");
                 partitioned = true;
@@ -227,8 +231,13 @@ public class CppSouffleBackend implements Backend{
         out.println("// Label " + l + ", occurrence " + occurrence + ", rule " + prob.rules.get(r).toString());
         generateTimeStart("eval" + l + "_" + occurrence + "_" + r);
         Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
+        boolean shouldParallel = true;
         for(int ident : fieldIdents.keySet()){ // TODO irrelevant field: if get[1] > 0...
+            if(shouldParallel){
+                out.println("#pragma omp parallel for schedule(auto)");
+            }
             out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
+            shouldParallel = false;
         }
         int dSeen = 0;
         for(Rule.Lbl lbl : rule.dependencies){
@@ -236,7 +245,7 @@ public class CppSouffleBackend implements Backend{
             if(lbl.label == l) dSeen ++;
         }
         out.println("{");
-        RuleCascadeGenerator gen = new RuleCascadeGenerator(l, occurrence, r, rule, prob);
+        RuleCascadeGenerator gen = new RuleCascadeGenerator(l, occurrence, r, rule, prob, shouldParallel);
         gen.generate();
         out.println("}"); // close the ifs
         generateTimeEnd("eval" + l + "_" + occurrence + "_" + r);
@@ -318,11 +327,11 @@ public class CppSouffleBackend implements Backend{
     }
 
     private void generateTimeStart(String name){
-        out.println("auto tstart_" + name + " = now();");
+        if(useTimers) out.println("auto tstart_" + name + " = now();");
     }
 
     private void generateTimeEnd(String name){
-        out.println("auto tend_" + name + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tstart_" + name + ", tend_" + name + ") << std::endl;");
+        if(useTimers) out.println("auto tend_" + name + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tstart_" + name + ", tend_" + name + ") << std::endl;");
     }
 
     private void generateCounterDecl(String name){

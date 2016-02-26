@@ -26,6 +26,7 @@ public class Main {
                 .append("  -dl <file>  Write a Datalog specification to <file>\n")
                 .append("Options:\n")
                 .append("  -a <adt>    Uses <adt> as the abstract data-type\n")
+                .append("  -t          Emit timers (for profiling)\n")
                 .append("  -v          Verbose mode\n")
                 .toString();
     }
@@ -35,6 +36,7 @@ public class Main {
             if(args.length > 0) {
                 int i = 0;
                 boolean verbose = false;
+                boolean timers = false;
                 String curSN = null;
                 String curCS = null;
                 String curDL = null;
@@ -45,6 +47,8 @@ public class Main {
                         System.exit(0);
                     } else if(args[i].equals("-v")) {
                         verbose = true;
+                    } else if(args[i].equals("-t")) {
+                        timers = true;
                     } else if(args[i].equals("-a")) {
                         curAdt = Adt.valueOf(args[++i]);
                     } else if(args[i].equals("-dl")){
@@ -63,7 +67,7 @@ public class Main {
                         if(curSN != null) {
                             File snf = new File(curSN);
                             PrintStream ps = new PrintStream(new FileOutputStream(snf));
-                            new CppSouffleBackend(curAdt, ps).generate(name, po.problem);
+                            new CppSouffleBackend(curAdt, ps, timers).generate(name, po.problem);
                             ps.close();
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));
