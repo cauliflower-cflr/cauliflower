@@ -145,6 +145,7 @@ public class CppSouffleBackend implements Backend{
             // close all the scopes, except the parallel scope
             for(int i=0; i<closeCounter; i++) out.println("}");
             // update the relation and delta with their respective news:
+            generateTimeStart("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex);
             String targetDelt = labelRel("deltas[" + rule.head.label + "]", rule.head);
             //out.println("#pragma omp sections");
             //out.println("{");
@@ -165,6 +166,7 @@ public class CppSouffleBackend implements Backend{
             out.println(targetDelt + ".backwards.insertAll(tmp_backwards);");
             //out.println("}");
             //out.println("}");//closes sections
+            generateTimeEnd("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex);
             //out.println("}");//closes parallel scope
         }
 
