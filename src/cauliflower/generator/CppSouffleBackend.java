@@ -28,7 +28,7 @@ public class CppSouffleBackend implements Backend{
     private final boolean useTimers;
 
     public CppSouffleBackend(Adt adt, PrintStream out, boolean timers){
-        this.adt = Adt.Souffle; // force this ADT
+        this.adt = Adt.Souffle; // force this ADT for parallel backend
         this.out = out;
         this.useTimers = timers;
     }
@@ -145,7 +145,7 @@ public class CppSouffleBackend implements Backend{
             // close all the scopes, except the parallel scope
             for(int i=0; i<closeCounter; i++) out.println("}");
             // update the relation and delta with their respective news:
-            generateTimeStart("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex);
+            generateTimeStart("tmp_update");
             String targetDelt = labelRel("deltas[" + rule.head.label + "]", rule.head);
             //out.println("#pragma omp sections");
             //out.println("{");
@@ -166,7 +166,7 @@ public class CppSouffleBackend implements Backend{
             out.println(targetDelt + ".backwards.insertAll(tmp_backwards);");
             //out.println("}");
             //out.println("}");//closes sections
-            generateTimeEnd("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex);
+            generateTimeIncr("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "tmp_update");
             //out.println("}");//closes parallel scope
         }
 
@@ -232,6 +232,7 @@ public class CppSouffleBackend implements Backend{
         // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
         out.println("// Label " + l + ", occurrence " + occurrence + ", rule " + prob.rules.get(r).toString());
         generateTimeStart("eval" + l + "_" + occurrence + "_" + r);
+        generateTimeDecl("update" + l + "_" + occurrence + "_" + r);
         Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
         boolean shouldParallel = true;
         for(int ident : fieldIdents.keySet()){ // TODO irrelevant field: if get[1] > 0...
@@ -250,6 +251,7 @@ public class CppSouffleBackend implements Backend{
         RuleCascadeGenerator gen = new RuleCascadeGenerator(l, occurrence, r, rule, prob, shouldParallel);
         gen.generate();
         out.println("}"); // close the ifs
+        generateTimeReport("update" + l + "_" + occurrence + "_" + r);
         generateTimeEnd("eval" + l + "_" + occurrence + "_" + r);
     }
 
@@ -329,11 +331,23 @@ public class CppSouffleBackend implements Backend{
     }
 
     private void generateTimeStart(String name){
-        if(useTimers) out.println("auto tstart_" + name + " = now();");
+        if(useTimers) out.println("time_point tstart_" + name + " = now();");
     }
 
     private void generateTimeEnd(String name){
-        if(useTimers) out.println("auto tend_" + name + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tstart_" + name + ", tend_" + name + ") << std::endl;");
+        if(useTimers) out.println("time_point tend_" + name + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tstart_" + name + ", tend_" + name + ") << std::endl;");
+    }
+
+    private void generateTimeDecl(String name){
+        if(useTimers) out.println("time_point tcount_init_" + name + " = now(); time_point tcount_" + name + " = tcount_init_" + name + ";");
+    }
+
+    private void generateTimeIncr(String totalName, String incrName){
+        if(useTimers) out.println("tcount_" + totalName + " += (now() - tstart_" + incrName + ");");
+    }
+
+    private void generateTimeReport(String name){
+        if(useTimers) out.println("std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tcount_init_" + name + ", tcount_" + name + ") << std::endl;");
     }
 
     private void generateCounterDecl(String name){
