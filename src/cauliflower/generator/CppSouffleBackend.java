@@ -143,31 +143,29 @@ public class CppSouffleBackend implements Backend{
             closeCounter++;
 
             // close all the scopes, except the parallel scope
+            if(doParallel) closeCounter--;
             for(int i=0; i<closeCounter; i++) out.println("}");
             // update the relation and delta with their respective news:
             generateTimeStart("tmp_update");
             String targetDelt = labelRel("deltas[" + rule.head.label + "]", rule.head);
-            //out.println("#pragma omp sections");
-            //out.println("{");
-            //out.println("#pragma omp section");
-            //out.println("{");
+            if(doParallel)out.println("#pragma omp sections");
+            if(doParallel)out.println("{");
+            if(doParallel)out.println("#pragma omp section");
             out.println(target + ".forwards.insertAll(tmp_forwards);");
-            //out.println("}");
-            //out.println("#pragma omp section");
-            //out.println("{");
+            if(doParallel)out.println("#pragma omp section");
             out.println(target + ".backwards.insertAll(tmp_backwards);");
-            //out.println("}");
-            //out.println("#pragma omp section");
-            //out.println("{");
+            if(doParallel)out.println("#pragma omp section");
             out.println(targetDelt + ".forwards.insertAll(tmp_forwards);");
-            //out.println("}");
-            //out.println("#pragma omp section");
-            //out.println("{");
+            if(doParallel)out.println("#pragma omp section");
             out.println(targetDelt + ".backwards.insertAll(tmp_backwards);");
-            //out.println("}");
-            //out.println("}");//closes sections
+            if(doParallel)out.println("}");//closes sections
+            if(doParallel){
+                out.println("#pragma omp master");
+                out.println("{");
+            }
             generateTimeIncr("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "tmp_update");
-            //out.println("}");//closes parallel scope
+            if(doParallel) out.println("}");
+            if(doParallel)out.println("}");//closes parallel scope
         }
 
         @Override
@@ -283,6 +281,7 @@ public class CppSouffleBackend implements Backend{
     private void generateSemiNaive(Problem prob){
         out.println("// Solver definition");
         out.println("static void solve(vols_t& volume, rels_t& relations){");
+        generateTimeStart("initialisation");
 
         out.println("// Epsilon initialisation");
         out.println("size_t largest_vertex_domain = 0;");
@@ -306,6 +305,7 @@ public class CppSouffleBackend implements Backend{
         for(int l=0; l<prob.labels.size(); l++){
             out.println("for(unsigned i=0; i<relations[" + l + "].adts.size(); ++i) relations[" + l + "].adts[i].deep_copy(deltas[" + l + "].adts[i]);");
         }
+        generateTimeEnd("initialisation");
 
         for(List<Integer> scc : prob.getLabelDependencyOrdering()){
             out.println("// SCC " + scc.toString());
