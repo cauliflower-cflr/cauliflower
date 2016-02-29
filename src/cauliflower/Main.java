@@ -6,7 +6,6 @@ import cauliflower.parser.ParseFile;
 import cauliflower.parser.SimpleParser;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 
 public class Main {
 
@@ -17,16 +16,16 @@ public class Main {
 
     public static String usage(){
         return new StringBuilder("Usage:\n")
-                .append("    java ").append(Main.class.getName()).append("[OPTIONS] {[-sn file [-cs file]] <cflr-file>}\n\n")
+                .append("    java ").append(Main.class.getName()).append(" [OPTIONS] {[-sn file [-cs file]] <cflr-file>}\n\n")
                 .append("Reads the grammar from file <cflr-file> as a CFL-R problem, and\n")
                 .append("writes outputs for that file depending on what was queued up \n")
                 .append("before the input grammar:\n")
                 .append("  -sn <file>  Write a semi-naive solver to <file>\n")
                 .append("  -cs <file>  Write a frontend which reads CSV files to <file>\n")
-                .append("  -dl <file>  Write a Datalog specification to <file>\n")
                 .append("Options:\n")
-                .append("  -a <adt>    Uses <adt> as the abstract data-type\n")
-                .append("  -t          Emit timers (for profiling)\n")
+                .append("  -a <adt>    Uses <adt> as the abstract data-type (only works without -p)\n")
+                .append("  -p          Emit parallel code using Open MP directives\n")
+                .append("  -t          Emit timers for profiling (only works with -p)\n")
                 .append("  -v          Verbose mode\n")
                 .toString();
     }
@@ -37,9 +36,9 @@ public class Main {
                 int i = 0;
                 boolean verbose = false;
                 boolean timers = false;
+                boolean parallel = false;
                 String curSN = null;
                 String curCS = null;
-                String curDL = null;
                 Adt curAdt = Adt.Btree;
                 while (i < args.length) {
                     if (args[i].equals("-h") || args[i].equals("--help")) {
@@ -49,17 +48,17 @@ public class Main {
                         verbose = true;
                     } else if(args[i].equals("-t")) {
                         timers = true;
+                    } else if(args[i].equals("-p")) {
+                        parallel = true;
                     } else if(args[i].equals("-a")) {
                         curAdt = Adt.valueOf(args[++i]);
-                    } else if(args[i].equals("-dl")){
-                        curDL = args[++i];
                     } else if(args[i].equals("-sn")){
                         curSN = args[++i];
                     } else if(args[i].equals("-cs")){
                         curCS = args[++i];
                     } else {
                         File in = new File(args[i]);
-                        if(!in.exists() || !in.isFile()) throw new IOException("Unable to locate Granmmar input file " + args[i]);
+                        if(!in.exists() || !in.isFile()) throw new IOException("Unable to locate Grammar input file " + args[i]);
                         CFLRParser.ParserOutputs po = new ParseFile(new SimpleParser()).read(in);
                         String name = in.getName();
                         if(name.contains(".")) name = name.substring(0, name.lastIndexOf('.'));
@@ -67,7 +66,8 @@ public class Main {
                         if(curSN != null) {
                             File snf = new File(curSN);
                             PrintStream ps = new PrintStream(new FileOutputStream(snf));
-                            new CppSouffleBackend(curAdt, ps, timers).generate(name, po.problem);
+                            Backend backend = parallel ? new CppParallelBackend(ps, timers) : new CppSerialBackend(curAdt, ps);
+                            backend.generate(name, po.problem);
                             ps.close();
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));
@@ -75,14 +75,8 @@ public class Main {
                                 ps2.close();
                             }
                         }
-                        if(curDL != null){
-                            PrintStream dlps = new PrintStream(new FileOutputStream(curDL));
-                            new SouffleBackend(dlps).generate(name, po.problem);
-                            dlps.close();
-                        }
                         curSN = null;
                         curCS = null;
-                        curDL = null;
                     }
                     i++;
                 }

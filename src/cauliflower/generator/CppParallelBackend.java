@@ -1,6 +1,5 @@
 package cauliflower.generator;
 
-import cauliflower.cflr.Label;
 import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
 import cauliflower.util.CFLRException;
@@ -13,22 +12,20 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * CppSemiNaiveBackend.java
+ * CppParallelBackend.java
  *
  * generates code for an execution of the semi-naive code
  *
  * Created by nic on 25/11/15.
  */
-public class CppSouffleBackend implements Backend{
+public class CppParallelBackend implements Backend{
 
     public static final int PARTITION_COUNT = 400; // arbitrary value i borrowed from souffle
 
-    private final Adt adt;
     private final PrintStream out;
     private final boolean useTimers;
 
-    public CppSouffleBackend(Adt adt, PrintStream out, boolean timers){
-        this.adt = Adt.Souffle; // force this ADT for parallel backend
+    public CppParallelBackend(PrintStream out, boolean timers){
         this.out = out;
         this.useTimers = timers;
     }
@@ -57,28 +54,24 @@ public class CppSouffleBackend implements Backend{
     private void generateImports(){
         out.println("#include <array>");
         out.println("#include <omp.h>");
-        for(String imp : adt.imports){
+        for(String imp : Adt.Souffle.imports){
             out.println("#include " + imp);
         }
-        out.println("#include \"" + adt.importLoc + "\"");
+        out.println("#include \"" + Adt.Souffle.importLoc + "\"");
         out.println("#include \"relation.h\"");
         out.println("#include \"Util.h\"");
     }
 
-    public static String className(String problemName){
-        return problemName + "_semi_naive";
-    }
-
     private void generateScope(String problemName){
         out.println("namespace cflr {");
-        out.println("struct " + className(problemName) + " {");
+        out.println("struct " + CppSerialBackend.className(problemName) + " {");
     }
 
     private void generateDefs(Problem prob){
         out.println("// Definitions");
         out.println("static const unsigned num_lbls = " + prob.labels.size() + ";");
         out.println("static const unsigned num_domains = " + prob.numDomains + ";");
-        out.println("typedef " + adt.typename + " adt_t;");
+        out.println("typedef " + Adt.Souffle.typename + " adt_t;");
         out.println("typedef std::array<relation<adt_t>, num_lbls> rels_t;");
         out.println("typedef std::array<size_t, num_domains> vols_t;");
     }

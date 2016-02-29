@@ -98,7 +98,7 @@ public class CppCSVBackend implements Backend {
         if(verbose){
             out.println("steady_clock::time_point time1 = steady_clock::now();");
         }
-        out.println("typedef " + CppSemiNaiveBackend.className(problemName) + " P;");
+        out.println("typedef " + CppSerialBackend.className(problemName) + " P;");
         out.println("P::vols_t vols = regs.volumes();");
         out.print("P::rels_t relations = {");
         int j=0;

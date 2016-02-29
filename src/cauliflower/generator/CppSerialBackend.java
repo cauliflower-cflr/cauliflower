@@ -12,18 +12,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * CppSemiNaiveBackend.java
+ * CppSerialBackend.java
  *
  * generates code for an execution of the semi-naive code
  *
  * Created by nic on 25/11/15.
  */
-public class CppSemiNaiveBackend implements Backend{
+public class CppSerialBackend implements Backend{
 
     private final Adt adt;
     private final PrintStream out;
 
-    public CppSemiNaiveBackend(Adt adt, PrintStream out){
+    public CppSerialBackend(Adt adt, PrintStream out){
         this.adt = adt;
         this.out = out;
     }
