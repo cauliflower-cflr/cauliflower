@@ -70,6 +70,9 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
             (errs() << "  - ").write_escaped(func.getName()) << "\n";
             for(auto& block : func.getBasicBlockList()) {
                 for(auto& inst : block.getInstList()) {
+                    //exclude non-useful edges
+                    bool IsNonInvokeTerminator = isa<TerminatorInst>(inst) && !isa<InvokeInst>(inst);
+                    if(isa<CmpInst>(inst) || isa<FenceInst>(inst) || IsNonInvokeTerminator) continue;
                     this->visit(&inst);
                 }
             }
@@ -88,12 +91,12 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
         //solve
         P::solve(vols, relations);
         //print the relations
-        dumpVH("ref", relations[0], regs);
-        dumpVV("assign", relations[1], regs);
-        dumpVV("load", relations[2], regs);
-        dumpVV("store", relations[3], regs);
-        dumpVH("pointsto", relations[4], regs);
-        dumpVV("alias", relations[5], regs);
+        // dumpVH("ref", relations[0], regs);
+        // dumpVV("assign", relations[1], regs);
+        // dumpVV("load", relations[2], regs);
+        // dumpVV("store", relations[3], regs);
+        // dumpVH("pointsto", relations[4], regs);
+        // dumpVV("alias", relations[5], regs);
         return false;
     }
 
@@ -141,7 +144,9 @@ struct CauliAA : public ModulePass, public AliasAnalysis, public InstVisitor<Cau
             buf_as.add(relation_buffer<const Value*, const Value*>::outer_type {Fn, &Inst});
         } else {
             //TODO unknown functions
-            llvm_unreachable("Function with unknown linkage");
+            errs() << "UNLINKED: " << Inst << "\n";
+            //llvm_unreachable("Function with unknown linkage");
+            return;
         }
     }
 
