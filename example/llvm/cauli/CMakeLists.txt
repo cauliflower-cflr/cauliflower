@@ -4,6 +4,7 @@ set (CauliSourceCodes
     andersen_cflr.cpp
     andersen.h
     dyck.cpp
+    fact_dumper.cpp
 )
 add_library (Cauli SHARED ${CauliSourceCodes})
 
