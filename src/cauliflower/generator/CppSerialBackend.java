@@ -153,13 +153,22 @@ public class CppSerialBackend implements Backend{
             this.curTemps = lft.curTemps;
             this.docc = lft.docc;
             GeneratedClause rgh = subClause(a.right);
-            if(lft.negated || rgh.negated) throw new RuntimeException("Unhandled");
+            if(lft.negated && rgh.negated) throw new RuntimeException("Unhandled - double negation not implemented");
+            if((lft.negated || rgh.negated) && (lft.reversed || rgh.reversed)) throw new RuntimeException("Unhandled - negation and reversal");
             GeneratedClause tmp = new GeneratedClause(rgh.curTemps); // used to stub myself
             this.varName = tmp.varName;
             this.curTemps = tmp.curTemps;
             this.docc = rgh.docc;
             out.println("adt_t " + this.varName + ";");
-            out.println(lft.varName + ".intersect<" + lft.reversed + ", " + rgh.reversed + ">(" + rgh.varName + ", " + this.varName + ");");
+            if(lft.negated){
+                out.println(rgh.varName + ".deep_copy(" + this.varName + ");");
+                out.println(this.varName + ".difference(" + lft.varName + ");");
+            } else if (rgh.negated) {
+                out.println(lft.varName + ".deep_copy(" + this.varName + ");");
+                out.println(this.varName + ".difference(" + rgh.varName + ");");
+            } else {
+                out.println(lft.varName + ".intersect<" + lft.reversed + ", " + rgh.reversed + ">(" + rgh.varName + ", " + this.varName + ");");
+            }
         }
     }
 
