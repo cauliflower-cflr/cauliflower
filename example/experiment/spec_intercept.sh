@@ -15,8 +15,8 @@ function usage(){
 }
 
 function compile(){
-    local OUTPUT=`echo "$@" | sed -e 's/\t/ /g' -e 's/  */ /g' -e 's/^.*-o *\([^ ]*\) .*$/\1/'`
     $@
+    #local OUTPUT=`echo "$@" | sed -e 's/\t/ /g' -e 's/  */ /g' -e 's/^.*-o *\([^ ]*\) .*$/\1/'`
     #llvm-dis $OUTPUT
 }
 
@@ -33,8 +33,8 @@ function link(){
     for IN in $INPUTS -o $OUTPUT; do FLAGS=`echo $FLAGS | sed "s/${IN//\//\\\/}//"`; done
     echo FLAGS=$FLAGS
     # Combine the bc files into one large file
-    llvm-link $INPUTS -o ${OUTPUT}.all.bc
-    opt -mem2reg ${OUTPUT}.all.bc -o ${OUTPUT}.bc
+    llvm-link $INPUTS -o ${OUTPUT}.bc.all
+    opt -mem2reg ${OUTPUT}.bc.all -o ${OUTPUT}.bc
     $COMPILER $FLAGS -O0 ${OUTPUT}.bc -o $OUTPUT
 }
 

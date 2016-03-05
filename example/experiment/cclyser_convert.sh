@@ -54,6 +54,7 @@ function bc_to_dlm(){
         fi
     done
     mv `find $OUT_DIR -type f -name "*.csv"` $OUT_DIR/
+    rm -rf $OUT_DIR/*/
     # additionally create some filters
     echo -e "@malloc,@malloc\n@calloc,@calloc\n@realloc,@realloc" > $OUT_DIR/function_allocating-byname.csv
 }
@@ -61,5 +62,6 @@ function bc_to_dlm(){
 ( [ $# -gt 0 ] && [ -f $1 ] ) || (usage && exit 1)
 
 for FI in $@; do
+    [ $# -gt 1 ] && echo "cclyzer converting: $FI"
     bc_to_dlm $FI
 done

@@ -6,6 +6,7 @@ import cauliflower.parser.ParseFile;
 import cauliflower.parser.SimpleParser;
 
 import java.io.*;
+import java.nio.file.Paths;
 
 public class Main {
 
@@ -71,7 +72,8 @@ public class Main {
                             ps.close();
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));
-                                new CppCSVBackend(ps2, snf.getAbsolutePath(), po.labelNames, po.fieldDomains, false).generate(name, po.problem);
+                                String relPath = new File(curCS).getParentFile().toPath().relativize(Paths.get(snf.toURI())).toString();
+                                new CppCSVBackend(ps2, relPath, po.labelNames, po.fieldDomains, false).generate(name, po.problem);
                                 ps2.close();
                             }
                         }
