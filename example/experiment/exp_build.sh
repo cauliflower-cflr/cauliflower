@@ -16,7 +16,7 @@ set -e
 #
 # Define some useful vars
 #
-. $(dirname $0)/common.sh
+. $(dirname $0)/exp_common.sh
 
 #
 # Make sure the environment is set up correctly
@@ -48,14 +48,13 @@ gradle -p $CAULI_DIR build
 mv `find $CAULI_DIR/build -iname "cauliflower*.jar"` $CAULI_JAR
 mkdir -p $GIGAS_DIR
 mkdir -p $CCLYS_DIR
-java -jar $CAULI_JAR -p -sn $GIGAS_DIR/${GIGAS_NAME}.h -cs $GIGAS_DIR/${GIGAS_NAME}.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -p -t -sn $GIGAS_DIR/${GIGAS_NAME}_t.h -cs $GIGAS_DIR/${GIGAS_NAME}_t.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -a Souffle -sn $CCLYS_DIR/${CCLYS_NAME}.h -cs $CCLYS_DIR/${CCLYS_NAME}.cpp ${CCLYS_NAME}.cflr
+java -jar $CAULI_JAR -a Btree -t -sn $GIGAS_DIR/${GIGAS_NAME}_s.h -cs $GIGAS_DIR/${GIGAS_NAME}_s.cpp ${GIGAS_NAME}.cflr
+java -jar $CAULI_JAR -p -t -sn $GIGAS_DIR/${GIGAS_NAME}_p.h -cs $GIGAS_DIR/${GIGAS_NAME}_p.cpp ${GIGAS_NAME}.cflr
+java -jar $CAULI_JAR -a Souffle -t -sn $CCLYS_DIR/${CCLYS_NAME}.h -cs $CCLYS_DIR/${CCLYS_NAME}.cpp ${CCLYS_NAME}.cflr
 cp $GIGAS_DIR/* $CCLYS_DIR/* $CAULI_DIR/spikes/
 make -C $CAULI_DIR -j4
 mv $CAULI_DIR/bin/$CCLYS_NAME $CCLYS_DIR
-mv $CAULI_DIR/bin/$GIGAS_NAME $GIGAS_DIR
-mv $CAULI_DIR/bin/${GIGAS_NAME}_t $GIGAS_DIR
+mv $CAULI_DIR/bin/${GIGAS_NAME}_p $CAULI_DIR/bin/${GIGAS_NAME}_s $GIGAS_DIR
 
 #
 # Prepare gigascale benchmarks

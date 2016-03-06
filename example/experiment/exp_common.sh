@@ -9,8 +9,8 @@
 # Defines some common variables for use in the build and run* scripts     #
 #-------------------------------------------------------------------------#
 
-# export SPEC_BENCHES="astar bzip2 h264ref hmmer libquantum mcf omnetpp sjeng"
-export SPEC_BENCHES="mcf sjeng"
+export SPEC_BENCHES="astar bzip2 h264ref hmmer libquantum mcf omnetpp sjeng"
+# export SPEC_BENCHES="mcf sjeng"
 export CCLYS_NAME="llvm_cclyser"
 export GIGAS_NAME="java_gigascale"
 
@@ -20,7 +20,7 @@ export SPOUT_DIR=`grep "output_root" $EXPER_DIR/spec_config.cfg | sed -e 's/^.*=
 export CCLYS_DIR="$EXPER_DIR/$CCLYS_NAME"
 export GIGAS_DIR="$EXPER_DIR/$GIGAS_NAME"
 
-export BUILT_ARCHIVE="$EXPER_DIR/experiments.zip"
+export BUILT_ARCHIVE="$EXPER_DIR/build.zip"
 export CAULI_JAR="$EXPER_DIR/cauliflower.jar"
 
 # Function to bail out if the given program is not in the path

@@ -20,7 +20,7 @@ else
         llvm-dis $CF.0
         llvm-dis $CF.bc
         clang $CF -o $CF.exe
-        [ -n "$CCLYSER_HOME" ] && `dirname $0`/cclyser_convert.sh $CF.0 $CF.bc
+        [ -n "$CCLYSER_HOME" ] && `dirname $0`/../experiment/cclyser_convert.sh $CF.0 $CF.bc
     done
 fi
 

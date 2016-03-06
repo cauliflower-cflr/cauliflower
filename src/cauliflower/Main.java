@@ -73,7 +73,7 @@ public class Main {
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));
                                 String relPath = new File(curCS).getParentFile().toPath().relativize(Paths.get(snf.toURI())).toString();
-                                new CppCSVBackend(ps2, relPath, po.labelNames, po.fieldDomains, false).generate(name, po.problem);
+                                new CppCSVBackend(ps2, relPath, po.labelNames, po.fieldDomains, timers).generate(name, po.problem);
                                 ps2.close();
                             }
                         }
