@@ -19,6 +19,12 @@ set -e
 . $(dirname $0)/exp_common.sh
 
 #
+# Clean up prior build
+#
+rm -rf $SPOUT_DIR $CCLYS_DIR $GIGAS_DIR $BUILT_ARCHIVE $CAULI_JAR
+[ $# == 0 ] || exit 0 # user can clean the preparation by passing any argument to this script
+
+#
 # Make sure the environment is set up correctly
 #
 [ -f $CCLYSER_HOME/bin/fact-generator ] || (echo "Cannot find the fact-generator, cclyzer needs to be built" >&2 && exit 1)
@@ -36,21 +42,15 @@ which_or_bail runspec
 which_or_bail spec_intercept.sh
 
 #
-# Clean up prior build
-#
-rm -rf $SPOUT_DIR $CCLYS_DIR $GIGAS_DIR $BUILT_ARCHIVE $CAULI_JAR
-[ $# == 0 ] || exit 0 # user can clean the preparation by passing any argument to this script
-
-#
 # Build cauliflower itself and the experiment source files
 #
 gradle -p $CAULI_DIR build
 mv `find $CAULI_DIR/build -iname "cauliflower*.jar"` $CAULI_JAR
 mkdir -p $GIGAS_DIR
 mkdir -p $CCLYS_DIR
-java -jar $CAULI_JAR -a Btree -t -sn $GIGAS_DIR/${GIGAS_NAME}_s.h -cs $GIGAS_DIR/${GIGAS_NAME}_s.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -p -t -sn $GIGAS_DIR/${GIGAS_NAME}_p.h -cs $GIGAS_DIR/${GIGAS_NAME}_p.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -a Souffle -t -sn $CCLYS_DIR/${CCLYS_NAME}.h -cs $CCLYS_DIR/${CCLYS_NAME}.cpp ${CCLYS_NAME}.cflr
+java -jar $CAULI_JAR -r -a Btree   -sn $GIGAS_DIR/${GIGAS_NAME}_s.h -cs $GIGAS_DIR/${GIGAS_NAME}_s.cpp ${GIGAS_NAME}.cflr
+java -jar $CAULI_JAR -r -p         -sn $GIGAS_DIR/${GIGAS_NAME}_p.h -cs $GIGAS_DIR/${GIGAS_NAME}_p.cpp ${GIGAS_NAME}.cflr
+java -jar $CAULI_JAR -r -a Souffle -sn $CCLYS_DIR/${CCLYS_NAME}.h   -cs $CCLYS_DIR/${CCLYS_NAME}.cpp   ${CCLYS_NAME}.cflr
 cp $GIGAS_DIR/* $CCLYS_DIR/* $CAULI_DIR/spikes/
 make -C $CAULI_DIR -j4
 mv $CAULI_DIR/bin/$CCLYS_NAME $CCLYS_DIR

@@ -10,7 +10,7 @@
 #-------------------------------------------------------------------------#
 
 export SPEC_BENCHES="astar bzip2 h264ref hmmer libquantum mcf omnetpp sjeng"
-# export SPEC_BENCHES="mcf sjeng"
+#export SPEC_BENCHES="mcf sjeng"
 export CCLYS_NAME="llvm_cclyser"
 export GIGAS_NAME="java_gigascale"
 
@@ -26,5 +26,10 @@ export CAULI_JAR="$EXPER_DIR/cauliflower.jar"
 # Function to bail out if the given program is not in the path
 function which_or_bail(){
     which $1 >/dev/null 2>/dev/null || (echo "Unable to locate binary: $1" >&2 && exit 1)
+}
+
+# Creates a temporary directory in the expected location with $1.explog as suffix
+function tempo(){
+    mktemp --tmpdir=$EXPER_DIR --suffix=".$1.explog"
 }
 

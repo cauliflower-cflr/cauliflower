@@ -150,10 +150,15 @@ public class CppCSVBackend implements Backend {
         out.println("}");
         if(verbose){
             out.println("steady_clock::time_point time4 = steady_clock::now();");
-            out.println("cerr << \"        input csv files: \" << duration_cast<duration<double>>(time1 - time0).count() << endl;");
-            out.println("cerr << \"convert csv to relation: \" << duration_cast<duration<double>>(time2 - time1).count() << endl;");
-            out.println("cerr << \"       solve semi-naive: \" << duration_cast<duration<double>>(time3 - time2).count() << endl;");
-            out.println("cerr << \"       output csv files: \" << duration_cast<duration<double>>(time4 - time3).count() << endl;");
+            out.println("cerr << \"input csv files=\" << duration_cast<duration<double>>(time1 - time0).count() << endl;");
+            out.println("cerr << \"convert csv to relation=\" << duration_cast<duration<double>>(time2 - time1).count() << endl;");
+            out.println("cerr << \"solve semi-naive=\" << duration_cast<duration<double>>(time3 - time2).count() << endl;");
+            out.println("cerr << \"output csv files=\" << duration_cast<duration<double>>(time4 - time3).count() << endl;");
+            for(int l=0; l<prob.labels.size(); l++){
+                generateBufferDeclaration(prob.labels.get(l), "count_buf_" + l);
+                out.println("relations[" + l  + "].export_buffer(count_buf_" + l + ");");
+                out.println("cerr << \"|" + labelReg.fromIndex(l) + "|=\" << count_buf_" + l + ".size() << endl;");
+            }
         }
         out.println("return 0;");
         out.println("}");

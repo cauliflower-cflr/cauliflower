@@ -16,13 +16,12 @@ set -e
 # Define some useful vars
 #
 . $(dirname $0)/exp_common.sh
-CCLYS_COUNT=`mktemp --tmpdir=$CCLYS_DIR --suffix=".exp.count"`
-CCLYS_TIMES="${CCLYS_COUNT%count}times"
 
 #
 # Run the analysis 
 #
 for DIR in $CCLYS_DIR/*_rels; do
-    echo $DIR | tee -a "$CCLYS_TIMES" "$CCLYS_COUNT"
-    $CCLYS_DIR/$CCLYS_NAME $DIR uninit_mem 2>>$CCLYS_TIMES | wc >>$CCLYS_COUNT 2>/dev/null
+    BMK=`sed 's/^.*\/\([^\/]*\).bc_rels.*$/\1/' <<< $DIR`
+    echo $BMK
+    $CCLYS_DIR/$CCLYS_NAME $DIR 2>>`tempo $BMK.ccl`
 done

@@ -26,6 +26,7 @@ public class Main {
                 .append("Options:\n")
                 .append("  -a <adt>    Uses <adt> as the abstract data-type (only works without -p)\n")
                 .append("  -p          Emit parallel code using Open MP directives\n")
+                .append("  -r          Emit reports of run statistics\n")
                 .append("  -t          Emit timers for profiling (only works with -p)\n")
                 .append("  -v          Verbose mode\n")
                 .toString();
@@ -36,6 +37,7 @@ public class Main {
             if(args.length > 0) {
                 int i = 0;
                 boolean verbose = false;
+                boolean reports = false;
                 boolean timers = false;
                 boolean parallel = false;
                 String curSN = null;
@@ -49,6 +51,8 @@ public class Main {
                         verbose = true;
                     } else if(args[i].equals("-t")) {
                         timers = true;
+                    } else if(args[i].equals("-r")) {
+                        reports = true;
                     } else if(args[i].equals("-p")) {
                         parallel = true;
                     } else if(args[i].equals("-a")) {
@@ -73,7 +77,7 @@ public class Main {
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));
                                 String relPath = new File(curCS).getParentFile().toPath().relativize(Paths.get(snf.toURI())).toString();
-                                new CppCSVBackend(ps2, relPath, po.labelNames, po.fieldDomains, timers).generate(name, po.problem);
+                                new CppCSVBackend(ps2, relPath, po.labelNames, po.fieldDomains, reports).generate(name, po.problem);
                                 ps2.close();
                             }
                         }
