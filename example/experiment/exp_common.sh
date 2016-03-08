@@ -23,6 +23,11 @@ export GIGAS_DIR="$EXPER_DIR/$GIGAS_NAME"
 export BUILT_ARCHIVE="$EXPER_DIR/build.zip"
 export CAULI_JAR="$EXPER_DIR/cauliflower.jar"
 
+export RESULT_ARCHI="results.`date +%F`.zip"
+export RESULT_GIGAS="results.giga.csv"
+export RESULT_CCLYS="results.ccly.csv"
+export RESULT_PARAL="results.para.csv"
+
 # Function to bail out if the given program is not in the path
 function which_or_bail(){
     which $1 >/dev/null 2>/dev/null || (echo "Unable to locate binary: $1" >&2 && exit 1)
