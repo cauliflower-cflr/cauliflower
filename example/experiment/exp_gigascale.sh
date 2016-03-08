@@ -33,6 +33,7 @@ for DIR in `find $GIGAS_DIR -name "Alloc.csv" | grep -v "openjdk" | grep -v "dat
     $GIGAS_DIR/${GIGAS_NAME}_s $DIR 2>>`tempo $DS.s.cauli`
     OMP_NUM_THREADS=1 $GIGAS_DIR/${GIGAS_NAME}_p $DIR 2>>`tempo $DS.1.cauli`
     OMP_NUM_THREADS=$MAX_THREADS $GIGAS_DIR/${GIGAS_NAME}_p $DIR 2>>`tempo $DS.$MAX_THREADS.cauli`
+    OMP_NUM_THREADS=1 $GIGAS_DIR/${GIGAS_NAME}_t $DIR 2>>`tempo $DS.t.cauli`
 done
 
 OJDK=`find $GIGAS_DIR -type d -name "openjdk"`
