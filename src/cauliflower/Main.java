@@ -76,8 +76,8 @@ public class Main {
                             ps.close();
                             if(curCS != null) {
                                 PrintStream ps2 = new PrintStream(new FileOutputStream(curCS));
-                                String relPath = new File(curCS).getParentFile().toPath().relativize(Paths.get(snf.toURI())).toString();
-                                new CppCSVBackend(ps2, relPath, po.labelNames, po.fieldDomains, reports).generate(name, po.problem);
+                                String relPath = new File(curCS).getParentFile().toPath().relativize(snf.toPath()).toString();
+                                new CppCSVBackend(ps2, relPath, po, reports).generate(name, po.problem);
                                 ps2.close();
                             }
                         }

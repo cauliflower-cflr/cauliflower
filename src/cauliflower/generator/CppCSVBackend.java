@@ -2,6 +2,7 @@ package cauliflower.generator;
 
 import cauliflower.cflr.Label;
 import cauliflower.cflr.Problem;
+import cauliflower.parser.CFLRParser;
 import cauliflower.util.CFLRException;
 import cauliflower.util.Registrar;
 
@@ -20,13 +21,15 @@ public class CppCSVBackend implements Backend {
     private final String snPath;
     private final Registrar labelReg;
     private final Registrar fieldReg;
+    private final Registrar vertReg;
     private final boolean verbose;
 
-    public CppCSVBackend(PrintStream out, String snPath, Registrar labelReg, Registrar fieldReg, boolean verbose){
+    public CppCSVBackend(PrintStream out, String snPath, CFLRParser.ParserOutputs po, boolean verbose){
         this.out = out;
         this.snPath = snPath;
-        this.labelReg = labelReg;
-        this.fieldReg = fieldReg;
+        this.labelReg = po.labelNames;
+        this.fieldReg = po.fieldDomains;
+        this.vertReg = po.vertexDomains;
         this.verbose = verbose;
     }
 
@@ -158,6 +161,12 @@ public class CppCSVBackend implements Backend {
                 generateBufferDeclaration(prob.labels.get(l), "count_buf_" + l);
                 out.println("relations[" + l  + "].export_buffer(count_buf_" + l + ");");
                 out.println("cerr << \"|" + labelReg.fromIndex(l) + "|=\" << count_buf_" + l + ".size() << endl;");
+            }
+            for(int i=0; i<fieldReg.size(); i++){
+                out.println("cerr << \"f:" + fieldReg.fromIndex(i) + "=\" << vols[" + i + "] << std::endl;");
+            }
+            for(int i=0; i<vertReg.size(); i++){
+                out.println("cerr << \"v:" + vertReg.fromIndex(i) + "=\" << vols[" + (i + fieldReg.size()) + "] << std::endl;");
             }
         }
         out.println("return 0;");
