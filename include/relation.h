@@ -79,6 +79,12 @@ struct relation {
         return true;
     }
 
+    size_t size() const {
+        size_t count = 0;
+        for(const auto& a : adts) count += a.size();
+        return count;
+    }
+
     inline size_t volume() const {
         return adts.size();
     }

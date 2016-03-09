@@ -27,18 +27,16 @@ mv $GIGAS_DIR/gigascale/Table3.csv `tempo giga`
 #
 # Run the cauliflower software
 #
-for DIR in `find $GIGAS_DIR -name "Alloc.csv" | grep -v "openjdk" | grep -v "datasets/\." | grep -v "/docs/" | xargs dirname 2>/dev/null | sort -ur`; do
+for DIR in `find $GIGAS_DIR -name "Alloc.csv" | grep -v "datasets/\." | grep -v "/docs/" | xargs dirname 2>/dev/null | sort -ur`; do
     DS=`sed -e 's/^.*\///' <<< $DIR`
     echo $DS
-    $GIGAS_DIR/${GIGAS_NAME}_s $DIR 2>>`tempo $DS.s.cauli`
-    OMP_NUM_THREADS=1 $GIGAS_DIR/${GIGAS_NAME}_p $DIR 2>>`tempo $DS.1.cauli`
-    OMP_NUM_THREADS=$MAX_THREADS $GIGAS_DIR/${GIGAS_NAME}_p $DIR 2>>`tempo $DS.$MAX_THREADS.cauli`
-    OMP_NUM_THREADS=1 $GIGAS_DIR/${GIGAS_NAME}_t $DIR 2>>`tempo $DS.t.cauli`
-done
-
-OJDK=`find $GIGAS_DIR -type d -name "openjdk"`
-for T in `seq 1 $MAX_THREADS`; do
-    echo "ojdk t=$T"
-    OMP_NUM_THREADS=$T $GIGAS_DIR/${GIGAS_NAME}_p $OJDK 2>>`tempo openjdk.$T.cauli`
+    [ $DS != "openjdk" ] && $GIGAS_DIR/${GIGAS_NAME}_s $DIR 2>>`tempo $DS.s.cauli`
+    for T in `seq 1 $MAX_THREADS`; do
+        echo "$T"
+        OMP_NUM_THREADS=$T $GIGAS_DIR/${GIGAS_NAME}_p $DIR 2>>`tempo $DS.$T.cauli`
+        if [ $T == 1 ] || [ $T == $MAX_THREADS ]; then
+            OMP_NUM_THREADS=$T $GIGAS_DIR/${GIGAS_NAME}_t $DIR 2>>`tempo $DS.t$T.cauli`
+        fi
+    done
 done
 

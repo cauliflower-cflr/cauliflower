@@ -222,6 +222,16 @@ public class CppParallelBackend implements Backend{
         Rule rule = prob.rules.get(r);
         // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
         out.println("// Label " + l + ", occurrence " + occurrence + ", rule " + prob.rules.get(r).toString());
+        String[] deps = new String[rule.dependencies.size()];
+        int dSeen = 0;
+        int i = 0;
+        for(Rule.Lbl lbl : rule.dependencies){
+            if(lbl.label == l && dSeen-occurrence == 0) deps[i] = "cur_delta";
+            else deps[i] = "relations[" + lbl.label + "]";
+            if(lbl.label == l) dSeen ++;
+            i++;
+        }
+        generateSizeReport(deps);
         generateTimeStart("eval" + l + "_" + occurrence + "_" + r);
         generateTimeDecl("update" + l + "_" + occurrence + "_" + r);
         Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
@@ -233,7 +243,7 @@ public class CppParallelBackend implements Backend{
             out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
             shouldParallel = false;
         }
-        int dSeen = 0;
+        dSeen = 0;
         for(Rule.Lbl lbl : rule.dependencies){
             if(lbl.label != l || dSeen-occurrence != 0 || !lbl.fields.isEmpty()) out.print("if(!" + labelRel("relations[" + lbl.label + "]", lbl) + ".empty()) ");
             if(lbl.label == l) dSeen ++;
@@ -307,6 +317,7 @@ public class CppParallelBackend implements Backend{
             out.println("while(true){");
             for(int cc : scc){
                 out.println("if (!deltas[" + cc + "].empty()){");
+                generateSizeReport("deltas[" + cc + "]");
                 generateTimeStart("delta" + cc);
                 out.println(deltaExpansionFunctionName(cc, false) + ";");
                 generateTimeEnd("delta" + cc);
@@ -341,6 +352,15 @@ public class CppParallelBackend implements Backend{
 
     private void generateTimeReport(String name){
         if(useTimers) out.println("std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tcount_init_" + name + ", tcount_" + name + ") << std::endl;");
+    }
+
+    private void generateSizeReport(String... names) {
+        if(!useTimers) return;
+        out.print("std::cerr << \"SIZE ");
+        for(String n : names){
+            out.print(n + "=\" << " + n + ".size() << \" ");
+        }
+        out.println("\" << std::endl;");
     }
 
     private void generateCounterDecl(String name){
