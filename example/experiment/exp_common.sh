@@ -28,6 +28,8 @@ export RESULT_ARCHI="results.`date +%F`.zip"
 export RESULT_GIGAS="results.giga.csv"
 export RESULT_CCLYS="results.ccly.csv"
 export RESULT_PARAL="results.para.csv"
+export RESULT_SEQUE="results.sequ.csv"
+export RESULT_COMPO="results.comp.csv"
 
 # Function to bail out if the given program is not in the path
 function which_or_bail(){

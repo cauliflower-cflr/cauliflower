@@ -19,28 +19,6 @@ function relative(){
     python -c "import os.path; print os.path.relpath('$1', '.')"
 }
 
-#
-# like paste, but vertically (only works with stdin)
-#
-function vpaste(){
-    COUNT=0
-    for i in $PASTE_ARGS; do
-        COUNT=$(($COUNT + 1))
-    done
-    TMPS=""
-    while read LINE; do
-        TMP=`mktemp`
-        echo "$LINE" > $TMP
-        for L in `seq 2 $COUNT`; do
-            read LIN
-            echo "$LIN" >> $TMP
-        done
-        TMPS="$TMPS $TMP"
-    done
-    paste $TMPS
-    rm $TMPS
-}
-
 function avg_raw(){
     sed -e 's/^/a=['/ -e 's/$/];print sum(a)\/float(len(a))/' | python
 }
@@ -73,10 +51,13 @@ fi
 rm -f $RESULT_ARCHI $RESULT_CCLYS $RESULT_GIGAS
 
 TMP_GIGA_TIMES=`mktemp`
+TMP_GIGA_MEMS=`mktemp`
 TMP_GIGA_CAULI=`mktemp`
 TMP_GIGA_NAMES=`mktemp`
 TMP_GIGA=`mktemp`
 TMP_PARA=`mktemp`
+TMP_SEQU=`mktemp`
+TMP_SEQU2=`mktemp`
 TMP_CCLY=`mktemp`
 
 # create an archive of results
@@ -84,34 +65,48 @@ zip -q $RESULT_ARCHI $RES_DIR/*.explog
 
 # gigascale
 find $RES_DIR -name "*giga.explog" | xargs paste -d "," | sort | grep -v "benchmark,TC-time,TC-mem" | cut -d "," -f 2,5,8,11,14 | avg_raw > $TMP_GIGA_TIMES
+find $RES_DIR -name "*giga.explog" | xargs paste -d "," | sort | grep -v "benchmark,TC-time,TC-mem" | cut -d "," -f 3,6,9,12,15 | avg_raw > $TMP_GIGA_MEMS
 find $RES_DIR -name "*giga.explog" | xargs paste -d "," | sort | grep -v "benchmark,TC-time,TC-mem" | cut -d "," -f 1 > $TMP_GIGA_NAMES
+MAX_THREADS=`ls ${RES_DIR}/*.cauli.explog | sed -e 's/\.cauli\.explog$//' -e 's/^.*\.//' | grep '^[0-9]*$' | sort -u | tail -n 1`
 for N in `cat $TMP_GIGA_NAMES`; do
     B1=`find $RES_DIR -name "*.$N.1.cauli.explog"`
-    BM=`find $RES_DIR -name "*.$N.8.cauli.explog"` # TODO work out the MAX_THREADS yourself
+    BM=`find $RES_DIR -name "*.$N.$MAX_THREADS.cauli.explog"`
     BS=`find $RES_DIR -name "*.$N.s.cauli.explog"`
     ([ -n "$BS" ] && echo $(cat $BS | grep 'solve semi-naive=' | sed -e 's/solve semi-naive=//g' | avg)) || echo " "
-    ([ -n "$B1" ] && echo $(cat $B1 | grep 'solve semi-naive=' | sed -e 's/solve semi-naive=//g' | avg)) || echo " "
-    ([ -n "$BM" ] && echo $(cat $BM | grep 'solve semi-naive=' | sed -e 's/solve semi-naive=//g' | avg)) || echo " "
-    echo $(cat $BS $B1 | grep "|VarPointsTo|=" | sed -e 's/|VarPointsTo|=//g' | head -n 1)
-    echo $(grep -E "\|(Alloc|Assign|Load|Store)\|" $BS $B1 | sed 's/.*=//' | paste -d "+" - - - - | sed 's/^/print /' | python | head -n 1)
-done | paste -d "," - - - - - > $TMP_GIGA_CAULI
-paste -d "," $TMP_GIGA_NAMES $TMP_GIGA_TIMES $TMP_GIGA_CAULI > $TMP_GIGA
-cat - $TMP_GIGA <<< "benchmark,tgigascale,tscauli,t1cauli,tmcauli,sizevpt,size" | tee_and_out $RESULT_GIGAS
+    cat $B1 | grep 'solve semi-naive=' | sed -e 's/solve semi-naive=//g' | avg # single-thread time
+    cat $BM | grep 'solve semi-naive=' | sed -e 's/solve semi-naive=//g' | avg # multi-thread time
+    python -c "print $(grep "memory(kb)" $B1 | sed 's/.*=//' | tr '\n' '\t' | avg)/1024" # single-thread mem
+    python -c "print $(grep "memory(kb)" $BM | sed 's/.*=//' | tr '\n' '\t' | avg)/1024" # multi-thread mem
+    cat $BS $B1 | grep "|VarPointsTo|=" | sed -e 's/|VarPointsTo|=//g' | head -n 1
+    grep -E "\|(Alloc|Assign|Load|Store)\|" $BS $B1 | sed 's/.*=//' | paste -d "+" - - - - | sed 's/^/print /' | python | head -n 1
+done | paste -d "," - - - - - - - > $TMP_GIGA_CAULI
+paste -d "," $TMP_GIGA_NAMES $TMP_GIGA_TIMES $TMP_GIGA_MEMS $TMP_GIGA_CAULI > $TMP_GIGA
+cat - $TMP_GIGA <<< "benchmark,tgigascale,mgigascale,tscauli,t1cauli,tmcauli,m1cauli,mmcauli,sizevpt,size" | tee_and_out $RESULT_GIGAS
 
 # parallel
-echo "threads,perfect,time,speedup" > $TMP_PARA
+echo "threads,perfect,lutime,trtime,optime,luspeed,trspeed,opspeed" > $TMP_PARA
 SINGLE=0
-for T in `find $RES_DIR -name "*openjdk.*.cauli.explog" | sed 's/.cauli.explog//' | sed 's/^.*openjdk\.//' | sort -un`; do
-    BMKF=`find $RES_DIR -name "*.openjdk.$T.cauli.explog"`
+for T in `seq 1 $MAX_THREADS`; do
+    BL=`find $RES_DIR -name "*.lusearch.$T.cauli.explog"`
+    BT=`find $RES_DIR -name "*.tradesoap.$T.cauli.explog"`
+    BO=`find $RES_DIR -name "*.openjdk.$T.cauli.explog"`
     echo $T
     python -c "print 1.0/$T"
-    TIME=$(cat $BMKF | grep "solve semi-naive=" | sed -e 's/solve semi-naive=//g' | avg)
+    TL=$(cat $BL | grep "solve semi-naive=" | sed -e 's/solve semi-naive=//g' | avg)
+    TT=$(cat $BT | grep "solve semi-naive=" | sed -e 's/solve semi-naive=//g' | avg)
+    TO=$(cat $BO | grep "solve semi-naive=" | sed -e 's/solve semi-naive=//g' | avg)
     if [ $T == 1 ]; then
-        SINGLE=$TIME
+        SL=$TL
+        ST=$TT
+        SO=$TO
     fi
-    echo $TIME
-    python -c "print $TIME/float($SINGLE)"
-done | paste -d "," - - - - >> $TMP_PARA
+    echo $TL
+    echo $TT
+    echo $TO
+    python -c "print $TL/float($SL)"
+    python -c "print $TT/float($ST)"
+    python -c "print $TO/float($SO)"
+done | paste -d "," - - - - - - - - >> $TMP_PARA
 cat $TMP_PARA | tee_and_out $RESULT_PARAL
 
 # cclyser
@@ -126,5 +121,19 @@ for BMK in $SPEC_BENCHES; do
 done > $TMP_CCLY
 cat - $TMP_CCLY <<< "benchmark,tcclyser,sizept,sizeum,size" | tee_and_out $RESULT_CCLYS
 
-rm $TMP_GIGA_TIMES $TMP_GIGA_CAULI $TMP_GIGA_NAMES $TMP_GIGA $TMP_CCLY $TMP_PARA
+# sequence profiler
+grep -E "(eval)|(SIZE [^d])" `ls $RES_DIR/*openjdk.t1.* | head -n 1` | paste -d " " - - | grep "eval6_0" | sed -e 's/^.*cur_delta=//' -e 's/ .*$//' | paste - - - - | cut -f 1 | awk '{c+=$1;print $1 "," c}' > $TMP_SEQU
+paste -d "," $RES_DIR/*.openjdk.t1.* | grep "eval6_0" | sed -e 's/TIME[^e]*e[^ ]* //g' | avg_raw | paste -d "+" - - - - | sed -e 's/^/print /' | python | paste -d "," $TMP_SEQU - > $TMP_SEQU2
+mv $TMP_SEQU2 $TMP_SEQU
+paste -d "," $RES_DIR/*.openjdk.t8.* | grep "eval6_0" | sed -e 's/TIME[^e]*e[^ ]* //g' | avg_raw | paste -d "+" - - - - | sed -e 's/^/print /' | python | paste -d "," $TMP_SEQU - > $TMP_SEQU2
+mv $TMP_SEQU2 $TMP_SEQU
+echo "<not shown on command line>" | tee_and_out $RESULT_SEQUE
+cat - $TMP_SEQU <<< "size,total,time1,timem" > $RESULT_SEQUE
+
+# composition profiler
+echo "<not shown on command line>" | tee_and_out $RESULT_COMPO
+echo "time,smaller,larger,weight" > $RESULT_COMPO
+grep -E "(TIME.*eval)|(SIZE [^d])" *.t1.cauli.explog | sed -e 's/^.*SIZE[^=]*=\([0-9]*\) [^=]*=/\1\t/' -e 's/^.*TIME.*eval[^ ]* //' | paste - - | awk '{print $3 "\t" ($1 < $2 ? $1 "\t" $2 : $2 "\t" $1)}' | awk '{printf("%f,%d,%d,%f\n", $1, $2, $3, sqrt($2) + sqrt($3))}' >> $RESULT_COMPO
+
+rm $TMP_GIGA_TIMES $TMP_GIGA_CAULI $TMP_GIGA_NAMES $TMP_GIGA $TMP_CCLY $TMP_PARA $TMP_SEQU
 

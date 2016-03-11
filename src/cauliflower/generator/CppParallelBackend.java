@@ -131,6 +131,7 @@ public class CppParallelBackend implements Backend{
             // update the temporary output
             String target = labelRel("relations[" + rule.head.label + "]", rule.head);
             out.println("if(!" + target + ".forwards.contains(fwd, hint_rel" + rule.head.label + ")){");
+            generateCounterIncr("updatesTMP");
             out.println("tmp_forwards.insert(fwd);");
             out.println("tmp_backwards.insert({{iter" + numIters + "[1], iter1[0]}});");
             closeCounter++;
@@ -157,6 +158,10 @@ public class CppParallelBackend implements Backend{
                 out.println("{");
             }
             generateTimeIncr("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "tmp_update");
+            generateCounterIncr("outer" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "ctr_outerTMP"); // ctr_ is added automatically
+            generateCounterIncr("inner" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "ctr_innerTMP");
+            generateCounterIncr("updates" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "ctr_updatesTMP");
+
             if(doParallel) out.println("}");
             if(doParallel)out.println("}");//closes parallel scope
         }
@@ -179,13 +184,24 @@ public class CppParallelBackend implements Backend{
                 out.println("auto range" + numIters + " = " + rel + ".getBoundaries<1>({{iter" + numIters + "[1], 0}}, " + ctxtHint + ");");
                 //iterate over the relation
                 out.println("for(const auto& iter" + (numIters+1) + " : range" + numIters + ") {");
+                if(numIters == 1) generateCounterIncr("innerTMP");
                 closeCounter++;
                 numIters++;
             } else {
                 //iterate over the primary label after partitioning
                 out.println("auto primary_partition = " + rel + ".partition(" + PARTITION_COUNT + ");");
-                if(doParallel) out.println("# pragma omp parallel");
+                if(doParallel)out.println("# pragma omp parallel");
+                else { // declared outside of scope when that scope isnt parallel
+                    generateCounterDecl("outerTMP");
+                    generateCounterDecl("innerTMP");
+                    generateCounterDecl("updatesTMP");
+                }
                 out.println("{");
+                if(doParallel) { // declared inside of scope when thats the parallel scope
+                    generateCounterDecl("outerTMP");
+                    generateCounterDecl("innerTMP");
+                    generateCounterDecl("updatesTMP");
+                }
                 // create the join hints
                 Stream.concat(Stream.of(rule.head), rule.dependencies.stream()).map(lb -> lb.label).distinct().forEach(i -> {
                     out.println("adt_t::tree_t::op_context hint_rel" + i + ";");
@@ -195,6 +211,7 @@ public class CppParallelBackend implements Backend{
                 if(doParallel) out.println("# pragma omp for schedule(dynamic)"); // TODO different schedules
                 out.println("for (auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index){");
                 out.println("for(const auto& iter" + (numIters+1) + " : *primary_index){");
+                generateCounterIncr("outerTMP");
                 partitioned = true;
                 closeCounter += 3;
                 numIters++;
@@ -234,6 +251,9 @@ public class CppParallelBackend implements Backend{
         generateSizeReport(deps);
         generateTimeStart("eval" + l + "_" + occurrence + "_" + r);
         generateTimeDecl("update" + l + "_" + occurrence + "_" + r);
+        generateCounterDecl("outer" + l + "_" + occurrence + "_" + r);
+        generateCounterDecl("inner" + l + "_" + occurrence + "_" + r);
+        generateCounterDecl("updates" + l + "_" + occurrence + "_" + r);
         Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
         boolean shouldParallel = true;
         for(int ident : fieldIdents.keySet()){ // TODO irrelevant field: if get[1] > 0...
@@ -254,6 +274,7 @@ public class CppParallelBackend implements Backend{
         out.println("}"); // close the ifs
         generateTimeReport("update" + l + "_" + occurrence + "_" + r);
         generateTimeEnd("eval" + l + "_" + occurrence + "_" + r);
+        generateCounterReport("outer" + l + "_" + occurrence + "_" + r, "inner" + l + "_" + occurrence + "_" + r, "updates" + l + "_" + occurrence + "_" + r);
     }
 
     private String deltaExpansionFunctionName(int lbl, boolean argTypes){
@@ -364,15 +385,24 @@ public class CppParallelBackend implements Backend{
     }
 
     private void generateCounterDecl(String name){
-        out.println("unsigned ctr_" + name + " = 0;");
+        if(useTimers) out.println("unsigned ctr_" + name + " = 0;");
+    }
+
+    private void generateCounterIncr(String name, String incr){
+        if(useTimers) out.println("ctr_" + name + "+=" + incr + ";");
     }
 
     private void generateCounterIncr(String name){
-        out.println("ctr_" + name + "++;");
+        generateCounterIncr(name, "1");
     }
 
-    private void generateCounterReport(String name){
-        out.println("std::cerr << \"COUNT \" << omp_get_thread_num() << \" " + name + " \" << ctr_" + name + " << std::endl;");
+    private void generateCounterReport(String... names){
+        if(!useTimers) return;
+        out.print("std::cerr << \"COUNT ");
+        for(String n : names){
+            out.print(n + "=\" << ctr_" + n + " << \" ");
+        }
+        out.println("\" << std::endl;");
     }
 
 }
