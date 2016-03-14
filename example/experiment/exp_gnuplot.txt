@@ -1,0 +1,26 @@
+set term pdf color
+
+set ylabel "Time (ms)"
+set size square
+#set size ratio -1
+#set view equal xy
+set logscale xy
+set datafile separator ","
+set xtics (1, 1000, 1000000)
+
+set output "results.compo.small.pdf"
+set xlabel "Smaller input size"
+plot 'results.comp.csv' using 2:1 with dots notitle
+set output "results.compo.large.pdf"
+set xlabel "Larger input size"
+plot 'results.comp.csv' using 3:1 with dots notitle
+set output "results.compo.loops.pdf"
+set xlabel "Outer relation iterations"
+plot 'results.comp.csv' using 4:1 with dots notitle
+set output "results.compo.out.pdf"
+set xlabel "Output size"
+plot 'results.comp.csv' using 6:1 with dots notitle
+#
+#  Terminate.
+#
+quit
