@@ -134,9 +134,16 @@ cat - $TMP_SEQU <<< "size,total,time1,timem" > $RESULT_SEQUE
 echo "<not shown on command line>" | tee_and_out $RESULT_COMPO
 echo "time,smaller,larger,outer,inner,updates" > $RESULT_COMPO
 #grep -E "(TIME.*eval)|(SIZE [^d])" *.t1.cauli.explog | sed -e 's/^.*SIZE[^=]*=\([0-9]*\) [^=]*=/\1\t/' -e 's/^.*TIME.*eval[^ ]* //' | paste - - | awk '{print $3 "\t" ($1 < $2 ? $1 "\t" $2 : $2 "\t" $1)}' | awk '{printf("%f,%d,%d,%f\n", $1, $2, $3, sqrt($2) + sqrt($3))}' >> $RESULT_COMPO
-grep -E "^(TIME.*eval)|(SIZE [^d])|(COUNT)" *trade*.t1.cauli.explog | sed -e 's/^.*SIZE[^=]*=\([0-9]*\) [^=]*=/\1\t/' -e 's/^.*TIME.*eval[^ ]* //' -e 's/^.*outer[^=]*=//' -e 's/ inner[^=]*=/\t/' -e 's/ updates[^=]*=/\t/'| paste - - - | awk '{print $3 "," ($1 < $2 ? $1 "," $2 : $2 "," $1) "," $4 "," $5 "," $6 }' | grep -v [^0-9,.] >> $RESULT_COMPO
+grep -E "^(TIME.*eval)|(SIZE [^d])|(COUNT)" *.t1.cauli.explog | sed -e 's/^.*SIZE[^=]*=\([0-9]*\) [^=]*=/\1\t/' -e 's/^.*TIME.*eval[^ ]* //' -e 's/^.*outer[^=]*=//' -e 's/ inner[^=]*=/\t/' -e 's/ updates[^=]*=/\t/'| paste - - - | awk '{print $3 "," ($1 < $2 ? $1 "," $2 : $2 "," $1) "," $4 "," $5 "," $6 }' | grep -v [^0-9,.] >> $RESULT_COMPO
 
+# create the PDFs for the scatter plots
 gnuplot $EXPER_DIR/exp_gnuplot.txt < $RESULT_COMPO
+for FIL in results.compo.*.pdf; do
+    TMP=`mktemp`
+    mv $FIL $TMP
+    pdfcrop $TMP $FIL
+    rm $TMP
+done
 
 rm $TMP_GIGA_TIMES $TMP_GIGA_CAULI $TMP_GIGA_NAMES $TMP_GIGA $TMP_CCLY $TMP_PARA $TMP_SEQU
 

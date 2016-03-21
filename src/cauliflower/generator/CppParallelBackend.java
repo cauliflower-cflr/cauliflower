@@ -24,6 +24,7 @@ public class CppParallelBackend implements Backend{
 
     private final PrintStream out;
     private final boolean useTimers;
+    private final boolean useHints = false;
 
     public CppParallelBackend(PrintStream out, boolean timers){
         this.out = out;
@@ -130,7 +131,7 @@ public class CppParallelBackend implements Backend{
             out.println("adt_t::tree_t::entry_type fwd({{iter1[0], iter" + numIters + "[1]}});");
             // update the temporary output
             String target = labelRel("relations[" + rule.head.label + "]", rule.head);
-            out.println("if(!" + target + ".forwards.contains(fwd, hint_rel" + rule.head.label + ")){");
+            out.println("if(!" + target + ".forwards.contains(fwd" + (useHints ? ", hint_rel" + rule.head.label : "") + ")){");
             generateCounterIncr("updatesTMP");
             out.println("tmp_forwards.insert(fwd);");
             out.println("tmp_backwards.insert({{iter" + numIters + "[1], iter1[0]}});");
@@ -181,7 +182,7 @@ public class CppParallelBackend implements Backend{
             rel = rel + (shouldReverse ? ".backwards" : ".forwards");
             if(partitioned){
                 //project the equality range
-                out.println("auto range" + numIters + " = " + rel + ".getBoundaries<1>({{iter" + numIters + "[1], 0}}, " + ctxtHint + ");");
+                out.println("auto range" + numIters + " = " + rel + ".getBoundaries<1>({{iter" + numIters + "[1], 0}}" + (useHints ? ", " + ctxtHint : "") + ");");
                 //iterate over the relation
                 out.println("for(const auto& iter" + (numIters+1) + " : range" + numIters + ") {");
                 if(numIters == 1) generateCounterIncr("innerTMP");
@@ -203,10 +204,12 @@ public class CppParallelBackend implements Backend{
                     generateCounterDecl("updatesTMP");
                 }
                 // create the join hints
-                Stream.concat(Stream.of(rule.head), rule.dependencies.stream()).map(lb -> lb.label).distinct().forEach(i -> {
-                    out.println("adt_t::tree_t::op_context hint_rel" + i + ";");
-                });
-                out.println("adt_t::tree_t::op_context hint_dlt" + deltaLabel + ";");
+                if(useHints){
+                    Stream.concat(Stream.of(rule.head), rule.dependencies.stream()).map(lb -> lb.label).distinct().forEach(i -> {
+                        out.println("adt_t::tree_t::op_context hint_rel" + i + ";");
+                    });
+                    out.println("adt_t::tree_t::op_context hint_dlt" + deltaLabel + ";");
+                }
                 // for each partition in parallel
                 if(doParallel) out.println("# pragma omp for schedule(dynamic)"); // TODO different schedules
                 out.println("for (auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index){");
