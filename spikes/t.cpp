@@ -59,7 +59,7 @@ int main(){
 //#pragma omp single
 //    cout << c.size() << " t=" << (omp_get_wtime() - t) << endl;
 //    }
-    Trie<2> t1, t2;
+    cflr::Trie<2> t1, t2;
     cout << "t1 " << t1.size() << " t2 " << t2.size() << endl;
     t1.insert(1, 1);
     t1.insert(1, 0);

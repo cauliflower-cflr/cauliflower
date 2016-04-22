@@ -7,7 +7,7 @@
 using namespace std;
 
 int main(){
-    typedef btree_set<pair<unsigned, unsigned>> BT;
+    typedef cflr::btree_set<pair<unsigned, unsigned>> BT;
     BT a, b, c;
     std::vector<BT::chunk> parts;
 //    cout << b.size() << " " << b.empty() << endl;

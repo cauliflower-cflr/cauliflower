@@ -56,7 +56,7 @@
 #endif
 #endif
 
-namespace souffle {
+namespace cflr {
 
 // -------------------------------------------------------------------------------
 //                           General Container Utilities
@@ -424,7 +424,7 @@ join(const Container& c, const std::string& sep = ",") {
 }
 
 
-} // end namespace souffle
+} // end namespace cflr
 
 #ifndef __EMBEDDED_SOUFFLE__
 
@@ -444,7 +444,7 @@ namespace std {
      */
     template<typename T, typename A>
     ostream& operator<<(ostream& out, const vector<T,A>& v) {
-        return out << "[" << souffle::join(v) << "]";
+        return out << "[" << cflr::join(v) << "]";
     }
 
     /**
@@ -453,7 +453,7 @@ namespace std {
      */
     template<typename K, typename C, typename A>
     ostream& operator<<(ostream& out, const set<K,C,A>& s) {
-        return out << "{" << souffle::join(s) << "}";
+        return out << "{" << cflr::join(s) << "}";
     }
 
     /**
@@ -462,7 +462,7 @@ namespace std {
      */
     template<typename K, typename T, typename C, typename A>
     ostream& operator<<(ostream& out, const map<K,T,C,A>& m) {
-        return out << "{" << souffle::join(m,",",[](ostream& out, const pair<K,T>& cur) {
+        return out << "{" << cflr::join(m,",",[](ostream& out, const pair<K,T>& cur) {
             out << cur.first << "->" << cur.second;
         }) << "}";
     }
@@ -471,7 +471,7 @@ namespace std {
 
 #endif
 
-namespace souffle {
+namespace cflr {
 
 /**
  * A generic function converting strings into strings (trivial case).
@@ -739,6 +739,6 @@ inline long duration_in_ms(const time_point& start, const time_point& end) {
     return std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 }
 
-} // end namespace souffle
+} // end namespace cflr
 
 

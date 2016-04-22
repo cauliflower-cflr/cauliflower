@@ -39,7 +39,7 @@
 #include <stdint.h>
 #include <limits>
 
-namespace souffle {
+namespace cflr {
 
 /**
  * Type of an element in a tuple.
@@ -50,7 +50,7 @@ namespace souffle {
 #ifdef RAM_DOMAIN_TYPE
     typedef RAM_DOMAIN_TYPE RamDomain;
 #else
-    typedef int32_t RamDomain;
+    typedef uint64_t RamDomain;
 #endif
 
 /** lower and upper boundaries for the ram domain **/
@@ -60,5 +60,5 @@ namespace souffle {
 /** type of an index key; each bit represents a column of a table */ 
 typedef uint64_t SearchColumns;
 
-} // end of namespace souffle
+} // end of namespace cflr
 

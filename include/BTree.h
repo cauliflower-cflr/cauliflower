@@ -46,7 +46,7 @@
 #include "Util.h"
 #include "ParallelUtils.h"
 
-namespace souffle {
+namespace cflr {
 
 namespace detail {
 
@@ -2201,6 +2201,6 @@ public:
     }
 };
 
-} // end of namespace souffle
+} // end of namespace cflr
 
 

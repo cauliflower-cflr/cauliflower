@@ -54,7 +54,7 @@
 #include "CompiledRamTuple.h"
 #include "Util.h"
 
-namespace souffle {
+namespace cflr {
 
 namespace detail {
 
@@ -3131,6 +3131,6 @@ private:
 
 };
 
-} // end namespace souffle
+} // end namespace cflr
 
 
