@@ -9,6 +9,7 @@
 |                                                                         |
 | read the domains of input CSV columns and project onto a smaller domain |
 +-------------------------------------------------------------------------+
+for DIR in shrink_sh_*; do ../../../../java_gigascale_s $DIR VarPointsTo | tail -n +2 | sort -u > $DIR/VarPointsTo.out; done
 '''
 
 __doc__ = __doc__.strip()
@@ -32,13 +33,12 @@ def write_conversion(in_dir, out_dir, shrink, conv):
     os.mkdir(out_dir)
 
     # convert the input domains
-    for fi in filter(lambda n: os.path.isfile(n), os.listdir(in_dir)):
+    for fi in filter(lambda n: os.path.isfile(os.path.join(in_dir, n)), os.listdir(in_dir)):
         if shrink.has_key(fi):
             with open(os.path.join(in_dir, fi), 'rb') as csvfile, open(os.path.join(out_dir, fi), 'wb') as csv_out:
                 writ = csv_write(csv_out)
                 for row in csv_read(csvfile):
                     writ.writerow([conv[val] if idx in shrink[fi] else val for idx, val in enumerate(row)])
-
         else:
             shutil.copyfile(os.path.join(in_dir, fi), os.path.join(out_dir, fi))
 
@@ -90,8 +90,9 @@ def parse_col(m, s):
 
 def init(args, usages):
     direct = "."
+    size=2
     try:
-        opts, args = getopt.getopt(args, "d:h", ["help"])
+        opts, args = getopt.getopt(args, "d:s:h", ["help"])
     except getopt.error, msg:
         print msg
         print "for help use --help"
@@ -102,15 +103,17 @@ def init(args, usages):
             sys.exit(0)
         elif o == "-d":
             direct = a
+        elif o == "-s":
+            size = int(a)
     if len(args) == 0 or not reduce(lambda x, y : x and re.match("^.+:[0-9]+$", y), args, True):
         print usages
         sys.exit(1)
-    return (direct, reduce(parse_col, args, {}))
+    return (direct, reduce(parse_col, args, {}), size)
 
 def shrink():
-    direct, shrink = init(sys.argv[1:], __doc__)
+    direct, shrink, size = init(sys.argv[1:], __doc__)
     dom = discover_domain(direct, shrink)
-    shapiro_horwitz(dom, 2, direct, shrink)
+    shapiro_horwitz(dom, size, direct, shrink)
 
 if __name__ == "__main__":
     shrink()
