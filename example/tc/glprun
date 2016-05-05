@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+
+#=========================================================================#
+#                                 glprun                                  #
+#                                                                         #
+# Author: Nic H.                                                          #
+# Date: 2016-May-05                                                       #
+#                                                                         #
+# Run the approx and tc glps for the given problem                        #
+#=========================================================================#
+
+set -e
+set -u
+
+function usage(){
+    grep "^#.*#$" $0
+}
+
+[ $# == 1 -a -d $1 ] || (usage >&2; exit 1)
+
+SELF=$(dirname $0)
+
+glpsol -m $SELF/tc.mod -d $1/*.dat -y $1/tc.ans -o $1/tc.log 2>&1 | tee $1/tc.out
