@@ -16,8 +16,20 @@ function usage(){
     grep "^#.*#$" $0
 }
 
-[ $# == 1 -a -d $1 ] || (usage >&2; exit 1)
+[ $# -ge 1 -a -d $1 ] || (usage >&2; exit 1)
 
 SELF=$(dirname $0)
 
-glpsol -m $SELF/tc.mod -d $1/*.dat -y $1/tc.ans -o $1/tc.log 2>&1 | tee $1/tc.out
+if [ $# == 1 ]; then
+    glpsol -m $SELF/tc.mod -d $1/*.dat -y $1/tc.ans -o $1/tc.log 2>&1 | tee $1/tc.out
+
+    glpsol -m $SELF/sh.mod -d $1/*.dat -y $1/sh.ans -o $1/sh.log 2>&1 | tee $1/sh.out
+
+    ( cd $1; tar -cjf out.tar.bz *.out *.log )
+
+    rm $1/*.out $1/*.log
+fi
+echo ----------------------------------------------------------
+grep "PL$" $1/sh.ans | sed -e 's/ PL//' -e 's/ //g' -e 's/|$//' | sort -nt '|' | column -ts '|'
+echo
+diff -y <(grep 'TC$' $1/sh.ans | sort -u) <(grep 'TC$' $1/tc.ans | sort -u) | tr '[:blank:]' ' ' | sed -e 's/ TC//g' -e 's/   */,/' | column -ts ','

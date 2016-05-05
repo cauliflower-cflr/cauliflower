@@ -1,0 +1,14 @@
+data;
+
+param Bc := 2;
+
+param Rc := 3;
+
+set E :=
+1 2
+2 3
+4 5
+5 6
+6 7
+;
+

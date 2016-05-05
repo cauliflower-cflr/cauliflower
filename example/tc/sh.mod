@@ -12,13 +12,18 @@ set B, default {1..Bc};
 set R, default {1..Rc};
 
 
-/*-----------*/
+/*------------------*/
 
 var Place{r in R, v in V, b in B}, binary;
 var BEdge{r in R, b in B, c in B}, >= 0;
 var BPath{r in R, b in B, c in B}, >= 0;
 var Appro{r in R, u in V, v in V}, >= 0;
 var Inter{u in V, v in V}, >= 0;
+
+var WBin{r in R, b in B}, >= 0;
+var WRun{r in R}, >= 0;
+
+/*------------------*/
 
 s.t. all_places{r in R, v in V}:
     sum{b in B} Place[r,v,b] = 1;
@@ -41,8 +46,26 @@ s.t. approx_external{r in R, u in V, v in V, b in B, c in B}:
 s.t. intersection{u in V, v in V}:
     Inter[u,v] >= (sum{r in R} Appro[r,u,v]) - (Rc - 1);
 
+/*------------------*/
+
+s.t. bin_weight{r in R, b in B}:
+    WBin[r,b] = sum{v in V} Place[r,v,b];
+
+s.t. run_weight{r in R}:
+    WRun[r] = sum{v in V, b in B} (v * Bc + b) * Place[r,v,b];
+
+s.t. bin_order{r in R, b in B, c in B : b < c}:
+    WBin[r,b] >= WBin[r,c];
+
+s.t. run_order{r1 in R, r2 in R : r1 < r2}:
+    WRun[r1] >= WRun[r2];
+
+/*------------------*/
+
 minimize size_of_output_tc:
     sum{u in V, v in V} Inter[u,v];
+
+/*------------------*/
 
 solve;
 printf "      run |       var |       bin |\n";
