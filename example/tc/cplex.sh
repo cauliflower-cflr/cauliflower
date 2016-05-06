@@ -17,7 +17,7 @@ function usage(){
 which oplrun 2>/dev/null 1>/dev/null || (echo -e "oplrun not in path\nexport PATH=\"\$PATH:/home/nic/soft/cplex-12.6.3/opl/bin/x86-64_linux\""; exit 1)
 
 function solve(){
-    cat $DIR/*.dat | sed -e 's/\([0-9][0-9]*\) \([0-9][0-9]*\)/<\1,\2>/' | tr '\n' ' ' | sed -e 's/ param //g' -e 's/ set //g' -e 's/:=/=/g' -e 's/data;//' -e 's/>[^,]</>,</g' | tr -d ' ' | sed 's/=\(<.*>\);/={\1};/' | LD_LIBRARY_PATH=`which oplrun | xargs dirname` oplrun $1 /dev/stdin
+    sed 's/\([0-9]*\) \([0-9]*\)/<\1,\2>/' $2 | tr '\n' ' ' | sed -e 's/> </>,</g' -e 's/^/E={/' -e 's/$/};/' | cat - <(echo -e "\nRc=$RUNS; Bc=$BINS;") | LD_LIBRARY_PATH=`which oplrun | xargs dirname` oplrun $1 /dev/stdin | tee $3
 }
 
 BINS="2"
@@ -42,15 +42,20 @@ while getopts "b:hnr:" opt; do
 done
 shift $(($OPTIND -1))
 
-[ $# -ge 1 -a -d $1 ] || (usage >&2; exit 1)
+[ $# -ge 1 -a -f $1 ] || (usage >&2; exit 1)
 
 SELF=$(dirname $0)
-DIR=${1%/}
+DAT="$1"
+ODIR=${DAT%.dat}
+mkdir -p $ODIR
+OSH=$ODIR/sh_r${RUNS}_b${BINS}.out
+OTC=$ODIR/tc_r${RUNS}_b${BINS}.out
 
-for SOLV in tc sh; do
-    for DAT in $DIR/*.dat; do
-        OUT=$DIR/r${RUNS}b${BINS}_${DAT%.dat}_${SOLV}.out
-        #solve $SELF/opl_sh.mod $DAT $OUT
-        echo $OUT
-    done
-done
+[ -f $OSH ] || solve $SELF/opl_sh.mod $DAT $OSH
+[ -f $OTC ] || solve $SELF/opl_tc.mod $DAT $OTC
+
+echo ----------------------------------------------------------
+grep "PL$" $OSH | sed -e 's/ PL//' | sort -n | column -ts ' '
+echo
+diff -y <(grep 'TC$' $OSH | sort -u) <(grep 'TC$' $OTC | sort -u) | tr '[:blank:]' ' ' | sed -e 's/ TC//g' -e 's/   */,/' | column -ts ','
+
