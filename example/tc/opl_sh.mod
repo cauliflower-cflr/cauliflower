@@ -17,8 +17,8 @@ dvar float+ BEdge[R][B][B];
 dvar float+ BPath[R][B][B];
 dvar float+ Appro[R][V][V];
 dvar float+ Final[V][V];
-dexpr float place_weight[r in R][b in B] = sum(v in V) Place[r][v][b]*v;
-dexpr float run_weight[r in R] = sum(b in B) (place_weight[r][b]*Bc + b);
+dexpr float place_weight[r in R][b in B] = sum(v in V) Place[r][v][b];
+// dexpr float run_weight[r in R] = sum(v in V, b in B) ((v*Bc + b) * Place[r][v][b]);
 dexpr float tc_size = sum(u,v in V) Final[u][v];
 
 minimize tc_size;
@@ -51,8 +51,8 @@ subject to {
 	forall(r in R, ordered b1,b2 in B) order_bins:
 		place_weight[r][b1] >= place_weight[r][b2];
 		
-	forall(ordered r1,r2 in R) order_runs:
-		run_weight[r1] >= run_weight[r2];
+	// forall(ordered r1,r2 in R) order_runs:
+	//	run_weight[r1] >= run_weight[r2];
 }
 
 execute {

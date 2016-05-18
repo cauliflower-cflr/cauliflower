@@ -16,6 +16,10 @@ function usage(){
 
 which oplrun 2>/dev/null 1>/dev/null || (echo -e "oplrun not in path\nexport PATH=\"\$PATH:/home/nic/soft/cplex-12.6.3/opl/bin/x86-64_linux\""; exit 1)
 
+function grab_tc(){
+grep 'TC$' $1 | tr -d ')(,TC' | sort -n | sed 's/^ *\([0-9]*\) *\([0-9]*\) *$/(\1,\2)/g'
+}
+
 function solve(){
     sed 's/\([0-9]*\) \([0-9]*\)/<\1,\2>/' $2 | tr '\n' ' ' | sed -e 's/> </>,</g' -e 's/^/E={/' -e 's/$/};/' | cat - <(echo -e "\nRc=$RUNS; Bc=$BINS;") | LD_LIBRARY_PATH=`which oplrun | xargs dirname` oplrun $1 /dev/stdin | tee $3
 }
@@ -57,5 +61,5 @@ OTC=$ODIR/tc_r${RUNS}_b${BINS}.out
 echo ----------------------------------------------------------
 grep "PL$" $OSH | sed -e 's/ PL//' | sort -n | column -ts ' '
 echo
-diff -y <(grep 'TC$' $OSH | sort -u) <(grep 'TC$' $OTC | sort -u) | tr '[:blank:]' ' ' | sed -e 's/ TC//g' -e 's/   */,/' | column -ts ','
+diff -y <(grab_tc $OSH) <(grab_tc $OTC) | tr '[:blank:]' '.' | sed -e 's/\.\.*/./' | column -ts '.'
 
