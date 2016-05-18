@@ -1,16 +1,38 @@
-group 'cauliflower'
-apply plugin: 'java'
-sourceCompatibility = 1.8
-version = '0.0.2-GRADLE'
+/*********** 
+ * Plugins *
+ ***********/
 
-sourceSets {
-    main {
-        java {
-            srcDir 'src'
-        }
-    }
+apply plugin: 'java'
+
+
+/******************** 
+ * Project Settings *
+ ********************/
+
+group 'cauliflower'
+sourceCompatibility = 1.8
+version = '0.0.3-REFACTOR'
+
+
+/**************** 
+ * Repositories *
+ ****************/
+repositories {
+    mavenCentral()
 }
 
+
+/**************** 
+ * Dependencies *
+ ****************/
+dependencies {
+    testCompile 'junit:junit:4.12'
+}
+
+
+/************ 
+ * Artefact *
+ ************/
 jar {
     manifest {
         attributes(

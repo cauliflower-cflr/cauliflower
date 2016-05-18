@@ -2,6 +2,7 @@
 bin/
 build/
 .gradle/
+gradle/
 .idea/
 *.iml
 
