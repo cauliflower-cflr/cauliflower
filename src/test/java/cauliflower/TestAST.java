@@ -8,8 +8,26 @@ import static org.junit.Assert.assertTrue;
 public class TestAST {
 
     @Test
-    public void LabelName(){
-        Label l = new Label(0, 0);
-        assertTrue(true);
+    public void TestNewLabelHasDomains(){
+        Label l = new Label(0, 1);
+        assertTrue(l.fromDomain == 0);
+        assertTrue(l.toDomain == 1);
     }
+
+    @Test
+    public void TestNewLabelNoFields(){
+        Label l = new Label(0, 1);
+        assertTrue(l.fDomains.size() == 0);
+    }
+
+    @Test
+    public void TestNewLabelSomeFields(){
+        Label l = new Label(0, 1, 1, 2, 3, 4);
+        assertTrue(l.fDomains.size() == 4);
+        assertTrue(l.fDomains.get(0) == 1);
+        assertTrue(l.fDomains.get(1) == 2);
+        assertTrue(l.fDomains.get(2) == 3);
+        assertTrue(l.fDomains.get(3) == 4);
+    }
+
 }
