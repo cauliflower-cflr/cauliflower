@@ -12,7 +12,7 @@ apply plugin: 'application'
 
 group 'cauliflower'
 sourceCompatibility = 1.8
-version = '0.0.3-REFACTOR'
+version = getVersionNameFromGit()
 mainClassName = 'cauliflower.Main'
 
 
@@ -29,20 +29,29 @@ repositories {
  ****************/
 dependencies {
     testCompile 'junit:junit:4.12'
-    compile "com.beust:jcommander:1.48"
+        compile "com.beust:jcommander:1.48"
 }
-
 
 
 /************ 
  * Artefact *
  ************/
+
 jar {
     manifest {
         attributes(
                 'version' : version,
                 'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
                 'Main-Class': 'cauliflower.Main'
-        )
+                )
     }
+}
+
+
+/**************** 
+ * Miscelaneous *
+ ****************/
+
+def getVersionNameFromGit() {
+    return "git describe --tags --always --candidates 1".execute().text.trim()
 }
