@@ -19,7 +19,7 @@ public class TestParser {
     }
 
     @Test
-    public void TestEmptySpecIsValid(){
+    public void testEmptySpecIsValid(){
         try{
             parseSpec("");
         } catch (Exception exc) {
@@ -28,7 +28,7 @@ public class TestParser {
     }
 
     @Test
-    public void TestValidTypedecl(){
+    public void testValidTypedecl(){
         try{
             parseSpec("a<-b.c;");
         } catch (Exception exc) {
@@ -37,7 +37,7 @@ public class TestParser {
     }
 
     @Test
-    public void TestValidRule(){
+    public void testValidRule(){
         try{
             parseSpec("a<-b.c;a->a,a;");
         } catch (Exception exc) {

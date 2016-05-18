@@ -21,7 +21,7 @@ set -e
 #
 # Clean up prior build
 #
-rm -rf $SPOUT_DIR $CCLYS_DIR $GIGAS_DIR $BUILT_ARCHIVE $CAULI_JAR
+rm -rf $SPOUT_DIR $CCLYS_DIR $GIGAS_DIR $BUILT_ARCHIVE cauliflower*/
 [ $# == 0 ] || exit 0 # user can clean the preparation by passing any argument to this script
 
 #
@@ -44,14 +44,15 @@ which_or_bail spec_intercept.sh
 #
 # Build cauliflower itself and the experiment source files
 #
-gradle -p $CAULI_DIR build
-mv `find $CAULI_DIR/build -iname "cauliflower*.jar"` $CAULI_JAR
+gradle -p $CAULI_DIR assembleDist
+unzip `find $CAULI_DIR/build/distributions/ -type f -iname "cauliflower*.zip"`
 mkdir -p $GIGAS_DIR
 mkdir -p $CCLYS_DIR
-java -jar $CAULI_JAR -r -a Btree   -sn $GIGAS_DIR/${GIGAS_NAME}_s.h -cs $GIGAS_DIR/${GIGAS_NAME}_s.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -r -p         -sn $GIGAS_DIR/${GIGAS_NAME}_p.h -cs $GIGAS_DIR/${GIGAS_NAME}_p.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -r -p -t      -sn $GIGAS_DIR/${GIGAS_NAME}_t.h -cs $GIGAS_DIR/${GIGAS_NAME}_t.cpp ${GIGAS_NAME}.cflr
-java -jar $CAULI_JAR -r -a Souffle -sn $CCLYS_DIR/${CCLYS_NAME}.h   -cs $CCLYS_DIR/${CCLYS_NAME}.cpp   ${CCLYS_NAME}.cflr
+CAULI_EXE=$EXPER_DIR/cauliflower*/bin/cauliflower
+$CAULI_EXE -r -a Btree   -sn $GIGAS_DIR/${GIGAS_NAME}_s.h -cs $GIGAS_DIR/${GIGAS_NAME}_s.cpp ${GIGAS_NAME}.cflr
+$CAULI_EXE -r -p         -sn $GIGAS_DIR/${GIGAS_NAME}_p.h -cs $GIGAS_DIR/${GIGAS_NAME}_p.cpp ${GIGAS_NAME}.cflr
+$CAULI_EXE -r -p -t      -sn $GIGAS_DIR/${GIGAS_NAME}_t.h -cs $GIGAS_DIR/${GIGAS_NAME}_t.cpp ${GIGAS_NAME}.cflr
+$CAULI_EXE -r -a Souffle -sn $CCLYS_DIR/${CCLYS_NAME}.h   -cs $CCLYS_DIR/${CCLYS_NAME}.cpp   ${CCLYS_NAME}.cflr
 cp $GIGAS_DIR/* $CCLYS_DIR/* $CAULI_DIR/spikes/
 make -C $CAULI_DIR -j4
 mv $CAULI_DIR/bin/$CCLYS_NAME $CCLYS_DIR
@@ -85,5 +86,5 @@ $EXPER_DIR/cclyser_convert.sh $CCLYS_DIR/*.bc
 #
 GIGAS_REL=`python -c "import os.path; print os.path.relpath('$GIGAS_DIR/', '.')"`
 CCLYS_REL=`python -c "import os.path; print os.path.relpath('$CCLYS_DIR/', '.')"`
-CAULI_REL=`python -c "import os.path; print os.path.relpath('$CAULI_JAR', '.')"`
+CAULI_REL=`python -c "import os.path; print os.path.relpath('$(dirname $CAULI_EXE)/..', '.')"`
 zip -r $BUILT_ARCHIVE $GIGAS_REL/ $CCLYS_REL/ $CAULI_REL

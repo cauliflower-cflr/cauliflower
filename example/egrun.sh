@@ -12,9 +12,9 @@ set -u
 
 MDIR=$(dirname $0)
 
-gradle -p $MDIR/.. jar
+gradle -p $MDIR/.. installDist
 
-JAR=$(readlink -f `find $MDIR/.. -iname "cauliflower*.jar"`)
+EXEC=$(readlink -f `find $MDIR/../build/install -type f -iname "cauliflower"`)
 
 for EG in `find $MDIR -name "*.cflr"`; do
     for ADT in Std Btree Souffle; do
@@ -22,7 +22,7 @@ for EG in `find $MDIR -name "*.cflr"`; do
         NAME=${FN%.*}
         C_FI="$MDIR/../spikes/${NAME}_${ADT}_EG.cpp"
         H_FI="$MDIR/../spikes/${NAME}_${ADT}_EG.h"
-        CMD="java -cp $JAR cauliflower.Main -a $ADT -sn $H_FI -cs $C_FI $EG"
+        CMD="$EXEC -a $ADT -sn $H_FI -cs $C_FI $EG"
         echo $CMD
         $CMD
         which astyle 2>/dev/null && astyle -Yn $H_FI $C_FI

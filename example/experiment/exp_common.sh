@@ -22,7 +22,6 @@ export GIGAS_DIR="$EXPER_DIR/$GIGAS_NAME"
 
 export MEM_MONITOR="$EXPER_DIR/exp_mem_monitor.sh"
 export BUILT_ARCHIVE="$EXPER_DIR/build.zip"
-export CAULI_JAR="$EXPER_DIR/cauliflower.jar"
 
 export RESULT_ARCHI="results.`date +%F`.zip"
 export RESULT_GIGAS="results.giga.csv"
