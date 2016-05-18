@@ -1,5 +1,6 @@
 package cauliflower.generator;
 
+import cauliflower.application.Info;
 import cauliflower.cflr.Label;
 import cauliflower.cflr.Problem;
 import cauliflower.parser.CFLRParser;
@@ -50,7 +51,7 @@ public class CppCSVBackend implements Backend {
         out.println("// Automatic importer for CFL-R Problems");
         out.println("//");
         out.println("// Generated on: " + new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
-        out.println("//           by: v" + cauliflower.Main.MAJOR + "." + cauliflower.Main.MINOR + "." + cauliflower.Main.REVISION);
+        out.println("// Cauliflower version: " + Info.buildVersion);
     }
 
     private void generateImportsUsing(){

@@ -101,7 +101,11 @@ public class Configuration {
     public static class HelpException extends Exception{
         public final String usage;
         public HelpException(JCommander com){
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder("Cauliflower\n")
+                    .append("\n")
+                    .append("Version: ").append(Info.buildVersion).append("\n")
+                    .append("Built:   ").append(Info.buildDate).append("\n")
+                    .append("\n");
             com.usage(sb);
             usage = sb.toString();
         }

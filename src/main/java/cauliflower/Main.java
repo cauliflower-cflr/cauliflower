@@ -16,11 +16,6 @@ import java.io.PrintStream;
 
 public class Main {
 
-    // temporary hack for version information
-    public static int MAJOR = 0;
-    public static int MINOR = 0;
-    public static int REVISION = 1;
-
     public static void main(String[] args) {
         try {
             Configuration conf = Configuration.fromArgs(args);

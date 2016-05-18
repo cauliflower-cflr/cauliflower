@@ -32,6 +32,11 @@ dependencies {
         compile "com.beust:jcommander:1.48"
 }
 
+processResources {
+    expand projectVersion: project.version,
+           curDate: new Date().format( 'yyyy-MM-dd' )
+} 
+
 
 /************ 
  * Artefact *
