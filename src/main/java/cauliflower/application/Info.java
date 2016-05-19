@@ -2,7 +2,6 @@ package cauliflower.application;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Properties;
 
 public class Info {
@@ -16,9 +15,19 @@ public class Info {
         }
         buildVersion = prop.getProperty("build.version", "UNKNOWN");
         buildDate = prop.getProperty("build.date", "UNKNOWN");
+
+        // Determine where the Cauliflower 'include' directory is
+        // - in a distribution it is ../include
+        // - in the IDE it is ../../../src/dist/include
+        File classBytecodeFile = new File(Info.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+        File includePath = new File(classBytecodeFile.getParentFile().getParentFile(), "include");
+        if(!includePath.exists() || !includePath.isDirectory()){
+            includePath = new File(classBytecodeFile.getParentFile().getParentFile().getParentFile(), "src/dist/include");
+        }
+        cauliDistributionDirectory = includePath.getParent();
     }
 
     public static final String buildVersion;
     public static final String buildDate;
-    public static final String cauliJarPath = new File(Info.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getAbsolutePath();
+    public static final String cauliDistributionDirectory;
 }
