@@ -6,7 +6,7 @@ TEST=test
 SRC_DIR=src
 TST_DIR=test
 SPK_DIR=spikes
-INCLUDES=-I include/ -I include/cpp-btree-1.0.1/
+INCLUDES=-I src/dist/include/ -I src/dist/include/cpp-btree-1.0.1/
 
 # Options and Flags
 #PROFILE=-p

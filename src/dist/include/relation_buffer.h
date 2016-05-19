@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "csv.h"
-#include "logger.h"
 #include "utilities.h"
 #include "utility_templates.h"
 
@@ -157,7 +156,7 @@ struct relation_buffer{
                 }
                 return true;
             } catch(const io::error::base& err){
-                logger::warning("CSV Read error: ", err.what());
+                std::cerr << "CSV Read error: " <<  err.what() << std::endl;
                 return false;
             }
         } catch(const io::error::base& err){
