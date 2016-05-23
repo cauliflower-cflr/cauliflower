@@ -24,7 +24,7 @@ public class Info {
         if(!includePath.exists() || !includePath.isDirectory()){
             includePath = new File(classBytecodeFile.getParentFile().getParentFile().getParentFile(), "src/dist/include");
         }
-        cauliDistributionDirectory = includePath.getParent();
+        cauliDistributionDirectory = includePath.getParentFile().getAbsolutePath();
     }
 
     public static final String buildVersion;
