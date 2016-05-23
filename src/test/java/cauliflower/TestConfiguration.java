@@ -3,6 +3,7 @@ package cauliflower;
 import cauliflower.application.Configuration;
 import cauliflower.generator.Adt;
 import org.junit.Test;
+import org.omg.IOP.ExceptionDetailMessage;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -81,6 +82,35 @@ public class TestConfiguration {
             fail();
         } catch(Configuration.ConfigurationException exc){
             // do nothing
+        } catch(Exception exc){
+            fail();
+        }
+    }
+
+    @Test
+    public void testCompileOverridesGenerators(){
+        try{
+            Configuration.fromArgs("-cs", "bar", "-c", "baz", "foo");
+            fail();
+        } catch(Exception exc){
+            //good
+        }
+
+        try{
+            Configuration.fromArgs("--compile", "baz", "-sn", "bar", "foo");
+            fail();
+        } catch(Exception exc){
+            //good
+        }
+
+        try{
+            Configuration.fromArgs("-c", "baz", "foo");
+        } catch(Exception exc){
+            fail();
+        }
+
+        try{
+            Configuration.fromArgs("--compile", "baz", "foo");
         } catch(Exception exc){
             fail();
         }

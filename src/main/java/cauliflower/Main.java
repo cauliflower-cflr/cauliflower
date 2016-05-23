@@ -1,5 +1,6 @@
 package cauliflower;
 
+import cauliflower.application.CompilerInterface;
 import cauliflower.application.Configuration;
 import cauliflower.generator.Backend;
 import cauliflower.generator.CppCSVBackend;
@@ -24,6 +25,13 @@ public class Main {
             CFLRParser.ParserOutputs po = new ParseFile(new SimpleParser()).read(in);
             String name = in.getName();
             if(name.contains(".")) name = name.substring(0, name.lastIndexOf('.'));
+            CompilerInterface executable = null;
+            if(conf.compOutFile != null){ // hack for now, TODO unhack me
+                executable = new CompilerInterface(conf.compOutFile);
+                conf.snOutFile = executable.backEnd.getAbsolutePath();
+                conf.csvOutFile = executable.frontEnd.getAbsolutePath();
+                name = executable.execFile.getName();
+            }
             if(conf.snOutFile != null) {
                 File snf = new File(conf.snOutFile);
                 PrintStream ps = new PrintStream(new FileOutputStream(snf));
@@ -36,6 +44,9 @@ public class Main {
                     new CppCSVBackend(ps2, relPath, po, conf.reports).generate(name, po.problem);
                     ps2.close();
                 }
+            }
+            if(executable != null){ // more hacks TODO
+                executable.compile();
             }
         } catch (Configuration.ConfigurationException e) {
             System.err.println(e.msg);

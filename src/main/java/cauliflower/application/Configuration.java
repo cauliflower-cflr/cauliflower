@@ -28,6 +28,9 @@ public class Configuration {
     @Parameter(names = "-sn", description = "Write a semi-naive back-end to this file.")
     public String snOutFile = null;
 
+    @Parameter(names = {"-c", "--compile"}, description = "Compile a csv-based semi-naive executable to this file.")
+    public String compOutFile = null;
+
     //Configurations
     @Parameter(names = {"-a", "--adt"}, description = "The abstract-data-type used by the solver.")
     public Adt adt = Adt.Std;
@@ -55,6 +58,7 @@ public class Configuration {
         if (specFile == null || specFile.size() == 0) throw new ConfigurationException("No specification provided.");
         if (specFile.size() != 1) throw new ConfigurationException("At most one specification per execution, found: "
                 + specFile.stream().collect(Collectors.joining(", ")) + ".");
+        if (compOutFile != null && (csvOutFile != null || snOutFile != null)) throw new ConfigurationException("The '--compile' option overrides '-cs' and '-sn'");
     }
 
     /**
@@ -105,6 +109,7 @@ public class Configuration {
                     .append("\n")
                     .append("Version: ").append(Info.buildVersion).append("\n")
                     .append("Built:   ").append(Info.buildDate).append("\n")
+                    .append("Libs:    ").append(Info.cauliDistributionDirectory).append("\n")
                     .append("\n");
             com.usage(sb);
             usage = sb.toString();
