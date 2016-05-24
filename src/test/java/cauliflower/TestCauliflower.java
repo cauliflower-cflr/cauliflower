@@ -1,6 +1,5 @@
 package cauliflower;
 
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -8,14 +7,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
@@ -31,7 +31,6 @@ public class TestCauliflower {
                 .flatMap(p -> Arrays.stream(p.getParentFile().listFiles())
                         .filter(File::isDirectory)
                         .map(d -> new File[]{p, d}))
-                .limit(1)
                 .collect(Collectors.toList());
     }
 
@@ -64,9 +63,41 @@ public class TestCauliflower {
             }
         }
 
-        //run the exe in a process TODO
-        new ProcessBuilder(exeFile.getAbsolutePath());
-        System.out.println(specFile.getPath() + " - " + testDir.getPath());
+        try{
+            Files.list(testDir.toPath()).filter(p -> p.toString().endsWith(".ans")).forEach(p -> {
+                String rel = p.toFile().getName().substring(0, p.toFile().getName().length()-4);
+                //run the exe in a process
+                try {
+                    ProcessBuilder pb = new ProcessBuilder(exeFile.getAbsolutePath(), testDir.getAbsolutePath(), rel)
+                            .redirectErrorStream(true);
+                    Process proc = pb.start();
+                    List<String> outp = captureOutput(proc.getInputStream(), true);
+                    assertTrue(proc.waitFor() == 0);
+                    List<String> answ = captureOutput(new FileInputStream(p.toFile()), false);
+                    assertTrue(answ.size() == outp.size());
+                    for(int i=0; i<answ.size(); i++){
+                        assertTrue(outp.get(i).equals(answ.get(i)));
+                    }
+                } catch (Exception e) {
+                    fail();
+                }
+            });
+        } catch(Exception exc){
+            fail();
+        }
+    }
+
+    private List<String> captureOutput(InputStream in, boolean skip) throws IOException{
+        Scanner sca = new Scanner(in);
+        List<String> ret = new ArrayList<>();
+        while(sca.hasNextLine()){
+            String ln = sca.nextLine();
+            if(!skip) ret.add(ln);
+            skip = false;
+        }
+        sca.close();
+        in.close();
+        return ret.stream().sorted().distinct().collect(Collectors.toList());
     }
 
 }

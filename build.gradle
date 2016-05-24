@@ -14,6 +14,7 @@ group 'cauliflower'
 sourceCompatibility = 1.8
 version = getVersionNameFromGit()
 mainClassName = 'cauliflower.Main'
+defaultTasks 'installDist'
 
 
 /**************** 
