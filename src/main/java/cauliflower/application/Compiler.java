@@ -1,5 +1,7 @@
 package cauliflower.application;
 
+import cauliflower.parser.CFLRParser;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,7 +11,7 @@ import java.util.stream.Collectors;
  * Interfaces with the system compiler to compile
  * generated code into executables.
  */
-public class CompilerInterface {
+public class Compiler {
 
     public final File execFile;
     public final File buildDir;
@@ -18,9 +20,9 @@ public class CompilerInterface {
     public final File logFile;
 
     private final boolean verbose;
+    private final Configuration configuration;
 
-
-    public CompilerInterface(String execPath) throws IOException {
+    public Compiler(String execPath, Configuration conf) throws IOException {
         this.execFile = new File(execPath);
         this.buildDir = new File(execFile.getParentFile(), execFile.getName() + "_build");
         if(execFile.exists()) throw new IOException("Executable " + execFile.getPath() + " already exists.");
@@ -30,12 +32,13 @@ public class CompilerInterface {
         this.backEnd = new File(buildDir, execFile.getName() + ".h");
         this.frontEnd = new File(buildDir, execFile.getName() + ".cpp");
         this.verbose = true;
+        this.configuration = conf;
     }
 
-    public void compile() throws IOException, InterruptedException {
+    public void compile(CFLRParser.ParserOutputs parse) throws IOException, InterruptedException {
         // initialising
-        if(!frontEnd.exists()) throw new IOException("Could not compile " + execFile.getName() + ", front end doesnt exist yet: " + frontEnd.getAbsolutePath());
-        if(!backEnd.exists()) throw new IOException("Could not compile " + execFile.getName() + ", back end doesnt exist yet: " + backEnd.getAbsolutePath());
+        Generator gen = new Generator(backEnd, frontEnd, configuration);
+        gen.generate(execFile.getName(), parse);
 
         // Run the build
         runProcess(processBuilderInit().command("env"));

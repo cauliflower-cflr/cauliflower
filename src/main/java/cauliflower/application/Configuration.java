@@ -22,14 +22,17 @@ public class Configuration {
     @Parameter(description = "<cflr specification file>")
     public List<String> specFile;
 
-    @Parameter(names = "-cs", description = "Write a CSV-based front-end to this file.")
+    @Parameter(names = {"-cs", "--generate-csv"}, description = "Write a CSV-based front-end to this file.")
     public String csvOutFile = null;
 
-    @Parameter(names = "-sn", description = "Write a semi-naive back-end to this file.")
+    @Parameter(names = {"-sn", "--generate-semi-naive"}, description = "Write a semi-naive back-end to this file.")
     public String snOutFile = null;
 
     @Parameter(names = {"-c", "--compile"}, description = "Compile a csv-based semi-naive executable to this file.")
     public String compOutFile = null;
+
+    @Parameter(names = {"-o", "--optimise"}, description = "Generate an optimised specification to this file.")
+    public String optimiseOutFile = null;
 
     //Configurations
     @Parameter(names = {"-a", "--adt"}, description = "The abstract-data-type used by the solver.")
@@ -37,16 +40,16 @@ public class Configuration {
 
     //Flags
     @Parameter(names = {"-h", "--help"}, description = "Display this help message.", help = true)
-    public boolean help;
+    public boolean help = false;
 
     @Parameter(names = {"-p", "--parallel"}, description = "Generate parallel evaluation code.")
-    public boolean parallel;
+    public boolean parallel = false;
 
     @Parameter(names = {"-r", "--reports"}, description = "Emit reports on runtime statistics.")
-    public boolean reports;
+    public boolean reports = false;
 
     @Parameter(names = {"-t", "--timers"}, description = "Emit code to log executions times.")
-    public boolean timers;
+    public boolean timers = false;
 
     // Override default public constructor
     private Configuration () {}

@@ -1,5 +1,6 @@
 package cauliflower;
 
+import cauliflower.util.FileSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,7 +42,7 @@ public class TestCauliflower {
 
     @AfterClass
     public static void destroyTestCauliflower() throws Exception{
-        // relying on the (probably bad) delete-on-exit
+        FileSystem.recursiveRemove(scratchpad);
     }
 
     private static Path scratchpad;
@@ -64,16 +65,21 @@ public class TestCauliflower {
         }
 
         try{
+            // for each known correct answer
             Files.list(testDir.toPath()).filter(p -> p.toString().endsWith(".ans")).forEach(p -> {
+                // determine the target relation
                 String rel = p.toFile().getName().substring(0, p.toFile().getName().length()-4);
-                //run the exe in a process
                 try {
+                    //run the exe in a process
                     ProcessBuilder pb = new ProcessBuilder(exeFile.getAbsolutePath(), testDir.getAbsolutePath(), rel)
                             .redirectErrorStream(true);
                     Process proc = pb.start();
+                    //get the calculated answer
                     List<String> outp = captureOutput(proc.getInputStream(), true);
                     assertTrue(proc.waitFor() == 0);
+                    //get the correct answer
                     List<String> answ = captureOutput(new FileInputStream(p.toFile()), false);
+                    //compare the answers
                     assertTrue(answ.size() == outp.size());
                     for(int i=0; i<answ.size(); i++){
                         assertTrue(outp.get(i).equals(answ.get(i)));
@@ -87,6 +93,8 @@ public class TestCauliflower {
         }
     }
 
+    // helper method to turn an input stream into a list of lines
+    // skip the first line (caulflower outputs this) if necessary
     private List<String> captureOutput(InputStream in, boolean skip) throws IOException{
         Scanner sca = new Scanner(in);
         List<String> ret = new ArrayList<>();
