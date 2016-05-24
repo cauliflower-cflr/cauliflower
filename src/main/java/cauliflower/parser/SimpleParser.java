@@ -5,6 +5,7 @@ import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
 import cauliflower.generator.DebugBackend;
 import cauliflower.util.CFLRException;
+import cauliflower.util.Logs;
 import cauliflower.util.Registrar;
 import jdk.nashorn.internal.ir.Labels;
 
@@ -103,7 +104,9 @@ public class SimpleParser implements CFLRParser{
                 labels.add(new Label(vd1, vd2, flds));
             }
         }
-        return new ParserOutputs(new Problem(fReg.size() + vReg.size(), labels, rules), lReg, fReg, vReg, rfRegs);
+        ParserOutputs ret = new ParserOutputs(new Problem(fReg.size() + vReg.size(), labels, rules), lReg, fReg, vReg, rfRegs);
+        Logs.forClass(SimpleParser.class).debug("parsed: {}", ret);
+        return ret;
     }
 }
 

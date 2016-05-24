@@ -24,7 +24,8 @@ public class Main {
             String name = in.getName();
             if (name.contains(".")) name = name.substring(0, name.lastIndexOf('.'));
             if (conf.optimiseOutFile != null) {
-                Optimiser opt = new Optimiser(conf.specFile.get(0), conf.optimiseOutFile);
+                Optimiser opt = new Optimiser(conf.specFile.get(0), conf.optimiseOutFile, conf.optimiseTests);
+                opt.optimise();
             } else if (conf.compOutFile != null) {
                 Compiler comp = new Compiler(conf.compOutFile, conf);
                 comp.compile(po);
