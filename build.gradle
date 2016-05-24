@@ -1,4 +1,4 @@
-/*********** 
+/***********
  * Plugins *
  ***********/
 
@@ -6,7 +6,7 @@ apply plugin: 'java'
 apply plugin: 'application'
 
 
-/******************** 
+/********************
  * Project Settings *
  ********************/
 
@@ -17,7 +17,7 @@ mainClassName = 'cauliflower.Main'
 defaultTasks 'installDist'
 
 
-/**************** 
+/****************
  * Repositories *
  ****************/
 repositories {
@@ -25,21 +25,24 @@ repositories {
 }
 
 
-/**************** 
+/****************
  * Dependencies *
  ****************/
 dependencies {
     testCompile 'junit:junit:4.12'
         compile "com.beust:jcommander:1.48"
+        compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5'
+        compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.5'
+
 }
 
 processResources {
     expand projectVersion: project.version,
            curDate: new Date().format( 'yyyy-MM-dd' )
-} 
+}
 
 
-/************ 
+/************
  * Artefact *
  ************/
 
@@ -54,10 +57,14 @@ jar {
 }
 
 
-/**************** 
+/****************
  * Miscelaneous *
  ****************/
 
 def getVersionNameFromGit() {
     return "git describe --tags --always --candidates 1".execute().text.trim()
+}
+
+task wrapper(type: Wrapper) {
+        gradleVersion = '2.5'
 }

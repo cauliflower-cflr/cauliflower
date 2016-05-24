@@ -7,6 +7,7 @@ import cauliflower.application.Optimiser;
 import cauliflower.parser.CFLRParser;
 import cauliflower.parser.ParseFile;
 import cauliflower.parser.SimpleParser;
+import cauliflower.util.Logs;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,12 +33,12 @@ public class Main {
                 gen.generate(name, po);
             }
         } catch (Configuration.ConfigurationException e) {
-            System.err.println(e.msg);
+            Logs.forClass(Main.class).error(e.msg);
             System.exit(1);
         } catch (Configuration.HelpException e) {
             System.out.println(e.usage);
         } catch (Exception e) {
-            e.printStackTrace();
+            Logs.forClass(Main.class).error(e.getLocalizedMessage(), e);
             System.exit(1);
         }
     }

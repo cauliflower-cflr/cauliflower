@@ -105,28 +105,5 @@ public class SimpleParser implements CFLRParser{
         }
         return new ParserOutputs(new Problem(fReg.size() + vReg.size(), labels, rules), lReg, fReg, vReg, rfRegs);
     }
-
-    public static void main(String[] args){
-        String gram = "" +
-                "alloc <- vert . heap;" +
-                "assign <- vert . vert;" +
-                "load[field] <- vert . vert;" +
-                "store[field] <- vert . vert;" +
-                "pt <- vert . heap;" +
-                "" +
-                "pt -> alloc;" +
-                "pt -> assign, alloc;" +
-                "pt -> load[f], pt, -pt, -store[f], pt;" +
-                "";
-        CFLRParser p = new SimpleParser();
-        try{
-            InputStream stream = new ByteArrayInputStream(gram.getBytes(StandardCharsets.UTF_8));
-            ParserOutputs po = p.parse(stream);
-            System.out.println(po.problem.numDomains);
-            new DebugBackend(System.out).generate("TEST", po.problem);
-        } catch(Exception exc){
-            exc.printStackTrace();
-        }
-    }
 }
 

@@ -1,6 +1,7 @@
 package cauliflower.application;
 
 import cauliflower.parser.CFLRParser;
+import cauliflower.util.Logs;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,7 +20,6 @@ public class Compiler {
     public final File backEnd;
     public final File logFile;
 
-    private final boolean verbose;
     private final Configuration configuration;
 
     public Compiler(String execPath, Configuration conf) throws IOException {
@@ -31,7 +31,6 @@ public class Compiler {
         this.logFile = new File(buildDir, "build.log");
         this.backEnd = new File(buildDir, execFile.getName() + ".h");
         this.frontEnd = new File(buildDir, execFile.getName() + ".cpp");
-        this.verbose = true;
         this.configuration = conf;
     }
 
@@ -50,9 +49,7 @@ public class Compiler {
     }
 
     private void runProcess(ProcessBuilder proc) throws IOException, InterruptedException {
-        if(verbose){
-            System.out.println(proc.command().stream().collect(Collectors.joining(" ")));
-        }
+        Logs.forClass(Compiler.class).debug("Executing: {}", proc.command().stream().collect(Collectors.joining(" ")));
         Process p = proc.start();
         p.waitFor();
     }

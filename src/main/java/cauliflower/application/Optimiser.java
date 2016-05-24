@@ -24,7 +24,12 @@ public class Optimiser {
         this.optimisedSpec = new File(targetSpec);
     }
 
-    public void optimise(CFLRParser.ParserOutputs po){
+    public void optimise(){
+        File curSpec = inputSpec;
+        boolean going = true;
+        while(going){
+
+        }
 
     }
 

@@ -3,10 +3,12 @@ package cauliflower.application;
 
 import cauliflower.Main;
 import cauliflower.generator.Adt;
+import cauliflower.util.Logs;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -71,6 +73,7 @@ public class Configuration {
      * @throws ConfigurationException when the configuration is invalid
      */
     public static Configuration fromArgs(String... args) throws ConfigurationException, HelpException{
+        Logs.forClass(Configuration.class).debug("Args=\"{}\"", Arrays.stream(args).collect(Collectors.joining(" ")));
         Configuration ret = new Configuration();
         JCommander com = new JCommander(ret);
         com.setProgramName(Main.class.getName());
