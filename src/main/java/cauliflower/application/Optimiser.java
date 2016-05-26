@@ -8,9 +8,10 @@ import cauliflower.util.Logs;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Optimiser
@@ -39,20 +40,50 @@ public class Optimiser {
         boolean going = true;
         int optimisationRound = 0;
         while (going) {
-            Path workingDir = Files.createTempDirectory("cauli_opt_" + optimisationRound);
-            Logs.forClass(Optimiser.class).debug("Iteration {}, working dir: {}", optimisationRound, workingDir);
-            File exef = new File(workingDir.toFile(), "opt_exe");
-            Configuration curConf = Configuration.fromArgs("-p", "-r", "-t", "--compile", exef.getAbsolutePath(), curSpec.getAbsolutePath());
-            CFLRParser.ParserOutputs curParse = new ParseFile(new SimpleParser()).read(curSpec);
-            Compiler comp = new Compiler(exef.getAbsolutePath(), curConf);
-            comp.compile(curParse);
-            for (int i = 0; i < trainingSet.size(); i++) {
-                File logf = new File(workingDir.toFile(), optimisationRound + "_" + i + ".log");
-                Logs.forClass(Optimiser.class).debug("Logging {} from {}", logf, trainingSet.get(i));
+            OptimisationPass pass = new OptimisationPass(optimisationRound, curSpec);
+            pass.compileExe();
+            pass.generateLogs();
+            pass.annotateParse();
+            going = false;
+        }
+    }
 
-                // continually try to run until we succeed, arbitrarily stop after 5
-                ProcessBuilder pb = new ProcessBuilder(exef.getAbsolutePath(), trainingSet.get(i).getAbsolutePath())
-                        .redirectErrorStream(true).redirectOutput(logf);
+    /**
+     * Contains the necessary state information for a single optimisation pass
+     */
+    private class OptimisationPass {
+
+        private final int round;
+        private final File spec;
+        private final CFLRParser.ParserOutputs parse;
+        private final File workingDir;
+        private final File executable;
+        private List<File> logs;
+
+        private OptimisationPass(int roundNumber, File currentSpecification) throws IOException {
+            round = roundNumber;
+            spec = currentSpecification;
+            parse = new ParseFile(new SimpleParser()).read(spec);
+            workingDir = Files.createTempDirectory("cauli_opt_" + round + "_").toFile();
+            executable = new File(workingDir, "opt_" + round + "_exe");
+            logs = IntStream.rangeClosed(0, trainingSet.size()).mapToObj(i -> new File(workingDir, round + "_" + i + ".log")).collect(Collectors.toList());
+            Logs.forClass(Optimiser.class).debug("Round {}, Dir: {}", round, workingDir.getAbsolutePath());
+        }
+
+        private void compileExe() throws Configuration.HelpException, Configuration.ConfigurationException, IOException, InterruptedException {
+            Configuration curConf = Configuration.fromArgs("-p", "-r", "-t", "--compile", executable.getAbsolutePath(), spec.getAbsolutePath());
+            Compiler comp = new Compiler(executable.getAbsolutePath(), curConf);
+            comp.compile(parse);
+        }
+
+        private void generateLogs() throws IOException, InterruptedException {
+            logs = new ArrayList<>();
+            int i=0;
+            for(File trainingDir : trainingSet){
+                File curLog = new File(workingDir, round + "_" + i++ + "_" + trainingDir.getName() + ".log");
+                Logs.forClass(Optimiser.class).debug("Logging {} from {}", curLog, trainingDir);
+                ProcessBuilder pb = new ProcessBuilder(executable.getAbsolutePath(), trainingDir.getAbsolutePath())
+                        .redirectErrorStream(true).redirectOutput(curLog);
                 pb.environment().put("OMP_NUM_THREADS", "1");
                 int code = -1;
                 int count = 0;
@@ -62,9 +93,13 @@ public class Optimiser {
                     count++;
                     Logs.forClass(Optimiser.class).trace("attempt {} has exit code {}", count, code);
                 }
-                if (code != 0) throw new IOException("Failed to successfully execute test-case " + trainingSet.get(i));
+                if (code != 0) throw new IOException("Failed to generate a log for " + trainingDir);
+                logs.add(curLog);
             }
-            going = false;
+        }
+
+        private void annotateParse() {
+
         }
 
     }
