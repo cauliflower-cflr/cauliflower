@@ -100,7 +100,7 @@ public class SimpleParser implements CFLRParser{
                 int vd2 = vReg.toIndex(vds[1]);
                 if(lbl.label != labels.size()) throw new CFLRException("Label defined twice: " + lReg.fromIndex(lbl.label));
                 int[] flds = new int[lbl.fields.size()];
-                Arrays.setAll(flds, i -> lbl.fields.get(i));
+                Arrays.setAll(flds, lbl.fields::get);
                 labels.add(new Label(vd1, vd2, flds));
             }
         }

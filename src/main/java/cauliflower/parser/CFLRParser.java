@@ -5,7 +5,9 @@ import cauliflower.cflr.Rule;
 import cauliflower.util.CFLRException;
 import cauliflower.util.Registrar;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,6 +16,11 @@ import java.util.stream.Collectors;
  * Created by nic on 1/12/15.
  */
 public interface CFLRParser {
+
+    default ParserOutputs parse(String s) throws CFLRException {
+        return parse(new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8)));
+    }
+
     ParserOutputs parse(InputStream is) throws CFLRException;
 
     class ParserOutputs{

@@ -1,47 +1,36 @@
 package cauliflower;
 
-import cauliflower.parser.CFLRParser;
-import cauliflower.parser.SimpleParser;
-import cauliflower.util.CFLRException;
+import cauliflower.parser.AntlrParser;
 import org.junit.Test;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.fail;
 
 public class TestParser {
 
-    private CFLRParser.ParserOutputs parseSpec(String spec) throws CFLRException{
-        InputStream stream = new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8));
-        return new SimpleParser().parse(stream);
-    }
-
     @Test
     public void testEmptySpecIsValid(){
         try{
-            parseSpec("");
+            new AntlrParser().parse("");
         } catch (Exception exc) {
-            fail("unexpected exception");
+            fail(exc.getMessage());
         }
     }
 
     @Test
     public void testValidTypedecl(){
         try{
-            parseSpec("a<-b.c;");
+            new AntlrParser().parse("a<-b.c;");
         } catch (Exception exc) {
-            fail("unexpected exception");
+            fail(exc.getMessage());
         }
     }
 
     @Test
     public void testValidRule(){
         try{
-            parseSpec("a<-b.c;a->a,a;");
+            new AntlrParser().parse("a<-b.c;a->a,a;");
         } catch (Exception exc) {
-            fail("unexpected exception");
+            fail(exc.getMessage());
         }
     }
 

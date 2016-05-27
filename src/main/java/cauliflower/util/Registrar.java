@@ -26,5 +26,9 @@ public class Registrar {
     public String fromIndex(int i){
         return is.get(i);
     }
+    @Override
+    public String toString(){
+        return is.toString();
+    }
 
 }
