@@ -132,7 +132,7 @@ public class Configuration {
                     .append("\n")
                     .append("Version: ").append(Info.buildVersion).append("\n")
                     .append("Built:   ").append(Info.buildDate).append("\n")
-                    .append("Libs:    ").append(Info.cauliDistributionDirectory).append("\n")
+                    .append("Home:    ").append(Info.cauliDistributionDirectory).append("\n")
                     .append("\n");
             com.usage(sb);
             usage = sb.toString();

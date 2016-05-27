@@ -1,6 +1,7 @@
 # Build Directories #
 bin/
 build/
+gen/
 .gradle/
 gradle/
 .idea/

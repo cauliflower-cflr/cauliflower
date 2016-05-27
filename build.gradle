@@ -2,19 +2,20 @@
  * Plugins *
  ***********/
 
-apply plugin: 'java'
-apply plugin: 'application'
+apply plugin: 'java';
+apply plugin: 'antlr';
+apply plugin: 'application';
 
 
 /********************
  * Project Settings *
  ********************/
 
-group 'cauliflower'
-sourceCompatibility = 1.8
-version = getVersionNameFromGit()
-mainClassName = 'cauliflower.Main'
-defaultTasks 'installDist'
+group 'cauliflower';
+sourceCompatibility = 1.8;
+version = getVersionNameFromGit();
+mainClassName = 'cauliflower.Main';
+defaultTasks 'installDist';
 
 
 /****************
@@ -29,16 +30,27 @@ repositories {
  * Dependencies *
  ****************/
 dependencies {
-    testCompile 'junit:junit:4.12'
-        compile "com.beust:jcommander:1.48"
-        compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5'
-        compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.5'
+    testCompile 'junit:junit:4.12';
+    compile "com.beust:jcommander:1.48";
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5';
+    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.5';
+    antlr "org.antlr:antlr4:4.5"; // use ANTLR version 4
 
+}
+
+test {
+    testLogging {
+        events "passed", "skipped", "failed";
+    }
 }
 
 processResources {
     expand projectVersion: project.version,
-           curDate: new Date().format( 'yyyy-MM-dd' )
+           curDate: new Date().format( 'yyyy-MM-dd' );
+}
+
+generateGrammarSource {
+    arguments += ["-package", "cauliflower.parser.grammar"];
 }
 
 
@@ -52,7 +64,7 @@ jar {
                 'version' : version,
                 'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
                 'Main-Class': 'cauliflower.Main'
-                )
+                );
     }
 }
 
@@ -62,9 +74,9 @@ jar {
  ****************/
 
 def getVersionNameFromGit() {
-    return "git describe --tags --always --candidates 1".execute().text.trim()
+    return "git describe --tags --always --candidates 1".execute().text.trim();
 }
 
 task wrapper(type: Wrapper) {
-        gradleVersion = '2.5'
+    gradleVersion = '2.8'; // A bug in the antlr plugin was fixed in 2.7
 }
