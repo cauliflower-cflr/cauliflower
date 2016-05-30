@@ -34,4 +34,24 @@ public class TestParser {
         }
     }
 
+    @Test
+    public void testTypeSyntaxErrors(){
+        try{
+            new AntlrParser().parse("a->b.c;");
+            fail();
+        } catch (Exception exc) {
+            // good
+        }
+    }
+
+    @Test
+    public void testRuleSyntaxErrors(){
+        try{
+            new AntlrParser().parse("a<-b,c;");
+            fail();
+        } catch (Exception exc) {
+            // good
+        }
+    }
+
 }

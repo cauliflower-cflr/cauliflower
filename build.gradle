@@ -50,7 +50,7 @@ processResources {
 }
 
 generateGrammarSource {
-    arguments += ["-package", "cauliflower.parser.grammar"];
+    arguments += ["-visitor", "-package", "cauliflower.parser.grammar"];
 }
 
 

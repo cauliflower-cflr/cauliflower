@@ -2,6 +2,7 @@ package cauliflower.parser;
 
 import cauliflower.parser.grammar.SpecificationBaseVisitor;
 import cauliflower.parser.grammar.SpecificationParser;
+import cauliflower.util.Logs;
 import cauliflower.util.Registrar;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -127,7 +128,7 @@ public class SpecificationUtils {
 
         @Override
         public StringBuffer visitRuleDef(SpecificationParser.RuleDefContext ctx) {
-            return visit(ctx.lbl()).append(space).append("<-").append(space).append(visit(ctx.expr()));
+            return visit(ctx.lbl()).append(space).append("->").append(space).append(visit(ctx.expr()));
         }
 
         @Override
@@ -173,6 +174,7 @@ public class SpecificationUtils {
         @Override
         public StringBuffer visitLabel(SpecificationParser.LabelContext ctx){
             StringBuffer ret = new StringBuffer(ctx.ID().getText());
+            ctx.fld().stream().forEach(f -> ret.append(visit(f)));
             return ret;
         }
 
@@ -183,7 +185,7 @@ public class SpecificationUtils {
 
         @Override
         public StringBuffer visitField(SpecificationParser.FieldContext ctx) {
-            return new StringBuffer('[').append(ctx.ID().getText()).append(']');
+            return new StringBuffer("[").append(ctx.ID().getText()).append("]");
         }
     }
 
