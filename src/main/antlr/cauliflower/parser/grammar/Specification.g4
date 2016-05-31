@@ -6,8 +6,8 @@ spec
     ;
 
 def
-    :   lbl '<-' from=dom '.' to=dom    # typeDef
-    |   lbl '->' expr                   # ruleDef
+    :   lbld '<-' from=dom '.' to=dom    # typeDef
+    |   lblu '->' expr                   # ruleDef
     ;
 
 expr
@@ -20,8 +20,16 @@ term
     |   '!' term                # negateTerm
     |   '-' term                # reverseTerm
     |   lhs=term '&' rhs=term   # intersectTerm
-    |   lbl                     # labelTerm
+    |   lblu                     # labelTerm
     |   '~'                     # epsilonTerm
+    ;
+
+lbld
+    : lbl                       # labelDef
+    ;
+
+lblu
+    : lbl                       # labelUse
     ;
 
 lbl

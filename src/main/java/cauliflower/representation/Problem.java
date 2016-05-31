@@ -1,7 +1,9 @@
 package cauliflower.representation;
 
-import java.util.ArrayList;
-import java.util.List;
+import cauliflower.util.CFLRException;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Problem
@@ -11,85 +13,32 @@ import java.util.List;
  */
 public class Problem {
 
-    public final List<Domain> vertexDomains;
-    public final List<Domain> fieldDomains;
+    private final String SPACE = " ";
 
-    public final List<Label> labels;
+    public final Piece.Pieces<Domain> vertexDomains = new Piece.Pieces<>();
+    public final Piece.Pieces<Domain> fieldDomains = new Piece.Pieces<>();
+    public final Piece.Pieces<Label> labels = new Piece.Pieces<>();
 
-    public Problem(){
-        this.vertexDomains = new ArrayList<>();
-        this.fieldDomains = new ArrayList<>();
-        this.labels = new ArrayList<>();
+    public Domain addVertexDomain(String domainName) throws CFLRException{
+        return new Domain(vertexDomains, domainName);
     }
 
-    /**
-     * Rules for generating new relations
-     */
-    public class Rule{
-        public final List<DomainProjection> allFieldReferences;
-        public final LabelUse ruleHead;
-        public Rule(LabelUse head, List<DomainProjection> projectedFields){
-            this.ruleHead = head;
-            this.allFieldReferences = projectedFields;
-        }
-        public class LabelUse {
-            public final Label usedLabel;
-            public final List<DomainProjection> usedField;
-            public LabelUse(Label label, List<DomainProjection> fields){
-                this.usedLabel = label;
-                this.usedField = fields;
-            }
-            public String toString(){
-                return String.format("Lu(%s : %s)", usedLabel, usedField);
-            }
-        }
-        public class DomainProjection {
-            public final int index;
-            public final String name;
-            public final Domain referencedField;
-            public DomainProjection(int idx, String nm, Domain field) {
-                this.index = idx;
-                this.name = nm;
-                this.referencedField = field;
-            }
-            public String toString(){
-                return String.format("Dp(%d=%s : %s)", index, name, referencedField.toString());
-            }
-        }
+    public Domain addFieldDomain(String domainName) throws CFLRException{
+        return new Domain(fieldDomains, domainName);
     }
 
-    /**
-     * A single relation which is stored as a terminal/nonterminal in memory
-     */
-    public class Label {
-        public final int index;
-        public final String name;
-        public final Domain srcDomain;
-        public final Domain dstDomain;
-        public final int fieldDomainCount;
-        public final List<Domain> fieldDomains;
-        public Label(int idx, String nm, Domain src, Domain dst, List<Domain> fld){
-            this.index = idx;
-            this.name = nm;
-            this.srcDomain = src;
-            this.dstDomain = dst;
-            this.fieldDomains = fld;
-            this.fieldDomainCount = fieldDomains.size();
-        }
+    public Label addLabel(String name, String srcD, String dstD, List<String> fds) throws CFLRException {
+        List<Domain> flst = new ArrayList<>();
+        for(String s : fds) flst.add(fieldDomains.get(s));
+        return new Label(labels, name, vertexDomains.get(srcD), vertexDomains.get(dstD), flst);
     }
 
-    /**
-     * Vertex and field domains
-     */
-    public class Domain {
-        public final int index;
-        public final String name;
-        public Domain(int idx, String nm){
-            this.index = idx;
-            this.name = nm;
-        }
-        public String toString(){
-            return String.format("D(%d=%s)", index, name);
-        }
+    @Override
+    public String toString() {
+        return new StringBuilder()
+                .append("V=").append(vertexDomains.toString()).append(SPACE)
+                .append("F=").append(fieldDomains.toString()).append(SPACE)
+                .append("L=").append(labels.toString()).append(SPACE)
+                .toString();
     }
 }
