@@ -1,5 +1,6 @@
 package cauliflower;
 
+import cauliflower.application.Cauliflower;
 import cauliflower.util.FileSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -58,7 +59,7 @@ public class TestCauliflower {
         File exeFile = new File(scratchpad.toFile(), specFile.getName().substring(0, specFile.getName().lastIndexOf(".")));
         if(! exeFile.exists()){
             try{
-                Main.main(new String[]{"--compile", exeFile.getAbsolutePath(), specFile.getAbsolutePath()});
+                Cauliflower.main(new String[]{"--compile", exeFile.getAbsolutePath(), specFile.getAbsolutePath()});
             } catch(Exception exc){
                 fail();
             }
