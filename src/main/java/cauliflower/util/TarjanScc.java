@@ -1,11 +1,8 @@
 package cauliflower.util;
 
-import cauliflower.cflr.Rule;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -14,6 +11,19 @@ import java.util.stream.Stream;
  * Created by nic on 27/11/15.
  */
 public class TarjanScc {
+
+    public static <T> List<List<T>> getSCC(Map<T, Set<T>> successors){
+        Index<T> idx = new Index<>();
+        successors.keySet().stream().flatMap(k -> Stream.concat(Stream.of(k), successors.get(k).stream())).forEach(idx::toIndex);
+        List<List<Integer>> succ = IntStream
+                .range(0, idx.size())
+                .mapToObj(i -> successors.get(idx.fromIndex(i))
+                        .stream()
+                        .map(idx::toIndex)
+                        .collect(Collectors.toCollection(ArrayList<Integer>::new)))
+                .collect(Collectors.toCollection(ArrayList<List<Integer>>::new));
+        return new TarjanScc(idx.size(), succ).result.stream().map(l -> l.stream().map(idx::fromIndex).collect(Collectors.toList())).collect(Collectors.toList());
+    }
 
     private static <T> ArrayList<T> dup(T t, int len){
         return Stream.generate(() -> t).limit(len).collect(Collectors.toCollection(ArrayList<T>::new));

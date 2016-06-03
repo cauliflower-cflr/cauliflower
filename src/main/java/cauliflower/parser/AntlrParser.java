@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
  */
 public class AntlrParser implements CFLRParser, ANTLRErrorListener {
 
+    public Problem problem;
     private String parseError; // set this string to the error message if we encounter one
 
     @Override
@@ -64,6 +65,7 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
         }
         ProblemBuilder pb = new ProblemBuilder(spec);
         Logs.forClass(AntlrParser.class).debug("Encoded: {}", pb.parsedProblem.toString());
+        problem = pb.parsedProblem;
         return new ParserOutputs(null, pb.labelNames, pb.fieldDomains, pb.vertexDomains, pb.ruleFieldProjections);
     }
 

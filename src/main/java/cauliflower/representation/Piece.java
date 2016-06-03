@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class Piece {
     public final int index;
@@ -54,6 +55,10 @@ public abstract class Piece {
             l.add(item);
             return l.size()-1;
         }
+        public int size(){
+            return l.size();
+        }
+        public Stream<T> stream() { return l.stream(); }
 
         @Override
         public String toString() {
