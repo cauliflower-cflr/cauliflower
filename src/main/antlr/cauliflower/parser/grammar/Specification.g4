@@ -6,12 +6,12 @@ spec
     ;
 
 def
-    :   lbld '<-' from=dom '.' to=dom    # typeDef
-    |   lblu '->' expr                   # ruleDef
+    :   lbl '<-' from=dom '.' to=dom    # typeDef
+    |   lbl '->' expr                   # ruleDef
     ;
 
 expr
-    :   expr ',' term           # chainExpr
+    :   lhs=expr ',' rhs=term   # chainExpr
     |   term                    # unitExpr
     ;
 
@@ -20,16 +20,8 @@ term
     |   '!' term                # negateTerm
     |   '-' term                # reverseTerm
     |   lhs=term '&' rhs=term   # intersectTerm
-    |   lblu                     # labelTerm
+    |   lbl                     # labelTerm
     |   '~'                     # epsilonTerm
-    ;
-
-lbld
-    : lbl                       # labelDef
-    ;
-
-lblu
-    : lbl                       # labelUse
     ;
 
 lbl

@@ -11,7 +11,7 @@ public class DomainProjection extends Piece{
 
     public final Domain referencedField;
 
-    public DomainProjection(Pieces<DomainProjection> group, String nm, Domain field) throws IOException{
+    public DomainProjection(Pieces<DomainProjection> group, String nm, Domain field) throws CFLRException{
         super(group, nm);
         this.referencedField = field;
     }

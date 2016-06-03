@@ -122,13 +122,13 @@ public class SpecificationUtils {
 
         @Override
         public StringBuffer visitTypeDef(SpecificationParser.TypeDefContext ctx) {
-            return visit(ctx.lbld()).append(space).append("<-").append(space)
+            return visit(ctx.lbl()).append(space).append("<-").append(space)
                     .append(visit(ctx.from)).append(space).append(".").append(space).append(visit(ctx.to));
         }
 
         @Override
         public StringBuffer visitRuleDef(SpecificationParser.RuleDefContext ctx) {
-            return visit(ctx.lblu()).append(space).append("->").append(space).append(visit(ctx.expr()));
+            return visit(ctx.lbl()).append(space).append("->").append(space).append(visit(ctx.expr()));
         }
 
         @Override
@@ -158,12 +158,12 @@ public class SpecificationUtils {
 
         @Override
         public StringBuffer visitLabelTerm(SpecificationParser.LabelTermContext ctx) {
-            return visit(ctx.lblu());
+            return visit(ctx.lbl());
         }
 
         @Override
         public StringBuffer visitIntersectTerm(SpecificationParser.IntersectTermContext ctx) {
-            return visit(ctx.lhs).append(space).append("&").append(space).append(ctx.rhs);
+            return visit(ctx.lhs).append(space).append("&").append(space).append(visit(ctx.rhs));
         }
 
         @Override

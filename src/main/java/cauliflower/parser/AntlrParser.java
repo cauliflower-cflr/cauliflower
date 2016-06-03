@@ -1,12 +1,7 @@
 package cauliflower.parser;
 
-import cauliflower.parser.grammar.SpecificationBaseListener;
-import cauliflower.parser.grammar.SpecificationLexer;
-import cauliflower.parser.grammar.SpecificationListener;
-import cauliflower.parser.grammar.SpecificationParser;
-import cauliflower.representation.Domain;
-import cauliflower.representation.DomainProjection;
-import cauliflower.representation.Problem;
+import cauliflower.parser.grammar.*;
+import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
 import cauliflower.util.Logs;
 import cauliflower.util.Registrar;
@@ -37,20 +32,18 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
 
     @Override
     public ParserOutputs parse(String s) throws CFLRException {
-        try {
-            return parse(new ANTLRInputStream(s));
-        } catch(IOException e) {
-            throw new CFLRException(e.getMessage());
-        }
+        return parse(new ANTLRInputStream(s));
     }
 
     @Override
     public ParserOutputs parse(InputStream is) throws CFLRException {
+        ANTLRInputStream ais = null;
         try {
-            return parse(new ANTLRInputStream(is));
+            ais = new ANTLRInputStream(is);
         } catch (IOException e) {
             throw new CFLRException(e.getMessage());
         }
+        return parse(ais);
     }
 
     private ParserOutputs parse(ANTLRInputStream ais) throws CFLRException {
@@ -63,8 +56,8 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
             par.addErrorListener(this);
             spec = par.spec();
             Logs.forClass(AntlrParser.class).debug("Parsed: {}", new SpecificationUtils.PrettyPrinter(" ", "   ").visit(spec).toString());
-        } catch(Exception exc) {
-            if(parseError != null) throw new CFLRException(parseError);
+        } catch (Exception exc) {
+            if (parseError != null) throw new CFLRException(parseError);
             else throw new CFLRException(exc.toString() + ", Unexpected end of input");
         }
         ProblemBuilder pb = new ProblemBuilder(spec);
@@ -94,235 +87,142 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
         parseError = String.format("Context Sensitive: %s", dfa.toString());
     }
 
-    private static class ProblemBuilder implements SpecificationListener {
+    private static class FieldListParse extends SpecificationBaseVisitor<List<String>> {
+        @Override
+        public List<String> visitLabel(SpecificationParser.LabelContext ctx) {
+            final IdentifierParse idp = new IdentifierParse();
+            return ctx.fld().stream().map(idp::visit).collect(Collectors.toList());
+        }
+    }
 
-        final List<String> errors;
+    private static class IdentifierParse extends SpecificationBaseVisitor<String> {
+        @Override
+        public String visitLabel(SpecificationParser.LabelContext ctx) {
+            return ctx.ID().getText();
+        }
+
+        @Override
+        public String visitDomain(SpecificationParser.DomainContext ctx) {
+            return ctx.ID().getText();
+        }
+
+        @Override
+        public String visitField(SpecificationParser.FieldContext ctx) {
+            return ctx.ID().getText();
+        }
+    }
+
+    private static class ProblemBuilder extends SpecificationBaseVisitor<Void> {
+
+        final List<Throwable> errors;
         final Problem parsedProblem;
         final Registrar labelNames;
         final Registrar vertexDomains;
         final Registrar fieldDomains;
         final List<Registrar> ruleFieldProjections;
 
-        ProblemBuilder(SpecificationParser.SpecContext ctx) throws CFLRException{
+        ProblemBuilder(SpecificationParser.SpecContext ctx) throws CFLRException {
             errors = new ArrayList<>();
             parsedProblem = new Problem();
             labelNames = new Registrar();
             vertexDomains = new Registrar();
             fieldDomains = new Registrar();
             ruleFieldProjections = new ArrayList<>();
-            ParseTreeWalker walk = new ParseTreeWalker();
-            walk.walk(this, ctx);
-            if(errors.size() > 0){
-                throw new CFLRException("Specification error:\n - " + errors.stream().collect(Collectors.joining("\n - ")));
+            this.visit(ctx);
+            if (errors.size() > 0) {
+                errors.stream().map(Throwable::toString).forEach(s ->{
+                    Logs.forClass(AntlrParser.class).error("Error: {}", s);
+                });
+                throw (CFLRException) errors.get(0);
             }
         }
 
         @Override
-        public void enterSpecification(SpecificationParser.SpecificationContext ctx) {
-
-        }
-
-        @Override
-        public void exitSpecification(SpecificationParser.SpecificationContext ctx) {
-
-        }
-
-        @Override
-        public void enterEmptySpecification(SpecificationParser.EmptySpecificationContext ctx) {
-
-        }
-
-        @Override
-        public void exitEmptySpecification(SpecificationParser.EmptySpecificationContext ctx) {
-
-        }
-
-        //parsing a typedef
-        private String labelFromDomain;
-        private String labelToDomain;
-        @Override
-        public void enterTypeDef(SpecificationParser.TypeDefContext ctx) {
-            labelFromDomain = null;
-            labelToDomain = null;
-        }
-
-        @Override
-        public void exitTypeDef(SpecificationParser.TypeDefContext ctx) {
+        public Void visitTypeDef(SpecificationParser.TypeDefContext ctx) {
+            String lblName = new IdentifierParse().visit(ctx.lbl());
+            String fromD = new IdentifierParse().visit(ctx.from);
+            String toD = new IdentifierParse().visit(ctx.to);
+            List<String> flds = new FieldListParse().visit(ctx.lbl());
             try {
-                // TODO handle multiple defs with same name
-                if(!parsedProblem.vertexDomains.has(labelFromDomain)) parsedProblem.addVertexDomain(labelFromDomain);
-                if(!parsedProblem.vertexDomains.has(labelToDomain)) parsedProblem.addVertexDomain(labelToDomain);
-                for(String lfp : labelFieldParts) if(!parsedProblem.fieldDomains.has(lfp)) parsedProblem.addFieldDomain(lfp);
-                parsedProblem.addLabel(labelName, labelFromDomain, labelToDomain, labelFieldParts);
+                if (!parsedProblem.vertexDomains.has(fromD)) parsedProblem.addVertexDomain(fromD);
+                if (!parsedProblem.vertexDomains.has(toD)) parsedProblem.addVertexDomain(toD);
+                for (String f : flds) if (!parsedProblem.fieldDomains.has(f)) parsedProblem.addFieldDomain(f);
+                parsedProblem.addLabel(lblName, fromD, toD, flds);
+            } catch (CFLRException exc) {
+                errors.add(exc);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitRuleDef(SpecificationParser.RuleDefContext ctx){
+            try {
+                Rule.RuleBuilder rb = new Rule.RuleBuilder(parsedProblem);
+                rb.setHead(rb.useLabel(new IdentifierParse().visit(ctx.lbl()), new FieldListParse().visit(ctx.lbl())));
+                rb.setBody(new ClauseBuilder(rb).visit(ctx.expr()));
+                rb.finish();
             } catch (CFLRException e) {
-                errors.add(e.getMessage());
+                errors.add(e);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitErrorNode(ErrorNode node) {
+            errors.add(new CFLRException(node.toString()));
+            return null;
+        }
+
+        private class ClauseBuilder extends SpecificationBaseVisitor<Clause>{
+            public final Rule.RuleBuilder rb;
+            public ClauseBuilder(Rule.RuleBuilder rBuild){
+                this.rb = rBuild;
+            }
+
+            @Override
+            public Clause visitChainExpr(SpecificationParser.ChainExprContext ctx){
+                return new Clause.Compose(visit(ctx.lhs), visit(ctx.rhs));
+            }
+
+            @Override
+            public Clause visitSubTerm(SpecificationParser.SubTermContext ctx){
+                return visit(ctx.expr());
+            }
+
+            @Override
+            public Clause visitNegateTerm(SpecificationParser.NegateTermContext ctx) {
+                return new Clause.Negate(visit(ctx.term()));
+            }
+
+            @Override
+            public Clause visitReverseTerm(SpecificationParser.ReverseTermContext ctx) {
+                return new Clause.Reverse(visit(ctx.term()));
+            }
+
+            @Override
+            public Clause visitIntersectTerm(SpecificationParser.IntersectTermContext ctx) {
+                return new Clause.Intersect(visit(ctx.lhs), visit(ctx.rhs));
+            }
+
+            @Override
+            public Clause visitLabelTerm(SpecificationParser.LabelTermContext ctx){
+                try {
+                    return rb.useLabel(new IdentifierParse().visit(ctx.lbl()), new FieldListParse().visit(ctx.lbl()));
+                } catch (CFLRException e) {
+                    errors.add(e);
+                    return null;
+                }
+            }
+
+            @Override
+            public Clause visitEpsilonTerm(SpecificationParser.EpsilonTermContext ctx) {
+                return new Clause.Epsilon();
             }
         }
 
-        @Override
-        public void enterRuleDef(SpecificationParser.RuleDefContext ctx) {
-
-        }
-
-        @Override
-        public void exitRuleDef(SpecificationParser.RuleDefContext ctx) {
-
-        }
-
-        @Override
-        public void enterUnitExpr(SpecificationParser.UnitExprContext ctx) {
-
-        }
-
-        @Override
-        public void exitUnitExpr(SpecificationParser.UnitExprContext ctx) {
-
-        }
-
-        @Override
-        public void enterChainExpr(SpecificationParser.ChainExprContext ctx) {
-
-        }
-
-        @Override
-        public void exitChainExpr(SpecificationParser.ChainExprContext ctx) {
-
-        }
-
-        @Override
-        public void enterEpsilonTerm(SpecificationParser.EpsilonTermContext ctx) {
-
-        }
-
-        @Override
-        public void exitEpsilonTerm(SpecificationParser.EpsilonTermContext ctx) {
-
-        }
-
-        @Override
-        public void enterNegateTerm(SpecificationParser.NegateTermContext ctx) {
-
-        }
-
-        @Override
-        public void exitNegateTerm(SpecificationParser.NegateTermContext ctx) {
-
-        }
-
-        @Override
-        public void enterReverseTerm(SpecificationParser.ReverseTermContext ctx) {
-
-        }
-
-        @Override
-        public void exitReverseTerm(SpecificationParser.ReverseTermContext ctx) {
-
-        }
-
-        @Override
-        public void enterLabelTerm(SpecificationParser.LabelTermContext ctx) {
-
-        }
-
-        @Override
-        public void exitLabelTerm(SpecificationParser.LabelTermContext ctx) {
-
-        }
-
-        @Override
-        public void enterIntersectTerm(SpecificationParser.IntersectTermContext ctx) {
-
-        }
-
-        @Override
-        public void exitIntersectTerm(SpecificationParser.IntersectTermContext ctx) {
-
-        }
-
-        @Override
-        public void enterSubTerm(SpecificationParser.SubTermContext ctx) {
-
-        }
-
-        @Override
-        public void exitSubTerm(SpecificationParser.SubTermContext ctx) {
-
-        }
-
-        @Override
-        public void enterLabelDef(SpecificationParser.LabelDefContext ctx) {
-        }
-
-        @Override
-        public void exitLabelDef(SpecificationParser.LabelDefContext ctx) {
-        }
-
-        @Override
-        public void enterLabelUse(SpecificationParser.LabelUseContext ctx) {
-
-        }
-
-        @Override
-        public void exitLabelUse(SpecificationParser.LabelUseContext ctx) {
-        }
-
-        private String labelName;
-        private List<String> labelFieldParts;
-        @Override
-        public void enterLabel(SpecificationParser.LabelContext ctx) {
-            labelName = ctx.ID().getText();
-            labelFieldParts = new ArrayList<>();
-        }
-
-        @Override
-        public void exitLabel(SpecificationParser.LabelContext ctx) {
-        }
-
-        @Override
-        public void enterDomain(SpecificationParser.DomainContext ctx) {
-            String txt = ctx.ID().getText();
-            if(labelFromDomain == null) labelFromDomain = txt;
-            else labelToDomain = txt;
-        }
-
-        @Override
-        public void exitDomain(SpecificationParser.DomainContext ctx) {
-
-        }
-
-        @Override
-        public void enterField(SpecificationParser.FieldContext ctx) {
-            String txt = ctx.ID().getText();
-            labelFieldParts.add(txt);
-        }
-
-        @Override
-        public void exitField(SpecificationParser.FieldContext ctx) {
-
-        }
-
-        @Override
-        public void visitTerminal(TerminalNode node) {
-
-        }
-
-        @Override
-        public void visitErrorNode(ErrorNode node) {
-            errors.add(node.toString());
-        }
-
-        @Override
-        public void enterEveryRule(ParserRuleContext ctx) {
-
-        }
-
-        @Override
-        public void exitEveryRule(ParserRuleContext ctx) {
-
-        }
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         try {
             new AntlrParser().parse(Arrays.stream(args).collect(Collectors.joining(" ")));
         } catch (CFLRException e) {
