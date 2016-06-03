@@ -3,16 +3,11 @@ package cauliflower.parser;
 import cauliflower.cflr.Label;
 import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
-import cauliflower.generator.DebugBackend;
 import cauliflower.util.CFLRException;
 import cauliflower.util.Logs;
 import cauliflower.util.Registrar;
-import jdk.nashorn.internal.ir.Labels;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

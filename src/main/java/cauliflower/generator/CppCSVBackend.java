@@ -16,7 +16,7 @@ import java.util.Date;
  *
  * Created by nic on 1/12/15.
  */
-public class CppCSVBackend implements Backend {
+public class CppCSVBackend {
 
     private final PrintStream out;
     private final String snPath;
@@ -34,7 +34,6 @@ public class CppCSVBackend implements Backend {
         this.verbose = verbose;
     }
 
-    @Override
     public void generate(String problemName, Problem prob) throws CFLRException {
         if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
         generatePreBlock(problemName);

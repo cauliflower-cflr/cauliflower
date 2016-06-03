@@ -1,6 +1,5 @@
 package cauliflower.application;
 
-import cauliflower.generator.Backend;
 import cauliflower.generator.CppCSVBackend;
 import cauliflower.generator.CppParallelBackend;
 import cauliflower.generator.CppSerialBackend;
@@ -42,8 +41,11 @@ public class Generator {
 
     public void generate(String name, CFLRParser.ParserOutputs parse) throws IOException{
         PrintStream ps = new PrintStream(new FileOutputStream(snFront));
-        Backend backend = configuration.parallel ? new CppParallelBackend(ps, configuration.timers) : new CppSerialBackend(configuration.adt, ps);
-        backend.generate(name, parse.problem);
+        if(configuration.parallel){
+            new CppParallelBackend(ps, configuration.timers).generate(name, parse.problem);
+        } else {
+            new CppSerialBackend(configuration.adt, ps).generate(name, parse.problem);
+        }
         ps.close();
         if(csvBack != null) {
             PrintStream ps2 = new PrintStream(new FileOutputStream(csvBack));

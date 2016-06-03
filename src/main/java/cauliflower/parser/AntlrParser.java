@@ -1,7 +1,11 @@
 package cauliflower.parser;
 
-import cauliflower.parser.grammar.*;
-import cauliflower.representation.*;
+import cauliflower.parser.grammar.SpecificationBaseVisitor;
+import cauliflower.parser.grammar.SpecificationLexer;
+import cauliflower.parser.grammar.SpecificationParser;
+import cauliflower.representation.Clause;
+import cauliflower.representation.Problem;
+import cauliflower.representation.Rule;
 import cauliflower.util.CFLRException;
 import cauliflower.util.Logs;
 import cauliflower.util.Registrar;
@@ -9,8 +13,6 @@ import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.atn.ATNConfigSet;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.tree.ErrorNode;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +39,7 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
 
     @Override
     public ParserOutputs parse(InputStream is) throws CFLRException {
-        ANTLRInputStream ais = null;
+        ANTLRInputStream ais;
         try {
             ais = new ANTLRInputStream(is);
         } catch (IOException e) {
@@ -130,9 +132,7 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
             ruleFieldProjections = new ArrayList<>();
             this.visit(ctx);
             if (errors.size() > 0) {
-                errors.stream().map(Throwable::toString).forEach(s ->{
-                    Logs.forClass(AntlrParser.class).error("Error: {}", s);
-                });
+                errors.stream().map(Throwable::toString).forEach(s -> Logs.forClass(AntlrParser.class).error("Error: {}", s));
                 throw (CFLRException) errors.get(0);
             }
         }

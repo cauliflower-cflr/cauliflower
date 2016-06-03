@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  *
  * Created by nic on 25/11/15.
  */
-public class CppParallelBackend implements Backend{
+public class CppParallelBackend {
 
     public static final int PARTITION_COUNT = 400; // arbitrary value i borrowed from souffle
 
@@ -32,7 +32,6 @@ public class CppParallelBackend implements Backend{
         this.useTimers = timers;
     }
 
-    @Override
     public void generate(String problemName, Problem prob) throws CFLRException{
         if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
         generatePreBlock(problemName);

@@ -19,7 +19,7 @@ import java.util.Map;
  *
  * Created by nic on 25/11/15.
  */
-public class CppSerialBackend implements Backend{
+public class CppSerialBackend{
 
     private final Adt adt;
     private final PrintStream out;
@@ -29,7 +29,6 @@ public class CppSerialBackend implements Backend{
         this.out = out;
     }
 
-    @Override
     public void generate(String problemName, Problem prob) throws CFLRException{
         if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
         generatePreBlock(problemName);
