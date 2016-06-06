@@ -74,7 +74,7 @@ jar {
  ****************/
 
 def getVersionNameFromGit() {
-    return "git describe --tags --always --candidates 1".execute().text.trim();
+    return "git describe --tags --match [0-9]\\.[0-9] --always".execute().text.trim();
 }
 
 task wrapper(type: Wrapper) {
