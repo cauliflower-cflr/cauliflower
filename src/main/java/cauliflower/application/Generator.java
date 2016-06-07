@@ -2,6 +2,7 @@ package cauliflower.application;
 
 import cauliflower.generator.CppCSVBackend;
 import cauliflower.generator.CppParallelBackend;
+import cauliflower.generator.CppSemiNaiveBackend;
 import cauliflower.generator.CppSerialBackend;
 import cauliflower.parser.CFLRParser;
 

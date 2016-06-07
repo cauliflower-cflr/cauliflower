@@ -14,6 +14,7 @@ public class LabelUse extends Clause{
         super(ClauseType.LABEL);
         this.usedLabel = label;
         this.usedField = fields;
+        usedLabel.usages.add(this);
     }
 
     public String toString(){

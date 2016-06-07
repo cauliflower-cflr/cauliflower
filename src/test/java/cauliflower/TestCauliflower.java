@@ -43,7 +43,7 @@ public class TestCauliflower {
 
     @AfterClass
     public static void destroyTestCauliflower() throws Exception{
-        FileSystem.recursiveRemove(scratchpad);
+        //FileSystem.recursiveRemove(scratchpad); TODO uncomment me
     }
 
     private static Path scratchpad;

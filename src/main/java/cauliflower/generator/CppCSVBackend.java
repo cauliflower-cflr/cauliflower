@@ -36,21 +36,12 @@ public class CppCSVBackend {
 
     public void generate(String problemName, Problem prob) throws CFLRException {
         if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
-        generatePreBlock(problemName);
+        GeneratorUtils.generatePreBlock(problemName, "Automatic CSV-based importer for CFL-R Problems", this.getClass(), out);
         generateImportsUsing();
         generateMainStart(prob);
         generateRegistrars(prob);
         generateRelationImportSolve(prob, problemName);
         generateMainEnd(prob);
-    }
-
-    private void generatePreBlock(String problemName){
-        out.println("// " + problemName);
-        out.println("//");
-        out.println("// Automatic importer for CFL-R Problems");
-        out.println("//");
-        out.println("// Generated on: " + new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
-        out.println("// Cauliflower version: " + Info.buildVersion);
     }
 
     private void generateImportsUsing(){

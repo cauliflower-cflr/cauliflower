@@ -1,425 +1,186 @@
-//package cauliflower.generator;
-//
-//import cauliflower.application.Configuration;
-//import cauliflower.application.Info;
-//import cauliflower.representation.Problem;
-//import cauliflower.representation.Rule;
-//import cauliflower.util.CFLRException;
-//
-//import java.io.PrintStream;
-//import java.text.SimpleDateFormat;
-//import java.util.Date;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.stream.Stream;
-//
-///**
-// * CppParallelBackend.java
-// *
-// * generates code for an execution of the semi-naive code
-// *
-// * Created by nic on 25/11/15.
-// */
-//public class CppSemiNaiveBackend {
-//
-//    public static final int PARTITION_COUNT = 400; // arbitrary value i borrowed from souffle
-//
-//    //static constructor
-//    public static void generate(String problemName, Problem prob, Configuration config, PrintStream out) throws CFLRException{
-//        new CppSemiNaiveBackend(problemName, prob, config, out).generate();
-//    }
-//
-//    private final Problem p;
-//    private final PrintStream out;
-//    private final Configuration cfg;
-//    private final String name;
-//    private final boolean useHints = false;
-//
-//    private CppSemiNaiveBackend(String problemName, Problem prob, Configuration config, PrintStream out){
-//        this.out = out;
-//        this.cfg = config;
-//        this.p = prob;
-//        this.name = problemName;
-//    }
-//
-//    private String structName(){
-//        return name + "_semi_naive";
-//    }
-//
-//    public void generate() throws CFLRException{
-//        if (!name.matches("[a-zA-Z][a-zA-Z0-9_]*")) throw new CFLRException("Problem name must be a valid c identifier: \"" + name + "\"");
-//        generatePreBlock();
-//        generateImports();
-//        generateScope();
-//        generateDefs();
-//        generateDeltas();
-//        generateSemiNaive();
-//        endScope();
-//    }
-//
-//    private void generatePreBlock(){
-//        out.println("// " + name);
-//        out.println("//");
-//        out.println("// Semi-naive method fore evaluating CFLR solutions");
-//        out.println("//");
-//        out.println("// Generated on: " + new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
-//        out.println("// Cauliflower version: " + Info.buildVersion);
-//    }
-//
-//    private void generateImports(){
-//        out.println("#include <array>");
-//        out.println("#include <omp.h>");
-//        for(String imp : Adt.Souffle.imports){
-//            out.println("#include " + imp);
-//        }
-//        out.println("#include \"" + Adt.Souffle.importLoc + "\"");
-//        out.println("#include \"relation.h\"");
-//        out.println("#include \"Util.h\"");
-//    }
-//
-//    private void generateScope(){
-//        out.println("namespace cflr {");
-//        out.println("struct " + structName() + " {");
-//    }
-//
-//    private void generateDefs(){
-//        out.println("// Definitions");
-//        out.println("static const unsigned num_lbls = " + p.labels.size() + ";");
-//        out.println("static const unsigned num_domains = " + (p.vertexDomains.size() + p.fieldDomains.size()) + ";");
-//        out.println("typedef " + Adt.Souffle.typename + " adt_t;");
-//        out.println("typedef std::array<relation<adt_t>, num_lbls> rels_t;");
-//        out.println("typedef std::array<size_t, num_domains> vols_t;");
-//    }
-//
-//    private String labelRel(String ref, Rule.Lbl l){
-//        StringBuilder vn = new StringBuilder();
-//        vn.append(ref);
-//        vn.append(".adts[");
-//        if(l.fields.size() == 0){
-//            vn.append(0);
-//        } else {
-//            int fi = 0;
-//            for(int f : l.fields){
-//                if(fi > 0) vn.append(" + ");
-//                vn.append("f").append(f);
-//                for(int vi=fi+1; vi<l.fields.size(); vi++){
-//                    vn.append("*volume[").append(l.fieldDomains.get(vi)).append("]");
-//                }
-//                fi++;
-//            }
-//        }
-//        return vn.append("]").toString();
-//    }
-//
-//    private class RuleCascadeGenerator implements Rule.ClauseVisitor{
-//        final int deltaLabel;
-//        final int deltaOccurrence;
-//        final int ruleIndex;
-//        final Rule rule;
-//        final Problem prob;
-//        final boolean doParallel;
-//        int closeCounter = 0; // closing braces for the variable number of opened ones
-//        int deltasEncountered = 0;
-//        boolean partitioned = false;
-//        boolean shouldReverse = false;
-//        private int numIters;
-//
-//        public RuleCascadeGenerator(int dlbl, int docc, int ri, Rule r, Problem p, boolean doParallel){
-//            deltaLabel = dlbl;
-//            deltaOccurrence = docc;
-//            ruleIndex = ri;
-//            rule = r;
-//            prob = p;
-//            this.doParallel = doParallel;
-//        }
-//
-//        public void generate(){
-//            out.println("adt_t::tree_t tmp_forwards;");
-//            out.println("adt_t::tree_t tmp_backwards;");
-//            // expand on every clause in the rule
-//            numIters = 0;
-//            for(Rule.Clause cls : rule.body){
-//                shouldReverse = false;
-//                this.visit(cls);
-//            }
-//            out.println("adt_t::tree_t::entry_type fwd({{iter1[0], iter" + numIters + "[1]}});");
-//            // update the temporary output
-//            String target = labelRel("relations[" + rule.head.label + "]", rule.head);
-//            out.println("if(!" + target + ".forwards.contains(fwd" + (useHints ? ", hint_rel" + rule.head.label : "") + ")){");
-//            generateCounterIncr("updatesTMP");
-//            out.println("tmp_forwards.insert(fwd);");
-//            out.println("tmp_backwards.insert({{iter" + numIters + "[1], iter1[0]}});");
-//            closeCounter++;
-//
-//            // close all the scopes, except the parallel scope
-//            if(doParallel) closeCounter--;
-//            for(int i=0; i<closeCounter; i++) out.println("}");
-//            // update the relation and delta with their respective news:
-//            generateTimeStart("tmp_update");
-//            String targetDelt = labelRel("deltas[" + rule.head.label + "]", rule.head);
-//            if(doParallel)out.println("#pragma omp sections");
-//            if(doParallel)out.println("{");
-//            if(doParallel)out.println("#pragma omp section");
-//            out.println(target + ".forwards.insertAll(tmp_forwards);");
-//            if(doParallel)out.println("#pragma omp section");
-//            out.println(target + ".backwards.insertAll(tmp_backwards);");
-//            if(doParallel)out.println("#pragma omp section");
-//            out.println(targetDelt + ".forwards.insertAll(tmp_forwards);");
-//            if(doParallel)out.println("#pragma omp section");
-//            out.println(targetDelt + ".backwards.insertAll(tmp_backwards);");
-//            if(doParallel)out.println("}");//closes sections
-//            if(doParallel){
-//                out.println("#pragma omp master");
-//                out.println("{");
-//            }
-//            generateTimeIncr("update" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "tmp_update");
-//            generateCounterIncr("outer" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "ctr_outerTMP"); // ctr_ is added automatically
-//            generateCounterIncr("inner" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "ctr_innerTMP");
-//            generateCounterIncr("updates" + deltaLabel + "_" + deltaOccurrence + "_" + ruleIndex, "ctr_updatesTMP");
-//
-//            if(doParallel) out.println("}");
-//            if(doParallel)out.println("}");//closes parallel scope
-//        }
-//
-//        @Override
-//        public void visitLbl(Rule.Lbl l) {
-//            String rel = labelRel("relations[" + l.label + "]", l);
-//            String ctxtHint = "hint_rel" + l.label;
-//            if(l.label == deltaLabel){
-//                if(deltaOccurrence == deltasEncountered){
-//                    rel = labelRel("cur_delta", l);
-//                    ctxtHint = "hint_dlt" + l.label;
-//                }
-//                deltasEncountered++;
-//            }
-//            //TODO begin with a smarter relation (i.e. the one that joins with the delta, minimal skew)
-//            rel = rel + (shouldReverse ? ".backwards" : ".forwards");
-//            if(partitioned){
-//                //project the equality range
-//                out.println("auto range" + numIters + " = " + rel + ".getBoundaries<1>({{iter" + numIters + "[1], 0}}" + (useHints ? ", " + ctxtHint : "") + ");");
-//                //iterate over the relation
-//                out.println("for(const auto& iter" + (numIters+1) + " : range" + numIters + ") {");
-//                if(numIters == 1) generateCounterIncr("innerTMP");
-//                closeCounter++;
-//                numIters++;
-//            } else {
-//                //iterate over the primary label after partitioning
-//                out.println("auto primary_partition = " + rel + ".partition(" + PARTITION_COUNT + ");");
-//                if(doParallel)out.println("# pragma omp parallel");
-//                else { // declared outside of scope when that scope isnt parallel
-//                    generateCounterDecl("outerTMP");
-//                    generateCounterDecl("innerTMP");
-//                    generateCounterDecl("updatesTMP");
-//                }
-//                out.println("{");
-//                if(doParallel) { // declared inside of scope when thats the parallel scope
-//                    generateCounterDecl("outerTMP");
-//                    generateCounterDecl("innerTMP");
-//                    generateCounterDecl("updatesTMP");
-//                }
-//                // create the join hints
-//                if(useHints){
-//                    Stream.concat(Stream.of(rule.head), rule.dependencies.stream()).map(lb -> lb.label).distinct().forEach(i -> {
-//                        out.println("adt_t::tree_t::op_context hint_rel" + i + ";");
-//                    });
-//                    out.println("adt_t::tree_t::op_context hint_dlt" + deltaLabel + ";");
-//                }
-//                // for each partition in parallel
-//                if(doParallel) out.println("# pragma omp for schedule(dynamic)"); // TODO different schedules
-//                out.println("for (auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index){");
-//                out.println("for(const auto& iter" + (numIters+1) + " : *primary_index){");
-//                generateCounterIncr("outerTMP");
-//                partitioned = true;
-//                closeCounter += 3;
-//                numIters++;
-//            }
-//        }
-//
-//        @Override
-//        public void visitRev(Rule.Rev r) {
-//            shouldReverse = !shouldReverse;
-//            this.visit(r.clause);
-//        }
-//
-//        @Override
-//        public void visitNeg(Rule.Neg n) {
-//            throw new UnsupportedOperationException("Negation to be done");
-//        }
-//
-//        @Override
-//        public void visitAnd(Rule.And a) {
-//            throw new UnsupportedOperationException("Intersection to be done");
-//        }
-//    }
-//
-//    private void generateRuleCode(int l, int r, int occurrence, Problem prob) throws CFLRException {
-//        Rule rule = prob.rules.get(r);
-//        // TODO irrelevant field optimisation:  in head, iterate over irrelevant and assign (dont evaluate rule again), in body, union all irrelevant fields
-//        out.println("// Label " + l + ", occurrence " + occurrence + ", rule " + prob.rules.get(r).toString());
-//        String[] deps = new String[rule.dependencies.size()];
-//        int dSeen = 0;
-//        int i = 0;
-//        for(Rule.Lbl lbl : rule.dependencies){
-//            if(lbl.label == l && dSeen-occurrence == 0) deps[i] = "cur_delta";
-//            else deps[i] = "relations[" + lbl.label + "]";
-//            if(lbl.label == l) dSeen ++;
-//            i++;
-//        }
-//        generateSizeReport(deps);
-//        generateTimeStart("eval" + l + "_" + occurrence + "_" + r);
-//        generateTimeDecl("update" + l + "_" + occurrence + "_" + r);
-//        generateCounterDecl("outer" + l + "_" + occurrence + "_" + r);
-//        generateCounterDecl("inner" + l + "_" + occurrence + "_" + r);
-//        generateCounterDecl("updates" + l + "_" + occurrence + "_" + r);
-//        Map<Integer, int[]> fieldIdents = prob.ruleFieldDomainMapping(r);
-//        boolean shouldParallel = true;
-//        for(int ident : fieldIdents.keySet()){ // TODO irrelevant field: if get[1] > 0...
-//            if(shouldParallel){
-//                out.println("#pragma omp parallel for schedule(auto)");
-//            }
-//            out.print("for(unsigned f" + ident + "=0; f" + ident + "<volume[" + fieldIdents.get(ident)[0] + "]; ++f" + ident + ") ");
-//            shouldParallel = false;
-//        }
-//        dSeen = 0;
-//        for(Rule.Lbl lbl : rule.dependencies){
-//            if(lbl.label != l || dSeen-occurrence != 0 || !lbl.fields.isEmpty()) out.print("if(!" + labelRel("relations[" + lbl.label + "]", lbl) + ".empty()) ");
-//            if(lbl.label == l) dSeen ++;
-//        }
-//        out.println("{");
-//        RuleCascadeGenerator gen = new RuleCascadeGenerator(l, occurrence, r, rule, prob, shouldParallel);
-//        gen.generate();
-//        out.println("}"); // close the ifs
-//        generateTimeReport("update" + l + "_" + occurrence + "_" + r);
-//        generateTimeEnd("eval" + l + "_" + occurrence + "_" + r);
-//        generateCounterReport("outer" + l + "_" + occurrence + "_" + r, "inner" + l + "_" + occurrence + "_" + r, "updates" + l + "_" + occurrence + "_" + r);
-//    }
-//
-//    private String deltaExpansionFunctionName(int lbl, boolean argTypes){
-//        return "delta_" + lbl + "(" + (argTypes ? "const vols_t& " : "") + "volume, " + (argTypes ? "rels_t& " : "") + "relations, " + (argTypes ? "rels_t& " : "") + "deltas)";
-//    }
-//
-//    private void generateDeltaExpansionCode(int l) throws CFLRException{
-//        out.println("static void " + deltaExpansionFunctionName(l, true) + "{");
-//        out.println("relation<adt_t> cur_delta(deltas[" + l + "].volume());");
-//        out.println("cur_delta.swap_contents(deltas[" + l + "]);");
-//        for(int r=0; r<prob.rules.size(); r++){
-//            int dCount = 0;
-//            for(Rule.Lbl dl : prob.rules.get(r).dependencies) if (dl.label == l){
-//                generateRuleCode(l, r, dCount, prob);
-//                dCount++;
-//            }
-//        }
-//        out.println("}");
-//    }
-//
-//    private void generateDeltas() throws CFLRException {
-//        out.println("// Delta expansion rules");
-//        for(int i=0; i<prob.labels.size(); i++){
-//            generateDeltaExpansionCode(i, prob);
-//        }
-//    }
-//
-//    private void generateSemiNaive(){
-//        out.println("// Solver definition");
-//        out.println("static void solve(vols_t& volume, rels_t& relations){");
-//        generateTimeStart("initialisation");
-//
-//        out.println("// Epsilon initialisation");
-//        out.println("size_t largest_vertex_domain = 0;");
-//        for(int i=0; i<prob.numDomains; i++) if(!prob.fields.contains(i)) out.println("largest_vertex_domain = std::max(largest_vertex_domain, volume[" + i + "]);");
-//        out.println("const adt_t epsilon = adt_t::identity(largest_vertex_domain);");
-//        prob.rules.forEach(r -> {
-//            if(r.body.size() == 0) out.println("for(auto& a : relations[" + r.head.label + "].adts) a.union_copy(epsilon);");
-//        } );
-//
-//        out.println("// Delta initialisation");
-//        out.print("rels_t deltas{");
-//        boolean dprinted = false;
-//        for(int i=0; i<prob.labels.size(); i++){
-//            if(dprinted) out.print(", ");
-//            else dprinted = true;
-//            out.print("relation<adt_t>(relations[" + i + "].adts.size())");
-//        }
-//        out.println("};");
-//        // TODO initialise deltas in-place via some kind of deep copy
-//        // i.e. deep copy the whole relation, instead of the individual ADTs
-//        for(int l=0; l<prob.labels.size(); l++){
-//            out.println("for(unsigned i=0; i<relations[" + l + "].adts.size(); ++i) relations[" + l + "].adts[i].deep_copy(deltas[" + l + "].adts[i]);");
-//        }
-//        generateTimeEnd("initialisation");
-//
-//        for(List<Integer> scc : prob.getLabelDependencyOrdering()){
-//            out.println("// SCC " + scc.toString());
-//            // TODO don't iterate over non-cyclic SCCs
-//            // TODO early exit evaluation when we reach known code
-//            out.println("while(true){");
-//            for(int cc : scc){
-//                out.println("if (!deltas[" + cc + "].empty()){");
-//                generateSizeReport("deltas[" + cc + "]");
-//                generateTimeStart("delta" + cc);
-//                out.println(deltaExpansionFunctionName(cc, false) + ";");
-//                generateTimeEnd("delta" + cc);
-//                out.println("continue; }");
-//            }
-//            out.println("break;");
-//            out.println("}");
-//        }
-//        out.println("}");
-//    }
-//
-//    private void endScope(){
-//        out.println("}; // end struct " + structName());
-//        out.println("} // end namespace cflr");
-//    }
-//
-//    private void generateTimeStart(String name){
-//        if(cfg.timers) out.println("time_point tstart_" + name + " = now();");
-//    }
-//
-//    private void generateTimeEnd(String name){
-//        if(cfg.timers) out.println("time_point tend_" + name + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tstart_" + name + ", tend_" + name + ") << std::endl;");
-//    }
-//
-//    private void generateTimeDecl(String name){
-//        if(cfg.timers) out.println("time_point tcount_init_" + name + " = now(); time_point tcount_" + name + " = tcount_init_" + name + ";");
-//    }
-//
-//    private void generateTimeIncr(String totalName, String incrName){
-//        if(cfg.timers) out.println("tcount_" + totalName + " += (now() - tstart_" + incrName + ");");
-//    }
-//
-//    private void generateTimeReport(String name){
-//        if(cfg.timers) out.println("std::cerr << \"TIME \" << omp_get_thread_num() << \" " + name + " \" << duration_in_ms(tcount_init_" + name + ", tcount_" + name + ") << std::endl;");
-//    }
-//
-//    private void generateSizeReport(String... names) {
-//        if(!cfg.timers) return;
-//        out.print("std::cerr << \"SIZE ");
-//        for(String n : names){
-//            out.print(n + "=\" << " + n + ".size() << \" ");
-//        }
-//        out.println("\" << std::endl;");
-//    }
-//
-//    private void generateCounterDecl(String name){
-//        if(cfg.timers) out.println("unsigned ctr_" + name + " = 0;");
-//    }
-//
-//    private void generateCounterIncr(String name, String incr){
-//        if(cfg.timers) out.println("ctr_" + name + "+=" + incr + ";");
-//    }
-//
-//    private void generateCounterIncr(String name){
-//        generateCounterIncr(name, "1");
-//    }
-//
-//    private void generateCounterReport(String... names){
-//        if(!cfg.timers) return;
-//        out.print("std::cerr << \"COUNT ");
-//        for(String n : names){
-//            out.print(n + "=\" << ctr_" + n + " << \" ");
-//        }
-//        out.println("\" << std::endl;");
-//    }
-//
-//}
+package cauliflower.generator;
+
+import cauliflower.application.Configuration;
+import cauliflower.representation.*;
+import cauliflower.util.CFLRException;
+
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+import java.util.stream.Collectors;
+
+/**
+ * CppParallelBackend.java
+ *
+ * generates code for an execution of the semi-naive code
+ *
+ * Created by nic on 25/11/15.
+ */
+public class CppSemiNaiveBackend {
+
+    public static final String INDENT = "    ";
+    public static final int PARTITION_COUNT = 400; // arbitrary value i borrowed from souffle
+
+    //static constructor
+    public static void generate(String problemName, Problem prob, Configuration config, PrintStream out) throws CFLRException{
+        new CppSemiNaiveBackend(problemName, prob, config, out).generate();
+    }
+
+    private final Problem p;
+    private final PrintStream outputStream;
+    private final Configuration cfg;
+    private final String name;
+    private final boolean useHints = false;
+
+    private Stack<Scope> scopeStack;
+
+    private CppSemiNaiveBackend(String problemName, Problem prob, Configuration config, PrintStream out){
+        this.outputStream = out;
+        this.cfg = config;
+        this.p = prob;
+        this.name = problemName;
+        this.scopeStack = new Stack<>();
+    }
+
+    private String structName(){
+        return name + "_semi_naive";
+    }
+
+    public void generate() throws CFLRException{
+        if (!name.matches("[a-zA-Z][a-zA-Z0-9_]*")) throw new CFLRException("Problem name must be a valid c identifier: \"" + name + "\"");
+        GeneratorUtils.generatePreBlock(name, "Semi-naive method fore evaluating CFLR solutions", this.getClass(), outputStream);
+        generateImports();
+        Scope namespaceScope = new Scope("namespace", "namespace cflr");
+        new Scope("container", "struct " + structName());
+        generateIdxes();
+        generateDefs();
+        new Scope("solve", "static void solve(vols_t& volume, rels_t& relations)");
+        generateInitialisers();
+        generateSemiNaive();
+        namespaceScope.popMe();
+    }
+
+    private void generateImports(){
+        line("#include <array>");
+        line("#include <omp.h>");
+        for(String imp : Adt.Souffle.imports){
+            line("#include " + imp);
+        }
+        line("#include \"" + Adt.Souffle.importLoc + "\"");
+        line("#include \"relation.h\"");
+        line("#include \"Util.h\"");
+    }
+
+    private void generateIdxes(){
+        p.labels.stream().forEach(l -> line("static const unsigned " + idxer(l) + " = " + l.index));
+        //field indices precede vertex indices because of some limitation i once programmed into this thing
+        p.fieldDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + d.index));
+        p.vertexDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + (p.fieldDomains.size() + d.index)));
+    }
+
+    private void generateDefs(){
+        line("static const unsigned num_lbls = " + p.labels.size() + ";");
+        line("static const unsigned num_domains = " + (p.vertexDomains.size() + p.fieldDomains.size()) + ";");
+        line("typedef " + Adt.Souffle.typename + " adt_t;");
+        line("typedef std::array<relation<adt_t>, num_lbls> rels_t;");
+        line("typedef std::array<size_t, num_domains> vols_t;");
+    }
+
+    private void generateInitialisers(){
+        // Epsilon initialisation
+        line("size_t largest_vertex_domain = 0;");
+        p.vertexDomains.stream().forEach(d -> line("largest_vertex_domain = std::max(largest_vertex_domain, volume[" + idxer(d) + "]);"));
+        line("const adt_t epsilon = adt_t::identity(largest_vertex_domain);");
+        for(int ri=0; ri<p.getNumRules(); ri++){
+            Rule r = p.getRule(ri);
+            if(r.ruleBody instanceof Clause.Epsilon) line("for(auto& a : " + idxRel(r.ruleHead.usedLabel) + ".adts) a.union_copy(epsilon);");
+        }
+
+        // Delta initialisation
+        line("rels_t deltas{" + p.labels.stream().map(l -> "relation<adt_t>(" + idxRel(l) + ".adts.size())").collect(Collectors.joining(",")) + "};");
+        // TODO initialise deltas in-place via some kind of deep copy
+        // i.e. deep copy the whole relation, instead of the individual ADTs
+        p.labels.stream()
+                .forEach(l -> line("for(unsigned i=0; i<%s.adts.size(); ++i) %s.adts[i].deep_copy(%s.adts[i]);", idxRel(l), idxRel(l), idxDelta(l)));
+    }
+
+    private void generateSemiNaive(){
+        List<List<Label>> order = GeneratorUtils.getLabelDependencyOrder(p);
+        for(List<Label> group : order){
+            //while there are deltas to expand
+            String cond = group.stream()
+                    .map(l -> "!" + idxDelta(l) + ".empty()")
+                    .collect(Collectors.joining("&&"));
+            Scope curGroup = new Scope(group.stream().map(l ->l.name).collect(Collectors.joining(" ")), "while(" + cond + ")");
+            //for each non-empty delta
+            for(Label l : group){
+                Scope curDeltaScope = new Scope("delta " + l.name, "if(!" + idxDelta(l) + ".empty())");
+                curDeltaScope.popMe();
+            }
+            curGroup.popMe();
+        }
+    }
+
+    /**
+     * Pretty-printing utilities
+     */
+    private boolean pretty(){
+        return true;
+    }
+    private void line(){
+        //print no leading whitespace
+        if(pretty()) outputStream.println();
+    }
+    private void line(String s){
+        if(pretty()) for(int i=0; i<scopeStack.size(); i++) outputStream.print(INDENT);
+        outputStream.println(s);
+    }
+    private void line(String s, Object... forms){
+        line(String.format(s, forms));
+    }
+
+    /**
+     * Converts parts of the problem representation to variables used by cauliflower
+     */
+    public static String idxer(Domain d){
+        return "DOM_" + d.name;
+    }
+    public static String idxer(Label l){
+        return "LBL_" + l.name;
+    }
+    public static String idxer(LabelUse l){
+        return idxer(l.usedLabel);
+    }
+    public static String idxDelta(Label l){
+        return "deltas[" + idxer(l) + "]";
+    }
+    public static String idxRel(Label l){
+        return "relations[" + idxer(l) + "]";
+    }
+
+    /**
+     * Generates structured scope bits, assists in pretty printing
+     */
+    private class Scope {
+        public final String name;
+        public Scope(String n, String c){
+            this.name = n;
+            line();
+            line(c + " { // " + name);
+            scopeStack.push(this);
+        }
+        public List<Scope> popMe(){
+            List<Scope> ret = new ArrayList<>();
+            Scope cur = null;
+            while(cur != this){
+                cur = scopeStack.pop();
+                line("} // " + cur.name);
+                line();
+                ret.add(cur);
+            }
+            return ret;
+        }
+    }
+
+}

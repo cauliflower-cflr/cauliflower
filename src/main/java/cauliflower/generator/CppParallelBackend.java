@@ -34,22 +34,13 @@ public class CppParallelBackend {
 
     public void generate(String problemName, Problem prob) throws CFLRException{
         if (problemName.contains(" ")) throw new CFLRException("Problem name has spaces: \"" + problemName + "\"");
-        generatePreBlock(problemName);
+        GeneratorUtils.generatePreBlock(problemName, "Semi-naive method fore evaluating CFLR solutions", this.getClass(), out);
         generateImports();
         generateScope(problemName);
         generateDefs(prob);
         generateDeltas(prob);
         generateSemiNaive(prob);
         endScope(problemName);
-    }
-
-    private void generatePreBlock(String problemName){
-        out.println("// " + problemName);
-        out.println("//");
-        out.println("// Semi-naive method fore evaluating CFLR solutions");
-        out.println("//");
-        out.println("// Generated on: " + new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
-        out.println("// Cauliflower version: " + Info.buildVersion);
     }
 
     private void generateImports(){

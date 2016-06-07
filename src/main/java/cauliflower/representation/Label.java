@@ -2,6 +2,7 @@ package cauliflower.representation;
 
 import cauliflower.util.CFLRException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,6 +15,7 @@ public class Label extends Piece {
     public final Domain dstDomain;
     public final int fieldDomainCount;
     public final List<Domain> fieldDomains;
+    public final List<LabelUse> usages;
 
     /* local */ Label(Pieces<Label> group, String nm, Domain src, Domain dst, List<Domain> fld) throws CFLRException{
         super(group, nm);
@@ -21,6 +23,7 @@ public class Label extends Piece {
         this.dstDomain = dst;
         this.fieldDomains = fld;
         this.fieldDomainCount = fieldDomains.size();
+        this.usages = new ArrayList<>();
     }
 
     @Override
