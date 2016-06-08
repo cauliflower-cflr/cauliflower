@@ -1,6 +1,5 @@
 package cauliflower;
 
-import cauliflower.application.Cauliflower;
 import cauliflower.application.Configuration;
 import cauliflower.generator.CppSemiNaiveBackend;
 import cauliflower.parser.AntlrParser;

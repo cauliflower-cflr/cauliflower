@@ -44,6 +44,15 @@ public class Rule {
             Rule ret = new Rule(head, projections, body);
             if(head == null || body == null) throw new CFLRException("Incomplete parsing for rule with Head " + head + " and body " + body);
             p.addRule(ret);
+            Clause.Visitor<Void> ruleAdder = new Clause.InOrderVisitor<>(new Clause.VisitorBase<Void>() {
+                @Override
+                public Void visitLabelUse(LabelUse cl) {
+                    cl.usedInRule = ret;
+                    return null;
+                }
+            });
+            ruleAdder.visit(ret.ruleHead);
+            ruleAdder.visit(ret.ruleBody);
             return ret;
         }
 
