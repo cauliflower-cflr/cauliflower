@@ -17,7 +17,12 @@
 #==
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR) # this version is needed for compiler-support checking
 
-set(CMAKE_BUILD_TYPE Release) # for the O3 flag
+# release or debug build
+if (NOT DEFINED ENV{CAULI_DEBUG})
+    set(CMAKE_BUILD_TYPE Release) # for the O3 flag
+else()
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
 
 # checking environtment variables are defined
 if (NOT DEFINED ENV{CAULI_FRONT})
@@ -45,7 +50,6 @@ find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 #==
 # COMPILER REQS

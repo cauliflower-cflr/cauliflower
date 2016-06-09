@@ -58,6 +58,7 @@ public class Compiler {
         ProcessBuilder ret = new ProcessBuilder();
         ret.environment().put("CAULI_FRONT", frontEnd.getAbsolutePath());
         ret.environment().put("CAULI_NAME", execFile.getName());
+        if(configuration.debugGenerated) ret.environment().put("CAULI_DEBUG", "true");
         return ret.directory(buildDir)
                 .redirectErrorStream(true)
                 .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));

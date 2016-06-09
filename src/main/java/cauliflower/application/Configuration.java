@@ -34,6 +34,9 @@ public class Configuration {
     @Parameter(names = {"-cs", "--generate-csv"}, description = "Write a CSV-based front-end to this file.")
     public String csvOutFile = null;
 
+    @Parameter(names = {"-g", "--debug-generated"}, description = "Compile the generated code in debug mode.")
+    public boolean debugGenerated = false;
+
     @Parameter(names = {"-h", "--help"}, description = "Display this help message.", help = true)
     public boolean help = false;
 

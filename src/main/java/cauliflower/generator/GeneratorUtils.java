@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * GeneratorUtils
@@ -39,13 +40,23 @@ public class GeneratorUtils {
         return iov.visits.stream().filter(l -> l != null).distinct().collect(Collectors.toList());
     }
 
-    public static List<List<Label>> getLabelDependencyOrder(Problem prob){
+    public static Map<Label, Set<Label>> getLabelDependencyGraph(Problem prob){
         Map<Label, Set<Label>> successors = prob.labels.stream().collect(Collectors.toMap(k -> k, v -> new HashSet<>()));
         for(int ri=0; ri<prob.getNumRules(); ri++){
             Rule r = prob.getRule(ri);
             successors.get(r.ruleHead.usedLabel).addAll(getLabelsInClause(r.ruleBody));
         }
-        return TarjanScc.getSCC(successors);
+        return successors;
+    }
+
+    public static Map<Label, Set<Label>> inverse(Map<Label, Set<Label>> graph){
+        Map<Label, Set<Label>> ret = Stream.concat(
+                graph.values().stream().flatMap(Set::stream),
+                graph.keySet().stream())
+                .distinct()
+                .collect(Collectors.toMap(k -> k, v -> new HashSet<>()));
+        graph.keySet().forEach(k -> graph.get(k).forEach(v -> ret.get(v).add(k)));
+        return ret;
     }
 
 }

@@ -1,0 +1,39 @@
+#! /usr/bin/env bash
+
+#=========================================================================#
+#                               correctness                               #
+#                                                                         #
+# Author: Nic H.                                                          #
+# Date: 2016-Jun-09                                                       #
+#                                                                         #
+# Check the correctness en-masse of a single cauliflower executable       #
+# against many cases                                                      #
+#=========================================================================#
+
+set -e
+set -u
+
+function usage(){
+    grep "^#.*#$" $0
+}
+
+while getopts "h" opt; do
+    case $opt in
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+EXEC=$1
+REL=$2
+shift 2
+for CASE in "$@"; do
+    echo "$CASE (`cat $CASE/${REL}.ans | wc -l` relations)"
+    diff <("$EXEC" $CASE $REL | tail -n +2 | sort -u) <(sort -u $CASE/${REL}.ans)
+done

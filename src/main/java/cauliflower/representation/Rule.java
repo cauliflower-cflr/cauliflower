@@ -1,6 +1,7 @@
 package cauliflower.representation;
 
 import cauliflower.util.CFLRException;
+import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
 
 import java.util.ArrayList;
@@ -9,12 +10,14 @@ import java.util.stream.Collectors;
 
 public class Rule {
 
+    public final int index;
     public final Piece.Pieces<DomainProjection> allFieldReferences;
     public final LabelUse ruleHead;
     public final Clause ruleBody;
 
     // private constructor, forcing use of the RuleBuilder
-    private Rule(LabelUse head, Piece.Pieces<DomainProjection> projectedFields, Clause body){
+    private Rule(int idx, LabelUse head, Piece.Pieces<DomainProjection> projectedFields, Clause body){
+        this.index = idx;
         this.ruleHead = head;
         this.allFieldReferences = projectedFields;
         this.ruleBody = body;
@@ -41,7 +44,7 @@ public class Rule {
         }
 
         public Rule finish() throws CFLRException {
-            Rule ret = new Rule(head, projections, body);
+            Rule ret = new Rule(p.getNumRules(), head, projections, body);
             if(head == null || body == null) throw new CFLRException("Incomplete parsing for rule with Head " + head + " and body " + body);
             p.addRule(ret);
             Clause.Visitor<Void> ruleAdder = new Clause.InOrderVisitor<>(new Clause.VisitorBase<Void>() {
@@ -61,7 +64,7 @@ public class Rule {
             if(base.fieldDomainCount != fns.size()){
                 throw new CFLRException(String.format("Cannot use Label %s, declared with %d fields, used with %d", name, base.fieldDomainCount, fns.size()));
             }
-            for(Streamer.Pair<String, Domain> pair : Streamer.zip(fns.stream(), base.fieldDomains.stream(), Streamer.Pair::new ).collect(Collectors.toList())){
+            for(Pair<String, Domain> pair : Streamer.zip(fns.stream(), base.fieldDomains.stream(), Pair::new ).collect(Collectors.toList())){
                 if(!projections.has(pair.first)) new DomainProjection(projections, pair.first, pair.second);
                 else if(projections.get(pair.first).referencedField != pair.second){
                     throw new CFLRException(String.format("Cannot use the same name \"%s\" for different field domains: %s and %s",

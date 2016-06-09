@@ -1,18 +1,13 @@
 package cauliflower.generator;
 
 import cauliflower.application.Configuration;
-import cauliflower.cflr.*;
 import cauliflower.representation.*;
-import cauliflower.representation.Label;
-import cauliflower.representation.Problem;
-import cauliflower.representation.Rule;
 import cauliflower.util.CFLRException;
-import cauliflower.util.Streamer;
+import cauliflower.util.TarjanScc;
 
+import javax.rmi.CORBA.Util;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,6 +21,7 @@ import java.util.stream.Stream;
 public class CppSemiNaiveBackend {
 
     public static final String INDENT = "    ";
+    public static final String PARALLEL_SCOPE = "parallel";
     public static final int PARTITION_COUNT = 400; // arbitrary value i borrowed from souffle
 
     //static constructor
@@ -58,12 +54,14 @@ public class CppSemiNaiveBackend {
         GeneratorUtils.generatePreBlock(name, "Semi-naive method fore evaluating CFLR solutions", this.getClass(), outputStream);
         generateImports();
         Scope namespaceScope = new Scope("namespace", "namespace cflr");
-        new Scope("container", "struct " + structName());
+        Scope structScope = new Scope("container", "struct " + structName());
         generateIdxes();
         generateDefs();
         new Scope("solve", "static void solve(vols_t& volume, rels_t& relations)");
         generateInitialisers();
         generateSemiNaive();
+        structScope.popMe();
+        line(";"); // inelegant solution to ending a struct def with ;
         namespaceScope.popMe();
     }
 
@@ -79,10 +77,10 @@ public class CppSemiNaiveBackend {
     }
 
     private void generateIdxes(){
-        p.labels.stream().forEach(l -> line("static const unsigned " + idxer(l) + " = " + l.index));
+        p.labels.stream().forEach(l -> line("static const unsigned " + idxer(l) + " = " + l.index + ";"));
         //field indices precede vertex indices because of some limitation i once programmed into this thing
-        p.fieldDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + d.index));
-        p.vertexDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + (p.fieldDomains.size() + d.index)));
+        p.fieldDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + d.index + ";"));
+        p.vertexDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + (p.fieldDomains.size() + d.index + ";")));
     }
 
     private void generateDefs(){
@@ -104,24 +102,26 @@ public class CppSemiNaiveBackend {
         }
 
         // Delta initialisation
-        line("rels_t deltas{" + p.labels.stream().map(l -> "relation<adt_t>(" + idxRel(l) + ".adts.size())").collect(Collectors.joining(",")) + "};");
-        // TODO initialise deltas in-place via some kind of deep copy
-        // i.e. deep copy the whole relation, instead of the individual ADTs
+        line("rels_t deltas{" + p.labels.stream().map(l -> relationDecl(l, "")).collect(Collectors.joining(",")) + "};");
         p.labels.stream()
                 .forEach(l -> line("for(unsigned i=0; i<%s.adts.size(); ++i) %s.adts[i].deep_copy(%s.adts[i]);", idxRel(l), idxRel(l), idxDelta(l)));
     }
 
     private void generateSemiNaive(){
-        List<List<Label>> order = GeneratorUtils.getLabelDependencyOrder(p);
+        Map<Label, Set<Label>> depGraph = GeneratorUtils.getLabelDependencyGraph(p), depGraphInverse = GeneratorUtils.inverse(depGraph);
+        List<List<Label>> order = TarjanScc.getSCC(depGraph);
         for(List<Label> group : order){
-            //while there are deltas to expand
+            // while there are deltas to expand
             String cond = group.stream()
-                    .map(l -> "!" + idxDelta(l) + ".empty()")
-                    .collect(Collectors.joining("&&"));
+                    .map(l -> "(!" + idxDelta(l) + ".empty())")
+                    .collect(Collectors.joining("||"));
             Scope curGroup = new Scope(group.stream().map(l ->l.name).collect(Collectors.joining(" ")), "while(" + cond + ")");
-            //for each non-empty delta
+            // initialise the new relations for this iteration
+            List<Label> relationsGeneratedByGroup = group.stream().flatMap(l -> depGraphInverse.get(l).stream()).distinct().collect(Collectors.toList());
+            relationsGeneratedByGroup.forEach(l -> line("%s;", relationDecl(l, idxnew(l))));
+            // for each non-empty delta
             for(Label l : group){
-                Scope curDeltaScope = new Scope("delta " + l.name, "if(!" + idxDelta(l) + ".empty())");
+                Scope curDeltaScope = new Scope("delta " + l.name, "if(!" + idxDelta(l) + ".empty())"); // TODO stop emitting this when theres only one relation in the group
                 line("relation<adt_t> cur_delta(" + idxDelta(l) + ".volume());");
                 line("cur_delta.swap_contents(" + idxDelta(l) + ");");
                 for(LabelUse usage : l.usages) if(usage.usedInRule.ruleHead != usage){
@@ -129,13 +129,28 @@ public class CppSemiNaiveBackend {
                 }
                 curDeltaScope.popMe();
             }
+            // write the new relations into their delta/current
+            relationsGeneratedByGroup.forEach(l ->{
+                List<String> vars = new ArrayList<>();
+                List<String> vols = new ArrayList<>();
+                for(Domain dom : l.fieldDomains){
+                    vars.add("upd_" + vars.size());
+                    vols.add(idxField(dom));
+                    new Scope("update " + l.name + " " + (vars.size()-1), simpleFor(vars.get(vars.size()-1), idxField(dom)));
+                }
+                line("%s.forwards.insertAll(%s.forwards);", relationAccess(idxRel(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                line("%s.forwards.insertAll(%s.forwards);", relationAccess(idxDelta(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                line("%s.backwards.insertAll(%s.backwards);", relationAccess(idxRel(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                line("%s.backwards.insertAll(%s.backwards);", relationAccess(idxDelta(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                curGroup.popInto();
+            });
             curGroup.popMe();
         }
     }
 
     private void generateDeltaExpansion(LabelUse delta){
         Rule rule = delta.usedInRule;
-        int stackLength = scopeStack.size();
+        Scope entryScope = scopeStack.peek();
         // find label usages with and without fields
         List<LabelUse> usesWithoutFields = new ArrayList<>();
         List<LabelUse> usesWithFields = new ArrayList<>();
@@ -149,18 +164,30 @@ public class CppSemiNaiveBackend {
         }).visit(rule.ruleBody);
         // only perform delta expansion when all relations have non-empty values
         // TODO this breaks in the face of negation
-        if(usesWithoutFields.size() != 0) new Scope("without fields", "if(" + getNonEmptyChecks(usesWithoutFields.stream(), delta) + ")");
-        if(rule.allFieldReferences.size() != 0) {
-            new Scope("field projections", rule.allFieldReferences.stream()
-                    .map(dp -> String.format("for(unsigned %s=0; %s<%s; ++%s)", varProject(dp), varProject(dp), idxField(dp.referencedField), varProject(dp)))
-                    .collect(Collectors.joining(" "))); // TODO parallelise this
+        if(usesWithoutFields.size() != 0) new Scope("without fields", "if(" + multiNonEmptyCheck(usesWithoutFields, delta, "&&") + ")");
+        if(rule.allFieldReferences.size() > 0){
+            parallelScope();
+            line(parallelFor());
+            rule.allFieldReferences.stream().forEach(dp ->
+                    new Scope("field projection " + dp.name, simpleFor(varProject(dp), idxField(dp.referencedField))));
         }
-        if(usesWithFields.size() != 0) new Scope("with fields", "if(" + getNonEmptyChecks(usesWithFields.stream(), delta) + ")");
-        new DeltaExpansionVisitor(delta, null, null).visit(rule.ruleBody);
-        if(scopeStack.size() > stackLength) scopeStack.get(stackLength).popMe();
+
+        if(usesWithFields.size() != 0) new Scope("with fields", "if(" + multiNonEmptyCheck(usesWithFields, delta, "&&") + ")");
+        //expand the rule body
+        DeltaExpansionVisitor completion = new DeltaExpansionVisitor(delta, null, null);
+        completion.visit(rule.ruleBody);
+        line(declarePair("result", completion.fromContext, completion.toContext));
+        new Scope("check add", "if(!" + relationAccess(rule.ruleHead, delta) + ".forwards.contains(result))");
+        line("%s.forwards.insert(result);", relationNewAccess(rule.ruleHead));
+        line("%s.backwards.insert(%s);", relationNewAccess(rule.ruleHead), initPair(completion.toContext, completion.fromContext));
+        entryScope.popInto();
     }
 
-    private class DeltaExpansionVisitor implements Clause.Visitor<Void> { //TODO PAIR
+    /**
+     * A visitor to create expanded label code
+     * The context for expansion is entered where the relation can know its start/end/both/neither
+     */
+    private class DeltaExpansionVisitor implements Clause.Visitor<Void> {
         public final LabelUse delta;
         public final Rule rule;
         public String fromContext;
@@ -180,9 +207,6 @@ public class CppSemiNaiveBackend {
             right.visit(cl.right);
             fromContext = left.fromContext;
             toContext = right.toContext;
-            //
-            // TODO WRITE ME WITH PAIR
-            //
             return null;
         }
 
@@ -193,8 +217,10 @@ public class CppSemiNaiveBackend {
 
         @Override
         public Void visitReverse(Clause.Reverse cl) {
-            new DeltaExpansionVisitor(delta, toContext, fromContext).visit(cl.sub);
-            //TODO actual logic
+            DeltaExpansionVisitor sub = new DeltaExpansionVisitor(delta, toContext, fromContext);
+            sub.visit(cl.sub);
+            fromContext = sub.toContext;
+            toContext = sub.fromContext;
             return null;
         }
 
@@ -205,6 +231,22 @@ public class CppSemiNaiveBackend {
 
         @Override
         public Void visitLabelUse(LabelUse cl) {
+            String nm = cl.usedLabel.name + " " + cl.usageIndex + " " + (fromContext == null?"f":"b") + (toContext == null?"f":"b");
+            if(fromContext == null && toContext == null){ // no constraint, therefore just iterate through forwards
+                new Scope(nm, "for(const auto& " + varIter(cl) + " : " + relationAccess(cl, delta) + ".forwards)");
+                fromContext = varIter(cl) + "[0]";
+                toContext = varIter(cl) + "[1]";
+            } else if(fromContext == null){
+                line("auto range_%s = %s.backwards.getBoundaries<1>({{%s, 0}});", varIter(cl), relationAccess(cl, delta), toContext);
+                new Scope(nm, "for(const auto& " + varIter(cl) + " : range_" + varIter(cl) + ")");
+                fromContext = varIter(cl) + "[1]";
+            } else if(toContext == null){
+                line("auto range_%s = %s.forwards.getBoundaries<1>({{%s, 0}});", varIter(cl), relationAccess(cl, delta), fromContext);
+                new Scope(nm, "for(const auto& " + varIter(cl) + " : range_" + varIter(cl) + ")");
+                toContext = varIter(cl) + "[1]";
+            } else {
+                new Scope(nm, "if(" + relationAccess(cl, delta) + ".forwards.contains(" + initPair(fromContext, toContext) + "))");
+            }
             return null;
         }
 
@@ -214,21 +256,11 @@ public class CppSemiNaiveBackend {
         }
     }
 
-    private String getNonEmptyChecks(Stream<LabelUse> slu, final LabelUse delta){
-        return slu.map(lu -> "!"
-                + relationAccess((lu == delta ? "cur_delta" : idxRel(lu.usedLabel)), lu)
-                + ".empty()").collect(Collectors.joining("&&"));
-    }
-
     /**
      * Pretty-printing utilities
      */
     private boolean pretty(){
         return true;
-    }
-    private void line(){
-        //print no leading whitespace
-        if(pretty()) outputStream.println();
     }
     private void line(String s){
         if(pretty()) for(int i=0; i<scopeStack.size(); i++) outputStream.print(INDENT);
@@ -253,6 +285,9 @@ public class CppSemiNaiveBackend {
     public static String idxDelta(Label l){
         return "deltas[" + idxer(l) + "]";
     }
+    public static String idxnew(Label l){
+        return "new_" + idxer(l);
+    }
     public static String idxRel(Label l){
         return "relations[" + idxer(l) + "]";
     }
@@ -262,24 +297,64 @@ public class CppSemiNaiveBackend {
     public static String varProject(DomainProjection dp){
         return "f_" + dp.name;
     }
-    public static String relationAccess(String relation, LabelUse l){
+    public static String varIter(LabelUse lu){
+        return "idx_" + lu.usedLabel.name + lu.usageIndex;
+    }
+
+    /**
+     * General purpose code access
+     */
+    public static String parallelBegin(){
+        return "# pragma omp parallel";
+    }
+    public static String parallelFor(){
+        return "# pragma omp for schedule(dynamic)";
+    }
+    public static String simpleFor(String var, String end){
+        return String.format("for(unsigned %s=0; %s<%s; ++%s)", var, var, end, var);
+    }
+    public static String declarePair(String vname, String first, String second){
+        return String.format("adt_t::tree_t::entry_type %s(%s);", vname, initPair(first, second));
+    }
+    public static String initPair(String first, String second){
+        return String.format("{{%s,%s}}", first, second);
+    }
+    public static String relationDecl(Label l, String name){
+        return "relation<adt_t>" + (name.length() > 0 ? " ":"") + name + "(" + idxRel(l) + ".adts.size())";
+    }
+    public static String relationAccess(LabelUse l, LabelUse curDelta){
+        return relationAccess(l == curDelta ? "cur_delta" : idxRel(l.usedLabel), l);
+    }
+    public static String relationAccess(String name, LabelUse l) {
+        return relationAccess(name, l.usedField.stream().map(CppSemiNaiveBackend::varProject).collect(Collectors.toList()),
+                l.usedLabel.fieldDomains.stream().map(CppSemiNaiveBackend::idxField).collect(Collectors.toList()));
+    }
+    public static String relationAccess(String name, List<String> fieldVars, List<String> fieldVolumes){
         StringBuilder vn = new StringBuilder();
-        vn.append(relation);
-        vn.append(".adts[");
-        if(l.usedLabel.fieldDomainCount == 0){
+        vn.append(name).append(".adts[");
+        if(fieldVars.size() == 0){
             vn.append(0);
         } else {
             int fi = 0;
-            for(DomainProjection dp : l.usedField){
-                if(fi > 0) vn.append(" + ");
-                vn.append(varProject(dp));
-                for(int vi=fi+1; vi<l.usedLabel.fieldDomainCount; vi++){
-                    vn.append("*").append(idxField(l.usedLabel.fieldDomains.get(vi)));
+            for (String var : fieldVars) {
+                if(fi != 0) vn.append(" + ");
+                vn.append(var);
+                for (int vi = fi + 1; vi < fieldVolumes.size(); vi++) {
+                    vn.append("*").append(fieldVolumes.get(vi));
                 }
                 fi++;
             }
         }
         return vn.append("]").toString();
+    }
+    public static String relationNewAccess(LabelUse lu){
+        return relationAccess(idxnew(lu.usedLabel), lu);
+    }
+    private String nonEmptyCheck(LabelUse l, LabelUse delta){
+        return "!" + relationAccess(l, delta) + ".empty()";
+    }
+    private String multiNonEmptyCheck(Collection<LabelUse> lus, LabelUse delta, String join){
+        return lus.stream().map(lu -> nonEmptyCheck(lu, delta)).map(s -> "(" + s + ")").collect(Collectors.joining(join));
     }
 
     /**
@@ -289,21 +364,29 @@ public class CppSemiNaiveBackend {
         public final String name;
         public Scope(String n, String c){
             this.name = n;
-            line();
-            line(c + " { // " + name);
+            line(c + (c.length()>0?" ":"") + "{ // " + name);
             scopeStack.push(this);
         }
-        public List<Scope> popMe(){
-            List<Scope> ret = new ArrayList<>();
+        public void popMe(){
             Scope cur = null;
             while(cur != this){
                 cur = scopeStack.pop();
                 line("} // " + cur.name);
-                line();
-                ret.add(cur);
             }
-            return ret;
         }
+        public void popInto(){
+            while(scopeStack.peek() != this){
+                scopeStack.peek().popMe();
+            }
+        }
+    }
+    private boolean inParallelScope(){
+        for(Scope s : scopeStack) if(s.name.equals(PARALLEL_SCOPE)) return true;
+        return false;
+    }
+    private Scope parallelScope(){
+        line(parallelBegin());
+        return new Scope("parallel", "");
     }
 
 }

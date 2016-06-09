@@ -15,7 +15,7 @@ public class Main {
         Configuration conf = Configuration.fromArgs(args);
         AntlrParser ap = new AntlrParser();
         new ParseFile(ap).read(new File(conf.specFile.get(0)));
-        CppSemiNaiveBackend.generate("problemo", ap.problem, conf, System.out);
+        CppSemiNaiveBackend.generate("fast", ap.problem, conf, System.out);
     }
 
 }

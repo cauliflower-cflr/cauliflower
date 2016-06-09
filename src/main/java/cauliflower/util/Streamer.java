@@ -10,15 +10,6 @@ import java.util.stream.StreamSupport;
 
 public class Streamer {
 
-    public static class Pair<T, U>{
-        public final T first;
-        public final U second;
-        public Pair(T f, U s){
-            first = f;
-            second = s;
-        }
-    }
-
     /**
      * Zips two streams according to a provided BiFunction
      * Code stolen shamelessly from http://stackoverflow.com/a/23529010

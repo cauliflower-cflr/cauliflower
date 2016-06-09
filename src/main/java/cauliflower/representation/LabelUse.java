@@ -8,12 +8,14 @@ import java.util.List;
 public class LabelUse extends Clause{
 
     public final Label usedLabel;
+    public final int usageIndex;
     public final List<DomainProjection> usedField;
     public Rule usedInRule;
 
     /* local */ LabelUse(Label label, List<DomainProjection> fields){
         super(ClauseType.LABEL);
         this.usedLabel = label;
+        this.usageIndex = usedLabel.usages.size();
         this.usedField = fields;
         this.usedInRule = null;
         usedLabel.usages.add(this);

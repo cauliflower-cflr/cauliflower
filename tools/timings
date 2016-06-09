@@ -1,0 +1,52 @@
+#! /usr/bin/env bash
+
+#=========================================================================#
+#                                 timings                                 #
+#                                                                         #
+# Author: Nic H.                                                          #
+# Date: 2016-Jun-09                                                       #
+#                                                                         #
+# times the execution of a cauliflower executable against multiple cases  #
+#                                                                         #
+# Options                                                                 #
+#     -r <num>         Averages over <num> runs                           #
+#=========================================================================#
+
+set -e
+set -u
+
+function usage(){
+    grep "^#.*#$" $0
+}
+
+RUNS=3
+while getopts "hr:" opt; do
+    case $opt in
+        h)
+            usage
+            exit 0
+            ;;
+        r)
+            RUNS="$OPTARG"
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+shift $(($OPTIND -1))
+EXEC=$1
+shift 1
+for CASE in "$@"; do
+    echo "$CASE"
+    TOTAL=0
+    for R in $(seq 1 $RUNS); do
+        THIS=`/usr/bin/time -f "%e" "$EXEC" "$CASE" 2>&1`
+        echo -n "  $R=$THIS"
+        TOTAL=`python -c "print $TOTAL + $THIS"`
+    done
+    echo
+    echo "  `python -c "print $TOTAL/$RUNS"`"
+done
+
