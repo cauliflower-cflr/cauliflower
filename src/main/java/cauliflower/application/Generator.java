@@ -1,9 +1,6 @@
 package cauliflower.application;
 
-import cauliflower.generator.Adt;
-import cauliflower.generator.CppCSVBackend;
-import cauliflower.generator.CppParallelBackend;
-import cauliflower.generator.CppSerialBackend;
+import cauliflower.generator.*;
 import cauliflower.parser.CFLRParser;
 import cauliflower.parser.OmniParser;
 
@@ -43,7 +40,7 @@ public class Generator {
     public void generateBackend(Path output) throws IOException{
         PrintStream ps = new PrintStream(new FileOutputStream(output.toFile()));
         if(parallel){
-            new CppParallelBackend(ps, timers).generate(name, OmniParser.getLegacy(spec).problem);
+            CppSemiNaiveBackend.generate(name, OmniParser.get(spec), null, ps);
         } else {
             new CppSerialBackend(adt, ps).generate(name, OmniParser.getLegacy(spec).problem);
         }
@@ -53,8 +50,7 @@ public class Generator {
     public void generateFrontend(Path output, Path backend) throws IOException{
         PrintStream ps2 = new PrintStream(new FileOutputStream(output.toFile()));
         String relPath = output.getParent().relativize(backend).toString();
-        CFLRParser.ParserOutputs parse = OmniParser.getLegacy(spec);
-        new CppCSVBackend(ps2, relPath, parse, reports).generate(name, parse.problem);
+        new CppCSVBackend(name, relPath, OmniParser.get(spec), reports, ps2).generate();
         ps2.close();
     }
 }

@@ -51,7 +51,9 @@ public class Compiler {
     private void runProcess(ProcessBuilder proc) throws IOException, InterruptedException {
         Logs.forClass(Compiler.class).debug("Executing: {}", proc.command().stream().collect(Collectors.joining(" ")));
         Process p = proc.start();
-        p.waitFor();
+        if(p.waitFor() != 0){
+            throw new IOException("Process exited with non-zero status: " + proc.command().toString());
+        }
     }
 
     private ProcessBuilder processBuilderInit(){

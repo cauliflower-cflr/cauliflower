@@ -5,11 +5,9 @@ import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
 import cauliflower.util.TarjanScc;
 
-import javax.rmi.CORBA.Util;
 import java.io.PrintStream;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * CppParallelBackend.java
@@ -31,7 +29,6 @@ public class CppSemiNaiveBackend {
 
     private final Problem p;
     private final PrintStream outputStream;
-    private final Configuration cfg;
     private final String name;
     private final boolean useHints = false;
 
@@ -39,7 +36,6 @@ public class CppSemiNaiveBackend {
 
     private CppSemiNaiveBackend(String problemName, Problem prob, Configuration config, PrintStream out){
         this.outputStream = out;
-        this.cfg = config;
         this.p = prob;
         this.name = problemName;
         this.scopeStack = new Stack<>();
