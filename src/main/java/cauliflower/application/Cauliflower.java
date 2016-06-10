@@ -1,12 +1,11 @@
 package cauliflower.application;
 
-import cauliflower.parser.CFLRParser;
-import cauliflower.parser.ParseFile;
-import cauliflower.parser.SimpleParser;
 import cauliflower.util.Logs;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Cauliflower
@@ -22,7 +21,6 @@ public class Cauliflower {
             File in = new File(conf.specFile.get(0));
             if (!in.exists() || !in.isFile())
                 throw new IOException("Unable to locate Grammar input file " + conf.specFile.get(0));
-            CFLRParser.ParserOutputs po = new ParseFile(new SimpleParser()).read(in);
             String name = in.getName();
             if (name.contains(".")) name = name.substring(0, name.lastIndexOf('.'));
             if (conf.optimiseOutFile != null) {
@@ -30,10 +28,12 @@ public class Cauliflower {
                 opt.optimise();
             } else if (conf.compOutFile != null) {
                 Compiler comp = new Compiler(conf.compOutFile, conf);
-                comp.compile(po);
+                comp.compile();
             } else if (conf.snOutFile != null) {
-                Generator gen = new Generator(conf);
-                gen.generate(name, po);
+                Generator gen = new Generator(name, conf);
+                Path back = Paths.get(conf.snOutFile);
+                gen.generateBackend(back);
+                if (conf.csvOutFile != null) gen.generateFrontend(Paths.get(conf.csvOutFile), back);
             }
         } catch (Configuration.ConfigurationException e) {
             Logs.forClass(Cauliflower.class).error(e.msg);

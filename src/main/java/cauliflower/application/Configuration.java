@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  */
 public class Configuration {
 
-    @Parameter(description = "<cflr specification file>")
+    @Parameter(description = "<cflr specification file> ")
     public List<String> specFile;
 
     @Parameter(names = {"-a", "--adt"}, description = "The abstract-data-type used by the solver.")

@@ -1,15 +1,17 @@
 package cauliflower.application;
 
+import cauliflower.generator.Adt;
 import cauliflower.generator.CppCSVBackend;
 import cauliflower.generator.CppParallelBackend;
-import cauliflower.generator.CppSemiNaiveBackend;
 import cauliflower.generator.CppSerialBackend;
 import cauliflower.parser.CFLRParser;
+import cauliflower.parser.OmniParser;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Generator
@@ -21,38 +23,39 @@ import java.io.PrintStream;
  */
 public class Generator {
 
-    public final File snFront;
-    public final File csvBack;
+    public final String name;
+    public final Path spec;
+    public final Adt adt;
+    public final boolean parallel, timers, reports;
 
-    private final Configuration configuration;
-
-    public Generator(Configuration conf){
-        this(conf.snOutFile, conf.csvOutFile, conf);
+    public Generator(String name, Configuration conf){
+        this(name, Paths.get(conf.specFile.get(0)), conf.adt, conf.parallel, conf.timers, conf.reports);
     }
 
-    public Generator(String semiNaive, String csv, Configuration conf){
-        this(semiNaive == null ? null : new File(semiNaive), csv == null ? null : new File(csv), conf);
+    public Generator(String n, Path s, Adt a, boolean par, boolean time, boolean rep){
+        this.name = n;
+        this.spec = s;
+        this.adt = a;
+        this.parallel = par;
+        this.timers = time;
+        this.reports = rep;
     }
 
-    public Generator(File semiNaive, File csv, Configuration conf){
-        this.snFront = semiNaive;
-        this.csvBack = csv;
-        this.configuration = conf;
-    }
-
-    public void generate(String name, CFLRParser.ParserOutputs parse) throws IOException{
-        PrintStream ps = new PrintStream(new FileOutputStream(snFront));
-        if(configuration.parallel){
-            new CppParallelBackend(ps, configuration.timers).generate(name, parse.problem);
+    public void generateBackend(Path output) throws IOException{
+        PrintStream ps = new PrintStream(new FileOutputStream(output.toFile()));
+        if(parallel){
+            new CppParallelBackend(ps, timers).generate(name, OmniParser.getLegacy(spec).problem);
         } else {
-            new CppSerialBackend(configuration.adt, ps).generate(name, parse.problem);
+            new CppSerialBackend(adt, ps).generate(name, OmniParser.getLegacy(spec).problem);
         }
         ps.close();
-        if(csvBack != null) {
-            PrintStream ps2 = new PrintStream(new FileOutputStream(csvBack));
-            String relPath = csvBack.getParentFile().toPath().relativize(snFront.toPath()).toString();
-            new CppCSVBackend(ps2, relPath, parse, configuration.reports).generate(name, parse.problem);
-            ps2.close();
-        }
+    }
+
+    public void generateFrontend(Path output, Path backend) throws IOException{
+        PrintStream ps2 = new PrintStream(new FileOutputStream(output.toFile()));
+        String relPath = output.getParent().relativize(backend).toString();
+        CFLRParser.ParserOutputs parse = OmniParser.getLegacy(spec);
+        new CppCSVBackend(ps2, relPath, parse, reports).generate(name, parse.problem);
+        ps2.close();
     }
 }

@@ -1,6 +1,5 @@
 package cauliflower.application;
 
-import cauliflower.parser.CFLRParser;
 import cauliflower.util.Logs;
 
 import java.io.File;
@@ -34,10 +33,11 @@ public class Compiler {
         this.configuration = conf;
     }
 
-    public void compile(CFLRParser.ParserOutputs parse) throws IOException, InterruptedException {
+    public void compile() throws IOException, InterruptedException {
         // initialising
-        Generator gen = new Generator(backEnd, frontEnd, configuration);
-        gen.generate(execFile.getName(), parse);
+        Generator gen = new Generator(execFile.getName(), configuration);
+        gen.generateBackend(backEnd.toPath());
+        gen.generateFrontend(frontEnd.toPath(), backEnd.toPath());
 
         // Run the build
         runProcess(processBuilderInit().command("env"));

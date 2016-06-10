@@ -1,8 +1,5 @@
 package cauliflower.application;
 
-import cauliflower.parser.CFLRParser;
-import cauliflower.parser.ParseFile;
-import cauliflower.parser.SimpleParser;
 import cauliflower.util.Logs;
 
 import java.io.File;
@@ -55,7 +52,6 @@ public class Optimiser {
 
         private final int round;
         private final File spec;
-        private final CFLRParser.ParserOutputs parse;
         private final File workingDir;
         private final File executable;
         private List<File> logs;
@@ -63,7 +59,6 @@ public class Optimiser {
         private OptimisationPass(int roundNumber, File currentSpecification) throws IOException {
             round = roundNumber;
             spec = currentSpecification;
-            parse = new ParseFile(new SimpleParser()).read(spec);
             workingDir = Files.createTempDirectory("cauli_opt_" + round + "_").toFile();
             executable = new File(workingDir, "opt_" + round + "_exe");
             logs = IntStream.rangeClosed(0, trainingSet.size()).mapToObj(i -> new File(workingDir, round + "_" + i + ".log")).collect(Collectors.toList());
@@ -73,7 +68,7 @@ public class Optimiser {
         private void compileExe() throws Configuration.HelpException, Configuration.ConfigurationException, IOException, InterruptedException {
             Configuration curConf = Configuration.fromArgs("-p", "-r", "-t", "--compile", executable.getAbsolutePath(), spec.getAbsolutePath());
             Compiler comp = new Compiler(executable.getAbsolutePath(), curConf);
-            comp.compile(parse);
+            comp.compile();
         }
 
         private void generateLogs() throws IOException, InterruptedException {
