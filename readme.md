@@ -27,10 +27,4 @@ Contributions are always welcome :)
 Milestones
 ----------
 
-__0.1__:
-Primary release.
-Support for problem definition and evaluation.
-Limited support for input/extensibility.
-
-__0.2__:
-Intersection semantics.
+I just release every-so-often.

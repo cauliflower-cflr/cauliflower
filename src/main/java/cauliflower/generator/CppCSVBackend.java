@@ -4,7 +4,6 @@ import cauliflower.representation.Domain;
 import cauliflower.representation.Label;
 import cauliflower.representation.Problem;
 import cauliflower.util.CFLRException;
-import cauliflower.util.Logs;
 
 import java.io.PrintStream;
 import java.util.stream.Collectors;
@@ -53,6 +52,7 @@ public class CppCSVBackend {
 
     private void generateMainStart(){
         out.println("int main(int argc, char* argv[]){");
+        out.println("typedef " + CppSerialBackend.className(problemName) + " P;");
         out.println("// Confirm the CSV directory has been provided as an argument");
         out.println("if(argc < 2){");
         out.println("cerr << \"Usage: \" << argv[0] << \" <path-to-input-csv-directory> [output-relations...]\" << endl;");
@@ -83,7 +83,6 @@ public class CppCSVBackend {
         if(reports){
             out.println("steady_clock::time_point time1 = steady_clock::now();");
         }
-        out.println("typedef " + CppSerialBackend.className(problemName) + " P;");
         out.println("P::vols_t vols = regs.volumes();");
         out.print("P::rels_t relations = {");
         out.print(prob.labels.stream()
@@ -92,7 +91,7 @@ public class CppCSVBackend {
                 .map(s -> "relation<P::adt_t>(" + s + ")")
                 .collect(Collectors.joining(",")));
         out.println("};");
-        prob.labels.stream().forEach(l -> out.println("relations[" + l.index + "].import_buffer(buf_" + l.name + ");"));
+        prob.labels.stream().forEach(l -> out.println("relations[" + pseudonym(l) + "].import_buffer(buf_" + l.name + ");"));
 
         out.println("// Solve the problem");
         if(reports){
@@ -104,6 +103,14 @@ public class CppCSVBackend {
         }
     }
 
+    public static String pseudonym(Domain dom){
+        return "P::" + CppSemiNaiveBackend.idxer(dom);
+    }
+
+    public static String pseudonym(Label l){
+        return "P::" + CppSemiNaiveBackend.idxer(l);
+    }
+
     private static String bufferDeclaration(Label lbl, int numFieldDomains, String name){
         StringBuilder ret = new StringBuilder();
         ret.append("relation_buffer<");
@@ -111,8 +118,8 @@ public class CppCSVBackend {
             if(i != 0) ret.append(",");
             ret.append("string");
         }
-        ret.append("> " + name + "(regs.select<" + (lbl.srcDomain.index + numFieldDomains) + "," + (lbl.srcDomain.index + numFieldDomains));
-        for(Domain dom : lbl.fieldDomains) ret.append("," + dom.index);
+        ret.append("> " + name + "(regs.select<" + pseudonym(lbl.srcDomain) + "," + pseudonym(lbl.dstDomain));
+        ret.append(lbl.fieldDomains.stream().map(CppCSVBackend::pseudonym).map(s -> "," + s).collect(Collectors.joining()));
         return ret.append(">())").toString();
     }
 
@@ -128,7 +135,7 @@ public class CppCSVBackend {
                         .append("if(string(argv[i]) == \"" + l.name + "\"){").append("\n")
                         .append("cout << \"__" + l.name + "__\" << endl;").append("\n")
                         .append(bufferDeclaration(l, prob.fieldDomains.size(), "tmp_buf")).append(";\n")
-                        .append("relations[" + l.index  + "].export_buffer(tmp_buf);").append("\n")
+                        .append("relations[" + pseudonym(l) + "].export_buffer(tmp_buf);").append("\n")
                         .append("tmp_buf.to_csv(cout);").append("\n")
                         .append("}")
                         .toString())
@@ -142,11 +149,11 @@ public class CppCSVBackend {
             out.println("cerr << \"output csv files=\" << duration_cast<duration<double>>(time4 - time3).count() << endl;");
             prob.labels.stream().forEach(l -> {
                 generateBufferDeclaration(l, "count_buf_" + l.name);
-                out.println("relations[" + l.index  + "].export_buffer(count_buf_" + l.name + ");");
+                out.println("relations[" + pseudonym(l)  + "].export_buffer(count_buf_" + l.name + ");");
                 out.println("cerr << \"|" + l.name + "|=\" << count_buf_" + l.name + ".size() << endl;");
             });
-            prob.fieldDomains.stream().forEach(d -> out.println("cerr << \"f:" + d.name + "=\" << vols[" + d.index + "] << std::endl;"));
-            prob.vertexDomains.stream().forEach(d -> out.println("cerr << \"v:" + d.name + "=\" << vols[" + d.index + "] << std::endl;"));
+            prob.fieldDomains.stream().forEach(d -> out.println("cerr << \"f:" + d.name + "=\" << vols[" + pseudonym(d) + "] << std::endl;"));
+            prob.vertexDomains.stream().forEach(d -> out.println("cerr << \"v:" + d.name + "=\" << vols[" + pseudonym(d) + "] << std::endl;"));
         }
         out.println("return 0;");
         out.println("}");
