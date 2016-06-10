@@ -17,23 +17,13 @@ public class Cauliflower {
 
     public static void main(String[] args) {
         try {
-            Configuration conf = Configuration.fromArgs(args);
-            File in = new File(conf.specFile.get(0));
-            if (!in.exists() || !in.isFile())
-                throw new IOException("Unable to locate Grammar input file " + conf.specFile.get(0));
-            String name = in.getName();
-            if (name.contains(".")) name = name.substring(0, name.lastIndexOf('.'));
-            if (conf.optimiseOutFile != null) {
-                Optimiser opt = new Optimiser(conf.specFile.get(0), conf.optimiseOutFile, conf.optimiseTests);
+            Configuration conf = new Configuration(args);
+            if (conf.optimise) {
+                Optimiser opt = new Optimiser(conf.specFile, conf.outputBase, conf.sampleDirs);
                 opt.optimise();
-            } else if (conf.compOutFile != null) {
-                Compiler comp = new Compiler(conf.compOutFile, conf);
+            } else if (conf.compile) {
+                Compiler comp = new Compiler(conf.outputBase.toString(), conf);
                 comp.compile();
-            } else if (conf.snOutFile != null) {
-                Generator gen = new Generator(name, conf);
-                Path back = Paths.get(conf.snOutFile);
-                gen.generateBackend(back);
-                if (conf.csvOutFile != null) gen.generateFrontend(Paths.get(conf.csvOutFile), back);
             }
         } catch (Configuration.ConfigurationException e) {
             Logs.forClass(Cauliflower.class).error(e.msg);

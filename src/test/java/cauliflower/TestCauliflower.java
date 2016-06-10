@@ -43,7 +43,7 @@ public class TestCauliflower {
 
     @AfterClass
     public static void destroyTestCauliflower() throws Exception{
-        //FileSystem.recursiveRemove(scratchpad); TODO uncomment me
+        FileSystem.recursiveRemove(scratchpad);
     }
 
     private static Path scratchpad;
@@ -59,7 +59,7 @@ public class TestCauliflower {
         File exeFile = new File(scratchpad.toFile(), specFile.getName().substring(0, specFile.getName().lastIndexOf(".")));
         if(! exeFile.exists()){
             try{
-                Cauliflower.main(new String[]{"-p", "--compile", exeFile.getAbsolutePath(), specFile.getAbsolutePath()});
+                Cauliflower.main(new String[]{"-p", "--compile", "--name", exeFile.getAbsolutePath(), specFile.getAbsolutePath()});
             } catch(Exception exc){
                 fail();
             }
@@ -86,6 +86,7 @@ public class TestCauliflower {
                         assertTrue(outp.get(i).equals(answ.get(i)));
                     }
                 } catch (Exception e) {
+                    e.printStackTrace();
                     fail();
                 }
             });

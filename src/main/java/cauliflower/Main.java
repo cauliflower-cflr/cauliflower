@@ -12,9 +12,9 @@ public class Main {
 
     public static void main(String[] args) throws IOException, Configuration.HelpException, Configuration.ConfigurationException {
         // Cauliflower.main(args);
-        Configuration conf = Configuration.fromArgs(args);
+        Configuration conf = new Configuration(args);
         AntlrParser ap = new AntlrParser();
-        new ParseFile(ap).read(new File(conf.specFile.get(0)));
+        new ParseFile(ap).read(conf.specFile.toFile());
         CppSemiNaiveBackend.generate("fast", ap.problem, conf, System.out);
     }
 

@@ -5,6 +5,7 @@ import cauliflower.util.Logs;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,10 +27,10 @@ public class Optimiser {
     public final File optimisedSpec;
     public final List<File> trainingSet;
 
-    public Optimiser(String srcSpec, String targetSpec, List<String> trainingSet) {
-        this.inputSpec = new File(srcSpec);
-        this.optimisedSpec = new File(targetSpec);
-        this.trainingSet = trainingSet.stream().map(File::new).collect(Collectors.toList());
+    public Optimiser(Path srcSpec, Path targetSpec, List<Path> trainingSet) {
+        this.inputSpec = srcSpec.toFile();
+        this.optimisedSpec = targetSpec.toFile();
+        this.trainingSet = trainingSet.stream().map(Path::toFile).collect(Collectors.toList());
     }
 
     public void optimise() throws IOException, Configuration.HelpException, Configuration.ConfigurationException, InterruptedException {
@@ -66,7 +67,7 @@ public class Optimiser {
         }
 
         private void compileExe() throws Configuration.HelpException, Configuration.ConfigurationException, IOException, InterruptedException {
-            Configuration curConf = Configuration.fromArgs("-p", "-r", "-t", "--compile", executable.getAbsolutePath(), spec.getAbsolutePath());
+            Configuration curConf = new Configuration("-p", "-r", "-t", "--compile", executable.getAbsolutePath(), spec.getAbsolutePath());
             Compiler comp = new Compiler(executable.getAbsolutePath(), curConf);
             comp.compile();
         }

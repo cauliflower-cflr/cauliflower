@@ -11,7 +11,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * Generator
@@ -29,7 +28,7 @@ public class Generator {
     public final boolean parallel, timers, reports;
 
     public Generator(String name, Configuration conf){
-        this(name, Paths.get(conf.specFile.get(0)), conf.adt, conf.parallel, conf.timers, conf.reports);
+        this(name, conf.specFile, conf.adt, conf.parallel, conf.timers, conf.reports);
     }
 
     public Generator(String n, Path s, Adt a, boolean par, boolean time, boolean rep){
