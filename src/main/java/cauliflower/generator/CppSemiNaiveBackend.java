@@ -126,6 +126,7 @@ public class CppSemiNaiveBackend {
                 curDeltaScope.popMe();
             }
             // write the new relations into their delta/current
+            // TODO in parallel Scope parl = parallelScope(); // in parallel
             relationsGeneratedByGroup.forEach(l ->{
                 List<String> vars = new ArrayList<>();
                 List<String> vols = new ArrayList<>();
@@ -229,7 +230,7 @@ public class CppSemiNaiveBackend {
         public Void visitLabelUse(LabelUse cl) {
             String nm = cl.usedLabel.name + " " + cl.usageIndex + " " + (fromContext == null?"f":"b") + (toContext == null?"f":"b");
             if(fromContext == null && toContext == null){ // no constraint, therefore just iterate through forwards
-                new Scope(nm, "for(const auto& " + varIter(cl) + " : " + relationAccess(cl, delta) + ".forwards)");
+                maybeParallelIteration(nm, cl, "forwards", delta);
                 fromContext = varIter(cl) + "[0]";
                 toContext = varIter(cl) + "[1]";
             } else if(fromContext == null){
@@ -249,6 +250,22 @@ public class CppSemiNaiveBackend {
         @Override
         public Void visitEpsilon(Clause.Epsilon cl) {
             throw new RuntimeException("Epsilon is not supported"); // TODO
+        }
+    }
+
+    private void parallelIteration(){
+
+    }
+
+    private void maybeParallelIteration(String innerName, LabelUse lu, String direction, LabelUse delta){
+        if(inParallelScope()){
+            new Scope(innerName, "for(const auto& " + varIter(lu) + " : " + relationAccess(lu, delta) + "." + direction + ")");
+        } else {
+            line("auto primary_partition = " + relationAccess(lu, delta) + "." + direction + ".partition(" + PARTITION_COUNT + ");");
+            parallelScope();
+            line(parallelFor());
+            new Scope("partitions iteration", "for(auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index)");
+            new Scope(innerName, "for(const auto& " + varIter(lu) + " : *primary_index)");
         }
     }
 

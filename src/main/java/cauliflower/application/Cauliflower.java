@@ -24,6 +24,12 @@ public class Cauliflower {
             } else if (conf.compile) {
                 Compiler comp = new Compiler(conf.outputBase.toString(), conf);
                 comp.compile();
+            } else {
+                Generator gen = new Generator(conf.outputBase.getFileName().toString(), conf);
+                Path b = Paths.get(conf.outputBase.toString() + ".h");
+                Path f = Paths.get(conf.outputBase.toString() + ".cpp");
+                gen.generateBackend(b);
+                gen.generateFrontend(f, b);
             }
         } catch (Configuration.ConfigurationException e) {
             Logs.forClass(Cauliflower.class).error(e.msg);

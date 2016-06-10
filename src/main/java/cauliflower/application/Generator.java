@@ -49,7 +49,7 @@ public class Generator {
 
     public void generateFrontend(Path output, Path backend) throws IOException{
         PrintStream ps2 = new PrintStream(new FileOutputStream(output.toFile()));
-        String relPath = output.getParent().relativize(backend).toString();
+        String relPath = output.getParent().toAbsolutePath().relativize(backend.toAbsolutePath()).toString();
         new CppCSVBackend(name, relPath, OmniParser.get(spec), reports, ps2).generate();
         ps2.close();
     }

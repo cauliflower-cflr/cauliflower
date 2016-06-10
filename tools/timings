@@ -20,7 +20,8 @@ function usage(){
 }
 
 RUNS=3
-while getopts "hr:" opt; do
+THREADS=1
+while getopts "hr:t:" opt; do
     case $opt in
         h)
             usage
@@ -28,6 +29,9 @@ while getopts "hr:" opt; do
             ;;
         r)
             RUNS="$OPTARG"
+            ;;
+        t)
+            THREADS="$OPTARG"
             ;;
         \?)
             usage
@@ -38,11 +42,12 @@ done
 shift $(($OPTIND -1))
 EXEC=$1
 shift 1
+echo "THREADS=$THREADS"
 for CASE in "$@"; do
     echo "$CASE"
     TOTAL=0
     for R in $(seq 1 $RUNS); do
-        THIS=`/usr/bin/time -f "%e" "$EXEC" "$CASE" 2>&1`
+        THIS=`OMP_NUM_THREADS=$THREADS /usr/bin/time -f "%e" "$EXEC" "$CASE" 2>&1`
         echo -n "  $R=$THIS"
         TOTAL=`python -c "print $TOTAL + $THIS"`
     done
