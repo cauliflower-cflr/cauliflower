@@ -126,20 +126,32 @@ public class CppSemiNaiveBackend {
                 curDeltaScope.popMe();
             }
             // write the new relations into their delta/current
-            // TODO in parallel Scope parl = parallelScope(); // in parallel
-            relationsGeneratedByGroup.forEach(l ->{
+            relationsGeneratedByGroup.stream().filter(l -> l.fieldDomainCount == 0).forEach(l -> {
+                line(partitionRel(relationAccess(idxnew(l), new ArrayList<>(), new ArrayList<>()), true, "parts_" + l.name));
+            });
+            Scope parl = parallelScope(); // in parallel
+            relationsGeneratedByGroup.stream().forEach(l ->{
                 List<String> vars = new ArrayList<>();
                 List<String> vols = new ArrayList<>();
-                for(Domain dom : l.fieldDomains){
-                    vars.add("upd_" + vars.size());
-                    vols.add(idxField(dom));
-                    new Scope("update " + l.name + " " + (vars.size()-1), simpleFor(vars.get(vars.size()-1), idxField(dom)));
+                line(parallelFor());
+                if(l.fieldDomainCount == 0){
+                    iteratePartition("parts_" + l.name, l.name + " update", "iter");
+                    line("%s.forwards.insert(%s);", relationAccess(idxRel(l), vars, vols), "iter");
+                    line("%s.forwards.insert(%s);", relationAccess(idxDelta(l), vars, vols), "iter");
+                    line("%s.backwards.insert(%s);", relationAccess(idxRel(l), vars, vols), "iter");
+                    line("%s.backwards.insert(%s);", relationAccess(idxDelta(l), vars, vols), "iter");
+                } else {
+                    for (Domain dom : l.fieldDomains) {
+                        vars.add("upd_" + vars.size());
+                        vols.add(idxField(dom));
+                        new Scope("update " + l.name + " " + (vars.size() - 1), simpleFor(vars.get(vars.size() - 1), idxField(dom)));
+                    }
+                    line("%s.forwards.insertAll(%s.forwards);", relationAccess(idxRel(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                    line("%s.forwards.insertAll(%s.forwards);", relationAccess(idxDelta(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                    line("%s.backwards.insertAll(%s.backwards);", relationAccess(idxRel(l), vars, vols), relationAccess(idxnew(l), vars, vols));
+                    line("%s.backwards.insertAll(%s.backwards);", relationAccess(idxDelta(l), vars, vols), relationAccess(idxnew(l), vars, vols));
                 }
-                line("%s.forwards.insertAll(%s.forwards);", relationAccess(idxRel(l), vars, vols), relationAccess(idxnew(l), vars, vols));
-                line("%s.forwards.insertAll(%s.forwards);", relationAccess(idxDelta(l), vars, vols), relationAccess(idxnew(l), vars, vols));
-                line("%s.backwards.insertAll(%s.backwards);", relationAccess(idxRel(l), vars, vols), relationAccess(idxnew(l), vars, vols));
-                line("%s.backwards.insertAll(%s.backwards);", relationAccess(idxDelta(l), vars, vols), relationAccess(idxnew(l), vars, vols));
-                curGroup.popInto();
+                parl.popInto();
             });
             curGroup.popMe();
         }
@@ -253,20 +265,20 @@ public class CppSemiNaiveBackend {
         }
     }
 
-    private void parallelIteration(){
-
-    }
-
     private void maybeParallelIteration(String innerName, LabelUse lu, String direction, LabelUse delta){
         if(inParallelScope()){
             new Scope(innerName, "for(const auto& " + varIter(lu) + " : " + relationAccess(lu, delta) + "." + direction + ")");
         } else {
-            line("auto primary_partition = " + relationAccess(lu, delta) + "." + direction + ".partition(" + PARTITION_COUNT + ");");
+            line(partitionRel(relationAccess(lu, delta), direction.equals("forwards"), "primary_index"));
             parallelScope();
             line(parallelFor());
-            new Scope("partitions iteration", "for(auto primary_index = primary_partition.begin(); primary_index<primary_partition.end(); ++primary_index)");
-            new Scope(innerName, "for(const auto& " + varIter(lu) + " : *primary_index)");
+            iteratePartition("primary_index", innerName, varIter(lu));
         }
+    }
+
+    private void iteratePartition(String partition, String scopeName, String iterVar){
+        new Scope(partition + " iteration", "for(auto pidx = " + partition + ".begin(); pidx<" + partition + ".end(); ++pidx)");
+        new Scope(scopeName, "for(const auto& " + iterVar + " : *pidx)");
     }
 
     /**
@@ -322,6 +334,9 @@ public class CppSemiNaiveBackend {
     }
     public static String parallelFor(){
         return "# pragma omp for schedule(dynamic)";
+    }
+    public static String partitionRel(String relAccess, boolean forwards, String partitionName){
+        return String.format("auto %s = %s.%s.partition(%d);", partitionName, relAccess, forwards ? "forwards" : "backwards", PARTITION_COUNT);
     }
     public static String simpleFor(String var, String end){
         return String.format("for(unsigned %s=0; %s<%s; ++%s)", var, var, end, var);
