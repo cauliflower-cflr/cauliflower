@@ -7,6 +7,8 @@ import cauliflower.util.TarjanScc;
 
 import java.io.PrintStream;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +32,7 @@ public class CppSemiNaiveBackend {
     private final Problem p;
     private final PrintStream outputStream;
     private final String name;
+    private final Configuration cfg;
     private final boolean useHints = false;
 
     private Stack<Scope> scopeStack;
@@ -38,11 +41,12 @@ public class CppSemiNaiveBackend {
         this.outputStream = out;
         this.p = prob;
         this.name = problemName;
+        this.cfg = config;
         this.scopeStack = new Stack<>();
     }
 
     private String structName(){
-        return name + "_semi_naive";
+        return toIdent(name + "_semi_naive");
     }
 
     public void generate() throws CFLRException{
@@ -158,8 +162,11 @@ public class CppSemiNaiveBackend {
     }
 
     private void generateDeltaExpansion(LabelUse delta){
-        Rule rule = delta.usedInRule;
         Scope entryScope = scopeStack.peek();
+        if(cfg.timers || cfg.optimise){
+            new TimeScope("exp " + delta.toString(), "");
+        }
+        Rule rule = delta.usedInRule;
         // find label usages with and without fields
         List<LabelUse> usesWithoutFields = new ArrayList<>();
         List<LabelUse> usesWithFields = new ArrayList<>();
@@ -384,28 +391,69 @@ public class CppSemiNaiveBackend {
     private String multiNonEmptyCheck(Collection<LabelUse> lus, LabelUse delta, String join){
         return lus.stream().map(lu -> nonEmptyCheck(lu, delta)).map(s -> "(" + s + ")").collect(Collectors.joining(join));
     }
+    public static String toIdent(String n){
+        String ret = n.chars()
+                .filter(i -> (i >= 'a' && i <= 'z') || (i >= 'A' && i <= 'Z') || (i >= '0' && i <= '9') || i == '_')
+                .mapToObj(i -> "" + (char)i)
+                .collect(Collectors.joining());
+        Matcher m = Pattern.compile("[a-zA-Z]").matcher(ret);
+        if(m.find()){
+            return ret.substring(m.start());
+        } else {
+            return "var_" + ret;
+        }
+    }
+    public static String timeStart(String var){
+        return "time_point " + var + " = now();";
+    }
+    public static String timeReport(String var, String repName){
+        return "time_point tend_" + var + " = now(); std::cerr << \"TIME \" << omp_get_thread_num() << \" " + repName + " \" << duration_in_ms(" + var + ", tend_" + var + ") << std::endl;";
+    }
 
     /**
      * Generates structured scope bits, assists in pretty printing
      */
     private class Scope {
         public final String name;
+        public final String code;
         public Scope(String n, String c){
             this.name = n;
-            line(c + (c.length()>0?" ":"") + "{ // " + name);
+            this.code = c;
+            this.pushCode();
             scopeStack.push(this);
+        }
+        protected void pushCode(){
+            line(code + (code.length()>0?" ":"") + "{ // " + name);
+        }
+        protected void popCode(){
+            line("} // " + name);
         }
         public void popMe(){
             Scope cur = null;
             while(cur != this){
                 cur = scopeStack.pop();
-                line("} // " + cur.name);
+                cur.popCode();
             }
         }
         public void popInto(){
             while(scopeStack.peek() != this){
                 scopeStack.peek().popMe();
             }
+        }
+    }
+    private class TimeScope extends Scope {
+        public TimeScope(String n, String c){
+            super(n, c);
+        }
+        @Override
+        protected void pushCode(){
+            line(timeStart(toIdent("timer_" + name)));
+            super.pushCode();
+        }
+        @Override
+        protected void popCode(){
+            super.popCode();
+            line(timeReport(toIdent("timer_" + name), name));
         }
     }
     private boolean inParallelScope(){

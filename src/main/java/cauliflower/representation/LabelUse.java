@@ -22,6 +22,6 @@ public class LabelUse extends Clause{
     }
 
     public String toString(){
-        return String.format("Lu(%s : %s)", usedLabel, usedField);
+        return String.format("Lu[%d](%s : %s)", usageIndex, usedLabel, usedField);
     }
 }

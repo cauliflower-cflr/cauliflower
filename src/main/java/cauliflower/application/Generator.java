@@ -20,29 +20,19 @@ import java.nio.file.Path;
 public class Generator {
 
     public final String name;
-    public final Path spec;
-    public final Adt adt;
-    public final boolean parallel, timers, reports;
+    public final Configuration cfg;
 
     public Generator(String name, Configuration conf){
-        this(name, conf.specFile, conf.adt, conf.parallel, conf.timers, conf.reports);
-    }
-
-    public Generator(String n, Path s, Adt a, boolean par, boolean time, boolean rep){
-        this.name = n;
-        this.spec = s;
-        this.adt = a;
-        this.parallel = par;
-        this.timers = time;
-        this.reports = rep;
+        this.name = name;
+        this.cfg = conf;
     }
 
     public void generateBackend(Path output) throws IOException{
         PrintStream ps = new PrintStream(new FileOutputStream(output.toFile()));
-        if(parallel){
-            CppSemiNaiveBackend.generate(name, OmniParser.get(spec), null, ps);
+        if(cfg.parallel){
+            CppSemiNaiveBackend.generate(name, OmniParser.get(cfg.specFile), cfg, ps);
         } else {
-            new CppSerialBackend(adt, ps).generate(name, OmniParser.getLegacy(spec).problem);
+            new CppSerialBackend(cfg.adt, ps).generate(name, OmniParser.getLegacy(cfg.specFile).problem);
         }
         ps.close();
     }
@@ -50,7 +40,7 @@ public class Generator {
     public void generateFrontend(Path output, Path backend) throws IOException{
         PrintStream ps2 = new PrintStream(new FileOutputStream(output.toFile()));
         String relPath = output.getParent().toAbsolutePath().relativize(backend.toAbsolutePath()).toString();
-        new CppCSVBackend(name, relPath, OmniParser.get(spec), reports, ps2).generate();
+        new CppCSVBackend(name, relPath, OmniParser.get(cfg.specFile), cfg.reports, ps2).generate();
         ps2.close();
     }
 }
