@@ -141,9 +141,9 @@ public class CppSemiNaiveBackend {
                 if(l.fieldDomainCount == 0){
                     iteratePartition("parts_" + l.name, l.name + " update", "iter");
                     line("%s.forwards.insert(%s);", relationAccess(idxRel(l), vars, vols), "iter");
+                    line("%s.backwards.insert(%s);", relationAccess(idxRel(l), vars, vols), "{iter[1], iter[0]}");
                     line("%s.forwards.insert(%s);", relationAccess(idxDelta(l), vars, vols), "iter");
-                    line("%s.backwards.insert(%s);", relationAccess(idxRel(l), vars, vols), "iter");
-                    line("%s.backwards.insert(%s);", relationAccess(idxDelta(l), vars, vols), "iter");
+                    line("%s.backwards.insert(%s);", relationAccess(idxDelta(l), vars, vols), "{iter[1], iter[0]}");
                 } else {
                     for (Domain dom : l.fieldDomains) {
                         vars.add("upd_" + vars.size());
