@@ -10,11 +10,13 @@ else()
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+set( CMAKE_EXPORT_COMPILE_COMMANDS 1 )
+
 #==
 # INCLUDES
 #==
-include_directories(../../dist/include/)
-include_directories(../../dist/include/cpp-btree-1.0.1/)
+include_directories(../../../dist/include/)
+include_directories(../../../dist/include/cpp-btree-1.0.1/)
 
 #==
 # COMPILER FLAGS
@@ -43,3 +45,9 @@ target_compile_features(main PRIVATE ${needed_features})
 target_compile_features(b PRIVATE ${needed_features})
 target_compile_features(t PRIVATE ${needed_features})
 target_compile_features(multiply_time PRIVATE ${needed_features})
+
+set(FileToCheck "${CMAKE_CURRENT_LIST_DIR}/TEMP.cpp")
+if(EXISTS ${FileToCheck})
+    add_executable(TEMP "${FileToCheck}")
+    target_compile_features(TEMP PRIVATE ${needed_features})
+endif()

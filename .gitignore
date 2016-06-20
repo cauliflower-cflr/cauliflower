@@ -1,5 +1,4 @@
 # Build Directories #
-bin/
 build/
 gen/
 .gradle/
@@ -9,6 +8,4 @@ gen/
 # misc #
 .*.swp
 *.pyc
-spikes/*_EG.cpp
-spikes/*_EG.h
 
