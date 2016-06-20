@@ -59,4 +59,14 @@ public class GeneratorUtils {
         return ret;
     }
 
+    public static List<List<Label>> fixOrder(List<List<Label>> unord){
+        return unord.stream()
+                .map(l -> l.stream()
+                        .sorted((l1, l2)->l1.index - l2.index)
+                        .collect(Collectors.toList()))
+                // it is an error to provide an empty group, so getAsInt is safe to use here
+                .sorted((li1, li2) -> li1.stream().mapToInt(l -> l.index).min().getAsInt() - li2.stream().mapToInt(l -> l.index).min().getAsInt())
+                .collect(Collectors.toList());
+    }
+
 }

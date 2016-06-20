@@ -1,0 +1,29 @@
+#! /usr/bin/env bash
+
+#=========================================================================#
+#                            external_compile                             #
+#                                                                         #
+# Author: Nic H.                                                          #
+# Date: 2016-Jun-20                                                       #
+#                                                                         #
+# Emulates the -c option of cauliflower, this is helpful both to document #
+# how compilation is performed, and to work on the c++ code.              #
+#=========================================================================#
+
+set -e
+set -u
+
+CMDIR="`readlink -f $(dirname "$0")/../src/dist/`"
+
+pushd $1
+trap popd EXIT
+
+for HEAD in *.h; do
+    SOUR="${HEAD%.h}.cpp"
+    if [ -f "$SOUR" ]; then
+        echo $HEAD $SOUR
+        CAULI_FRONT="$SOUR" CAULI_NAME=${HEAD%.h} cmake "$CMDIR"
+        make -j4
+    fi
+done
+

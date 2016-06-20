@@ -109,7 +109,7 @@ public class CppSemiNaiveBackend {
 
     private void generateSemiNaive(){
         Map<Label, Set<Label>> depGraph = GeneratorUtils.getLabelDependencyGraph(p), depGraphInverse = GeneratorUtils.inverse(depGraph);
-        List<List<Label>> order = TarjanScc.getSCC(depGraph);
+        List<List<Label>> order = GeneratorUtils.fixOrder(TarjanScc.getSCC(depGraph));
         for(List<Label> group : order){
             // while there are deltas to expand
             String cond = group.stream()
@@ -124,11 +124,10 @@ public class CppSemiNaiveBackend {
                 Scope curDeltaScope = new Scope("delta " + l.name, "if(!" + idxDelta(l) + ".empty())"); // TODO stop emitting this when theres only one relation in the group
                 line("relation<adt_t> cur_delta(" + idxDelta(l) + ".volume());");
                 line("cur_delta.swap_contents(" + idxDelta(l) + ");");
-                for(LabelUse usage : l.usages) if(usage.usedInRule.ruleHead != usage){
-                    generateDeltaExpansion(usage);
-                }
+                l.usages.stream().filter(usage -> usage.usedInRule.ruleHead != usage).forEach(this::generateDeltaExpansion);
                 curDeltaScope.popMe();
             }
+            if(emitTiming()) new TimeScope("upd " + group.toString(), "");
             // write the new relations into their delta/current
             relationsGeneratedByGroup.stream().filter(l -> l.fieldDomainCount == 0).forEach(l -> {
                 line(partitionRel(relationAccess(idxnew(l), new ArrayList<>(), new ArrayList<>()), true, "parts_" + l.name));
@@ -163,9 +162,7 @@ public class CppSemiNaiveBackend {
 
     private void generateDeltaExpansion(LabelUse delta){
         Scope entryScope = scopeStack.peek();
-        if(cfg.timers || cfg.optimise){
-            new TimeScope("exp " + delta.toString(), "");
-        }
+        if(emitTiming()) new TimeScope("exp " + delta.toString(), "");
         Rule rule = delta.usedInRule;
         // find label usages with and without fields
         List<LabelUse> usesWithoutFields = new ArrayList<>();
@@ -286,6 +283,10 @@ public class CppSemiNaiveBackend {
     private void iteratePartition(String partition, String scopeName, String iterVar){
         new Scope(partition + " iteration", "for(auto pidx = " + partition + ".begin(); pidx<" + partition + ".end(); ++pidx)");
         new Scope(scopeName, "for(const auto& " + iterVar + " : *pidx)");
+    }
+
+    private boolean emitTiming(){
+        return cfg.timers || cfg.optimise;
     }
 
     /**
