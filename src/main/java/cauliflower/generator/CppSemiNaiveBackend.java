@@ -58,8 +58,10 @@ public class CppSemiNaiveBackend {
         generateIdxes();
         generateDefs();
         new Scope("solve", "static void solve(vols_t& volume, rels_t& relations)");
+        if(emitSizes()) generateSizeReport("initial");
         generateInitialisers();
         generateSemiNaive();
+        if(emitSizes()) generateSizeReport("final");
         structScope.popMe();
         line(";"); // inelegant solution to ending a struct def with ;
         namespaceScope.popMe();
@@ -89,6 +91,10 @@ public class CppSemiNaiveBackend {
         line("typedef " + Adt.Souffle.typename + " adt_t;");
         line("typedef std::array<relation<adt_t>, num_lbls> rels_t;");
         line("typedef std::array<size_t, num_domains> vols_t;");
+    }
+
+    private void generateSizeReport(String name){
+        p.labels.stream().forEach(l -> reportSize(name, l));
     }
 
     private void generateInitialisers(){
@@ -285,9 +291,31 @@ public class CppSemiNaiveBackend {
         new Scope(scopeName, "for(const auto& " + iterVar + " : *pidx)");
     }
 
+    private void reportSize(String repName, Label l){
+        Scope curScope = new Scope(l.name + " size", "");
+        ArrayList<String> vars = new ArrayList<>();
+        ArrayList<String> vols = new ArrayList<>();
+        line("size_t total = 0;");
+        line("std::pair<size_t, size_t> prof{0,0};");
+        for (Domain dom : l.fieldDomains) {
+            vars.add("ctr_" + vars.size());
+            vols.add(idxField(dom));
+            new Scope("count " + l.name + " " + (vars.size() - 1), simpleFor(vars.get(vars.size() - 1), idxField(dom)));
+        }
+        line("auto nxt = %s.profile();", relationAccess(idxRel(l), vars, vols));
+        line("prof.first += nxt.first;");
+        line("prof.second += nxt.second;");
+        line("total += %s.size();", relationAccess(idxRel(l), vars, vols));
+        curScope.popInto();
+        line("std::cerr << \"SIZE %s %s \" << total << \" \" << prof.first << \" \" << prof.second << std::endl;", repName, l.name);
+        curScope.popMe();
+    }
+
     private boolean emitTiming(){
         return cfg.timers || cfg.optimise;
     }
+
+    private boolean emitSizes() { return cfg.optimise; }
 
     /**
      * Pretty-printing utilities

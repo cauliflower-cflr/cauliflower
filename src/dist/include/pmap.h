@@ -58,6 +58,10 @@ struct pmap : public adt<pmap, pmap_iterator>{
         return forwards.size();
     }
 
+    std::pair<size_t, size_t> profile() const {
+        return {forwards.getStore().size(), backwards.getStore().size()};
+    }
+
     void clear() {
         forwards.clear();
         backwards.clear();
