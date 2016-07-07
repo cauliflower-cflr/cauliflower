@@ -18,10 +18,10 @@ public class Cauliflower {
     public static void main(String[] args) {
         try {
             Configuration conf = new Configuration(args);
-//            if (conf.optimise) {
-//                Optimiser opt = new Optimiser(conf.specFile, conf.outputBase, conf.sampleDirs);
-//                opt.optimise();
-//            } else
+            if (conf.optimise != null) {
+                Optimiser opt = new Optimiser(conf.specFile, conf.outputBase, conf.sampleDirs);
+                opt.optimise();
+            } else
             if (conf.compile) {
                 Compiler comp = new Compiler(conf.outputBase.toString(), conf);
                 comp.compile();

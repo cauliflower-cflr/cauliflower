@@ -30,7 +30,7 @@ public class Configuration {
     public final Adt adt;
     public final boolean compile;
     public final boolean debugGenerated;
-    public final boolean optimise;
+    public final Path optimise;
     public final boolean parallel;
     public final boolean reports;
     public final boolean timers;
@@ -49,7 +49,7 @@ public class Configuration {
         this.adt = ci._adt;
         this.compile = ci._compile;
         this.debugGenerated = ci._debugGenerated;
-        this.optimise = ci._optimise;
+        this.optimise = ci._optimise == null ? null : Paths.get(ci._optimise);
         this.parallel = ci._parallel;
         this.reports = ci._reports;
         this.timers = ci._timers;
@@ -61,6 +61,8 @@ public class Configuration {
 
         Path fil = sampleDirs.stream().filter(p -> !Files.isDirectory(p)).findAny().orElse(null);
         if (fil != null) throw new ConfigurationException("Sample \"" + fil + "\" is not a directory.");
+        if (optimise != null && sampleDirs.isEmpty()) throw new ConfigurationException("When optimising, you must provide at least one sample directory for training.");
+        if (optimise != null && Files.exists(optimise)) throw new ConfigurationException("Optimisation file \"" + optimise + "\" already exists.");
     }
 
     public static void main(String[] args) throws Exception {
@@ -120,8 +122,8 @@ public class Configuration {
         @Parameter(names = {"-n", "--name"}, description = "Rename the problem (the default name for 'foo.cflr' is 'foo').")
         private String _name = null;
 
-        @Parameter(names = {"-o", "--optimise"}, description = "Generate an optimised specification to this file.")
-        private boolean _optimise = false;
+        @Parameter(names = {"-o", "--optimise"}, description = "Optimise the input specification, writing the optimised spec to this file.")
+        private String _optimise = null;
 
         @Parameter(names = {"-p", "--parallel"}, description = "Generate parallel evaluation code.")
         private boolean _parallel = false;

@@ -312,10 +312,10 @@ public class CppSemiNaiveBackend {
     }
 
     private boolean emitTiming(){
-        return cfg.timers || cfg.optimise;
+        return cfg.timers || cfg.optimise != null;
     }
 
-    private boolean emitSizes() { return cfg.optimise; }
+    private boolean emitSizes() { return cfg.optimise != null; }
 
     /**
      * Pretty-printing utilities

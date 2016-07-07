@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiFunction;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -57,6 +58,18 @@ public class Streamer {
         return (a.isParallel() || b.isParallel())
                 ? StreamSupport.stream(split, true)
                 : StreamSupport.stream(split, false);
+    }
+
+    /**
+     * Specialisation for zipping with a stream element's index
+     * @param a the stream to enumerate
+     * @param user the function taking arg1= elemnts of "a", and arg2=the index
+     * @param <A> the type of the input stream
+     * @param <B> the type of the output stream
+     * @return a stream of elements zipped with their index
+     */
+    public static <A, B> Stream<B> enumerate(Stream<? extends A> a, BiFunction<? super A, ? super Integer, ? extends B> user){
+        return zip(a, IntStream.iterate(0, i->i+1).boxed(), user);
     }
 
 }
