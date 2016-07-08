@@ -12,9 +12,11 @@ import com.beust.jcommander.ParameterException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Configuration
@@ -162,4 +164,58 @@ public class Configuration {
         }
     }
 
+    public static class Builder{
+        private final Path specification;
+        private final List<Path> samples;
+        private final ConfigurationInternal internal;
+        public Builder(Path spec){
+            this.specification = spec;
+            this.samples = new ArrayList<>();
+            ConfigurationInternal tmp = null;
+            try {
+                 tmp = new ConfigurationInternal();
+            } catch (Exception exc) {
+                //unreachable
+            }
+            this.internal = tmp;
+        }
+        public Configuration finalise() throws ConfigurationException {
+            internal._specAndSamples = Stream.concat(Stream.of(specification), samples.stream())
+                    .map(Path::toString)
+                    .collect(Collectors.toList());
+            return new Configuration(internal);
+        }
+        public Builder compiling(){
+            this.internal._compile = true;
+            return this;
+        }
+        public Builder optimising(){
+            this.internal._optimise = true;
+            return this;
+        }
+        public Builder parallelising(){
+            this.internal._parallel = true;
+            return this;
+        }
+        public Builder reporting(){
+            this.internal._reports = true;
+            return this;
+        }
+        public Builder timing(){
+            this.internal._timers = true;
+            return this;
+        }
+        public Builder named(String n){
+            this.internal._name = n;
+            return this;
+        }
+        public Builder output(Path dir){
+            this.internal._output = dir.toString();
+            return this;
+        }
+        public Builder sampleProblem(Path sampl){
+            this.samples.add(sampl);
+            return this;
+        }
+    }
 }

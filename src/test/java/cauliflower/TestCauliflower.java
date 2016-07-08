@@ -59,7 +59,7 @@ public class TestCauliflower {
         File exeFile = new File(scratchpad.toFile(), specFile.getName().substring(0, specFile.getName().lastIndexOf(".")));
         if(! exeFile.exists()){
             try{
-                Cauliflower.main(new String[]{"-p", "--compile", "--name", exeFile.getAbsolutePath(), specFile.getAbsolutePath()});
+                Cauliflower.main(new String[]{"-p", "--compile", "--output-dir", exeFile.getParentFile().getAbsolutePath(), "--name", exeFile.getName(), specFile.getAbsolutePath()});
             } catch(Exception exc){
                 fail();
             }

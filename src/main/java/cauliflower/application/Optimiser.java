@@ -94,12 +94,12 @@ public class Optimiser {
         }
 
         private void compileExe() throws Configuration.HelpException, Configuration.ConfigurationException, IOException, InterruptedException {
-            Configuration curConf = new Configuration(
-                    "-c", "-p", "-r", "-t", "-O",
-                    "-o", executable.getParent().toString(),
-                    "-n", executable.getFileName().toString(),
-                    spec.toString(),
-                    trainingSet.stream().limit(1).map(Path::toString).collect(Collectors.joining()));
+            Configuration curConf = new Configuration.Builder(spec)
+                    .compiling().reporting().timing().optimising().parallelising()
+                    .output(executable.getParent())
+                    .named(executable.getFileName().toString())
+                    .sampleProblem(trainingSet.stream().findAny().get())
+                    .finalise();
             Compiler comp = new Compiler(executable.toAbsolutePath(), curConf);
             comp.compile();
         }
