@@ -97,9 +97,21 @@ public class Pass {
                 .mapToObj(parse::getRule)
                 .map(r -> new Pair<>(r, ruleWeight(r)))
                 .sorted((p1, p2) -> p2.second.compareTo(p1.second))
-                .peek(p -> System.out.println(p.first.toString() + " - " + p.second))
                 .map(p -> p.first)
                 .collect(Collectors.toList());
+        rulePriority.forEach(r ->{
+            System.out.println(r);
+            ProblemAnalysis.getBindings(r).forEach(b -> {
+                System.out.print("  - ");
+                b.boundEndpoints.forEach(e -> {
+                    System.out.print(e.bound.toString() + " s=" + e.bindsSource + " !=" + e.bindsNegation + "  -  ");
+                });
+                System.out.println();
+            });
+            RuleOrderer.enumerateOrders(r).forEach(c ->{
+                System.out.println(" -> " + new Clause.ClauseString().visit(c));
+            });
+        });
     }
 
     private Integer ruleWeight(Rule r){

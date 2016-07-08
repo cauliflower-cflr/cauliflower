@@ -1,6 +1,5 @@
 package cauliflower.optimiser;
 
-import cauliflower.application.Configuration;
 import cauliflower.util.Logs;
 
 import java.io.IOException;
@@ -42,6 +41,8 @@ public class Controller {
             pass.annotateParse();
             optimisationRound++;
         }
+        // TODO copy the best file, not the most recent one
+        // Files.copy(getSpecFileForRound(optimisationRound), optimisedSpec); TODO uncomment me
     }
 
     /*local*/ Stream<Path> trainingSetStream(){

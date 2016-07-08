@@ -147,7 +147,7 @@ public abstract class Clause {
     /**
      * Some utility
      */
-    public class ClauseString implements Visitor<String> {
+    public static class ClauseString implements Visitor<String> {
         @Override
         public String visitCompose(Compose cl) {
             return "(" + visit(cl.left) + "," + visit(cl.right) + ")";
