@@ -15,20 +15,24 @@ import java.nio.file.Paths;
  */
 public class Cauliflower {
 
+    public static final String EXT_OPTIMISE = "cflr";
+    public static final String EXT_EXE = null;
+    public static final String EXT_HEADER = "h";
+    public static final String EXT_SOURCE = "cpp";
+
     public static void main(String[] args) {
         try {
             Configuration conf = new Configuration(args);
-            if (conf.optimise != null) {
-                Optimiser opt = new Optimiser(conf.specFile, conf.outputBase, conf.sampleDirs);
+            if (conf.optimise) {
+                Optimiser opt = new Optimiser(conf.specFile, conf.getOutput(EXT_OPTIMISE), conf.sampleDirs);
                 opt.optimise();
-            } else
-            if (conf.compile) {
-                Compiler comp = new Compiler(conf.outputBase.toString(), conf);
+            } else if (conf.compile) {
+                Compiler comp = new Compiler(conf.getOutput(EXT_EXE), conf);
                 comp.compile();
             } else {
-                Generator gen = new Generator(conf.outputBase.getFileName().toString(), conf);
-                Path b = Paths.get(conf.outputBase.toString() + ".h");
-                Path f = Paths.get(conf.outputBase.toString() + ".cpp");
+                Generator gen = new Generator(conf.problemName, conf);
+                Path b = conf.getOutput(EXT_HEADER);
+                Path f = conf.getOutput(EXT_SOURCE);
                 gen.generateBackend(b);
                 gen.generateFrontend(f, b);
             }

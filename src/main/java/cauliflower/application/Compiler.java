@@ -5,6 +5,7 @@ import cauliflower.util.Logs;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.stream.Collectors;
 
 /**
@@ -21,8 +22,8 @@ public class Compiler {
 
     private final Configuration configuration;
 
-    public Compiler(String execPath, Configuration conf) throws IOException {
-        this.execFile = new File(execPath);
+    public Compiler(Path execPath, Configuration conf) throws IOException {
+        this.execFile = execPath.toFile();
         this.buildDir = new File(execFile.getParentFile(), execFile.getName() + "_build");
         if(execFile.exists()) throw new IOException("Executable " + execFile.getPath() + " already exists.");
         if(buildDir.exists()) throw new IOException("Build directory " + buildDir.getPath() + " already exists.");

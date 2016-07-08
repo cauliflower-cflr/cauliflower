@@ -3,12 +3,12 @@ package cauliflower.application;
 
 import cauliflower.Main;
 import cauliflower.generator.Adt;
+import cauliflower.util.FileSystem;
 import cauliflower.util.Logs;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,21 +25,26 @@ import java.util.stream.Collectors;
 public class Configuration {
 
     public final Path specFile;
-    public final Path outputBase;
+    public final String problemName;
     public final List<Path> sampleDirs;
     public final Adt adt;
     public final boolean compile;
     public final boolean debugGenerated;
-    public final Path optimise;
+    public final boolean optimise;
     public final boolean parallel;
     public final boolean reports;
     public final boolean timers;
 
-    public Configuration(String... args) throws ConfigurationException, HelpException {
-        ConfigurationInternal ci = new ConfigurationInternal(args);
+    private final Path outputDir;
 
-        if (ci._specAndSamples == null || ci._specAndSamples.size() == 0)
+    public Configuration(String... args) throws ConfigurationException, HelpException {
+        this(new ConfigurationInternal(args));
+    }
+
+    private Configuration(ConfigurationInternal ci) throws ConfigurationException {
+        if (ci._specAndSamples == null || ci._specAndSamples.size() == 0) {
             throw new ConfigurationException("No specification provided.");
+        }
 
         this.specFile = Paths.get(ci._specAndSamples.get(0));
         this.sampleDirs = ci._specAndSamples.stream()
@@ -49,20 +54,27 @@ public class Configuration {
         this.adt = ci._adt;
         this.compile = ci._compile;
         this.debugGenerated = ci._debugGenerated;
-        this.optimise = ci._optimise == null ? null : Paths.get(ci._optimise);
+        this.optimise = ci._optimise;
         this.parallel = ci._parallel;
         this.reports = ci._reports;
         this.timers = ci._timers;
-        //determining the output file
-        String baseName = specFile.toString();
-        if(specFile.getFileName().toString().contains(".")) baseName = baseName.substring(0, baseName.lastIndexOf("."));
-        if(ci._name != null) baseName = ci._name;
-        this.outputBase = Paths.get(baseName);
+
+        this.outputDir = Paths.get(ci._output == null ? "." : ci._output);
+        this.problemName = ci._name == null ? FileSystem.stripExtension(specFile) : ci._name;
 
         Path fil = sampleDirs.stream().filter(p -> !Files.isDirectory(p)).findAny().orElse(null);
         if (fil != null) throw new ConfigurationException("Sample \"" + fil + "\" is not a directory.");
-        if (optimise != null && sampleDirs.isEmpty()) throw new ConfigurationException("When optimising, you must provide at least one sample directory for training.");
-        if (optimise != null && Files.exists(optimise)) throw new ConfigurationException("Optimisation file \"" + optimise + "\" already exists.");
+        if (optimise && sampleDirs.isEmpty()) throw new ConfigurationException("When optimising, you must provide at least one sample directory for training.");
+    }
+
+    public Path getOutput(String ext){
+        String n = problemName;
+        if(ext != null) n = n + "." + ext;
+        return Paths.get(outputDir.toString(), n);
+    }
+
+    public Path getOutput(){
+        return getOutput(null);
     }
 
     public static void main(String[] args) throws Exception {
@@ -102,7 +114,7 @@ public class Configuration {
         }
     }
 
-    private class ConfigurationInternal {
+    private static class ConfigurationInternal {
 
         @Parameter(description = "<cflr specification file> {sample directories} ")
         private List<String> _specAndSamples = null;
@@ -119,11 +131,14 @@ public class Configuration {
         @Parameter(names = {"-h", "--help"}, description = "Display this help message.", help = true)
         private boolean _help = false;
 
-        @Parameter(names = {"-n", "--name"}, description = "Rename the problem (the default name for 'foo.cflr' is 'foo').")
+        @Parameter(names = {"-n", "--name"}, description = "Rename the problem (the default name for a problem in file 'foo/bar.cflr' is 'bar').")
         private String _name = null;
 
-        @Parameter(names = {"-o", "--optimise"}, description = "Optimise the input specification, writing the optimised spec to this file.")
-        private String _optimise = null;
+        @Parameter(names = {"-o", "--output-dir"}, description = "Set the output directory (default is \"./\").")
+        private String _output = null;
+
+        @Parameter(names = {"-O", "--optimise"}, description = "Optimise the input specification.")
+        private boolean _optimise = false;
 
         @Parameter(names = {"-p", "--parallel"}, description = "Generate parallel evaluation code.")
         private boolean _parallel = false;

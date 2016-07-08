@@ -74,21 +74,21 @@ public class TestConfiguration {
 
     @Test
     public void testOutputName() throws Configuration.HelpException, Configuration.ConfigurationException {
-        assertEquals(Paths.get("foo"), new Configuration("foo.cflr").outputBase);
-        assertEquals(Paths.get("foo"), new Configuration("foo.").outputBase);
-        assertEquals(Paths.get("foo"), new Configuration("foo").outputBase);
-        assertEquals(Paths.get("x/y/foo"), new Configuration("x/y/foo.cflr").outputBase);
-        assertEquals(Paths.get("x/y/foo"), new Configuration("x/y/foo.").outputBase);
-        assertEquals(Paths.get("x/y/foo"), new Configuration("x/y/foo").outputBase);
+        assertEquals("foo", new Configuration("foo.cflr").problemName);
+        assertEquals("foo", new Configuration("foo.").problemName);
+        assertEquals("foo", new Configuration("foo").problemName);
+        assertEquals("foo", new Configuration("x/y/foo.cflr").problemName);
+        assertEquals("foo", new Configuration("x/y/foo.").problemName);
+        assertEquals("foo", new Configuration("x/y/foo").problemName);
     }
 
     @Test
     public void testRenameOutput() throws Configuration.HelpException, Configuration.ConfigurationException {
-        assertEquals(Paths.get("bar"), new Configuration("-n", "bar", "foo.cflr").outputBase);
-        assertEquals(Paths.get("bar"), new Configuration("--name", "bar", "foo.cflr").outputBase);
-        assertEquals(Paths.get("bar.cflr"), new Configuration("--name", "bar.cflr", "foo.cflr").outputBase);
-        assertEquals(Paths.get("x/y/z/bar"), new Configuration("-n", "x/y/z/bar", "foo.cflr").outputBase);
-        assertEquals(Paths.get("x/y/z/bar.cflr"), new Configuration("-n", "x/y/z/bar.cflr", "foo.cflr").outputBase);
+        assertEquals("bar", new Configuration("-n", "bar", "foo.cflr").problemName);
+        assertEquals("bar", new Configuration("--name", "bar", "foo.cflr").problemName);
+        assertEquals("bar.cflr", new Configuration("--name", "bar.cflr", "foo.cflr").problemName);
+        assertEquals("x/y/z/bar", new Configuration("-n", "x/y/z/bar", "foo.cflr").problemName);
+        assertEquals("x/y/z/bar.cflr", new Configuration("-n", "x/y/z/bar.cflr", "foo.cflr").problemName);
     }
 
 }

@@ -58,4 +58,10 @@ public class FileSystem {
         return Files.lines(p);
     }
 
+    public static String stripExtension(Path file){
+        String ret = file.getFileName().toString();
+        if(ret.contains(".")) ret = ret.substring(0, ret.lastIndexOf("."));
+        return ret;
+    }
+
 }

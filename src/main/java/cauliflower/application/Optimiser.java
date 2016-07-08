@@ -95,16 +95,16 @@ public class Optimiser {
 
         private void compileExe() throws Configuration.HelpException, Configuration.ConfigurationException, IOException, InterruptedException {
             Configuration curConf = new Configuration(
-                    "-c", "-p", "-r", "-t",
-                    "-o", getSpecFileForRound(round+1).toString(),
-                    "-n", executable.toString(),
+                    "-c", "-p", "-r", "-t", "-O",
+                    "-o", executable.getParent().toString(),
+                    "-n", executable.getFileName().toString(),
                     spec.toString(),
                     trainingSet.stream().limit(1).map(Path::toString).collect(Collectors.joining()));
-            Compiler comp = new Compiler(executable.toAbsolutePath().toString(), curConf);
+            Compiler comp = new Compiler(executable.toAbsolutePath(), curConf);
             comp.compile();
         }
 
-        private void generateLogs(){
+        private void generateLogs() throws IOException{
             profiles = Streamer.enumerate(trainingSet.stream(),
                     (tset, idx) -> new Pair<>(tset, getLogFileForRound(round, idx)))
                     .map(p -> {
@@ -116,6 +116,7 @@ public class Optimiser {
                         }
                     })
                     .collect(Collectors.toList());
+            if(profiles.stream().anyMatch(p -> p == null)) throw new IOException("Failed to generate logs.");
         }
 
         private Profile generateLog(Path trainingDir, Path logFile) throws IOException, InterruptedException {
