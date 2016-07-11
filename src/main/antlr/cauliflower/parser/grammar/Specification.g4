@@ -20,7 +20,7 @@ term
     |   '!' term                # negateTerm
     |   '-' term                # reverseTerm
     |   lhs=term '&' rhs=term   # intersectTerm
-    |   lbl                     # labelTerm
+    |   lbl (priority)?         # labelTerm
     |   '~'                     # epsilonTerm
     ;
 
@@ -36,5 +36,10 @@ fld
     :'[' ID ']'                 # field
     ;
 
+priority
+    :'{' INT '}'                # prior
+    ;
+
 ID  :   [a-zA-Z_][a-zA-Z0-9_]* ; // identifiers
+INT :   '-'?[0-9][0-9]* ;
 WS  :   [ \t\n\r]+ -> skip ; // toss out whitespace

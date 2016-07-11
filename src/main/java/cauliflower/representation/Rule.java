@@ -59,7 +59,7 @@ public class Rule {
             return ret;
         }
 
-        public LabelUse useLabel(String name, List<String> fns) throws CFLRException {
+        public LabelUse useLabel(String name, int priority, List<String> fns) throws CFLRException {
             Label base = p.labels.get(name);
             if(base.fieldDomainCount != fns.size()){
                 throw new CFLRException(String.format("Cannot use Label %s, declared with %d fields, used with %d", name, base.fieldDomainCount, fns.size()));
@@ -73,7 +73,7 @@ public class Rule {
             }
             List<DomainProjection> lblProjs = new ArrayList<>();
             for(String fieldProj : fns) lblProjs.add(projections.get(fieldProj));
-            return new LabelUse(p.labels.get(name), lblProjs);
+            return new LabelUse(p.labels.get(name), priority, lblProjs);
         }
     }
 

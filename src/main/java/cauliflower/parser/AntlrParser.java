@@ -116,6 +116,13 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
         }
     }
 
+    private static class PriorityParse extends SpecificationBaseVisitor<Integer> {
+        @Override
+        public Integer visitPrior(SpecificationParser.PriorContext ctx) {
+            return Integer.parseInt(ctx.INT().getText());
+        }
+    }
+
     private static class ProblemBuilder extends SpecificationBaseVisitor<Void> {
 
         final List<Throwable> errors;
@@ -160,7 +167,7 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
         public Void visitRuleDef(SpecificationParser.RuleDefContext ctx){
             try {
                 Rule.RuleBuilder rb = new Rule.RuleBuilder(parsedProblem);
-                rb.setHead(rb.useLabel(new IdentifierParse().visit(ctx.lbl()), new FieldListParse().visit(ctx.lbl())));
+                rb.setHead(rb.useLabel(new IdentifierParse().visit(ctx.lbl()), 0, new FieldListParse().visit(ctx.lbl()))); // priority for a rule head is meaningless
                 rb.setBody(new ClauseBuilder(rb).visit(ctx.expr()));
                 rb.finish();
             } catch (CFLRException e) {
@@ -209,7 +216,7 @@ public class AntlrParser implements CFLRParser, ANTLRErrorListener {
             @Override
             public Clause visitLabelTerm(SpecificationParser.LabelTermContext ctx){
                 try {
-                    return rb.useLabel(new IdentifierParse().visit(ctx.lbl()), new FieldListParse().visit(ctx.lbl()));
+                    return rb.useLabel(new IdentifierParse().visit(ctx.lbl()), ctx.priority() == null ? 0 : new PriorityParse().visit(ctx.priority()), new FieldListParse().visit(ctx.lbl()));
                 } catch (CFLRException e) {
                     errors.add(e);
                     return null;

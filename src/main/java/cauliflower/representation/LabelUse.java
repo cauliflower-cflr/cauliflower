@@ -9,12 +9,14 @@ public class LabelUse extends Clause{
 
     public final Label usedLabel;
     public final int usageIndex;
+    public final int priority;
     public final List<DomainProjection> usedField;
     public Rule usedInRule;
 
-    /* local */ LabelUse(Label label, List<DomainProjection> fields){
+    /* local */ LabelUse(Label label, int pri, List<DomainProjection> fields){
         super(ClauseType.LABEL);
         this.usedLabel = label;
+        this.priority = pri;
         this.usageIndex = usedLabel.usages.size();
         this.usedField = fields;
         this.usedInRule = null;

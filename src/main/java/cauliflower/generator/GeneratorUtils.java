@@ -2,8 +2,6 @@ package cauliflower.generator;
 
 import cauliflower.application.Info;
 import cauliflower.representation.*;
-import cauliflower.util.Logs;
-import cauliflower.util.TarjanScc;
 
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;

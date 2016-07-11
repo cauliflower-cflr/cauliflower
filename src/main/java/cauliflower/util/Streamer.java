@@ -1,10 +1,8 @@
 package cauliflower.util;
 
-import java.util.Iterator;
-import java.util.Objects;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -70,6 +68,33 @@ public class Streamer {
      */
     public static <A, B> Stream<B> enumerate(Stream<? extends A> a, BiFunction<? super A, ? super Integer, ? extends B> user){
         return zip(a, IntStream.iterate(0, i->i+1).boxed(), user);
+    }
+
+    private static <A> LinkedList<A> permuteInternal(long curPerm, LinkedList<A> base){
+        if(base.size() == 0){
+            return new LinkedList<>();
+        } else {
+            A elem = base.remove((int) (curPerm % base.size()));
+            LinkedList<A> ret = permuteInternal(curPerm / (base.size()+1), base);
+            ret.add(0, elem);
+            return ret;
+        }
+    }
+
+    public static <A> List<A> permute(long permuteIdx, List<A> base){
+        //ArrayList<A> ret = Stream.generate(() -> (A)null).limit(base.size()).collect(Collectors.toCollection(ArrayList::new));
+        //zip(permuteIndices(permuteIdx, base.size(), new ArrayList<>(base.size())).stream(),
+        //        base.stream(), Pair::new)
+        //        .peek(p -> System.out.println(p.first + " - " + p.second))
+        //        .forEach(p -> ret.set(p.first, p.second));
+        return permuteInternal(permuteIdx, new LinkedList<>(base));
+    }
+
+    /**
+     * returns the list of indicies to draw the permuations from a hypothetical list
+     */
+    public static List<Integer> permuteIndices(long permutation, int count){
+        return permuteInternal(permutation, IntStream.range(0, count).boxed().collect(Collectors.toCollection(LinkedList::new)));
     }
 
 }

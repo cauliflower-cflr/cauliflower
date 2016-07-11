@@ -1,9 +1,14 @@
 package cauliflower;
 
 import cauliflower.parser.AntlrParser;
-import cauliflower.util.Logs;
+import cauliflower.representation.Clause;
+import cauliflower.representation.LabelUse;
+import cauliflower.representation.Problem;
 import org.junit.Test;
 
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class TestParser {
@@ -153,6 +158,32 @@ public class TestParser {
             fail();
         } catch (Exception exc) {
             // good
+        }
+    }
+
+    Clause.InOrderVisitor<LabelUse> labelGatherer = new Clause.InOrderVisitor<>(new Clause.VisitorBase<LabelUse>(){
+        @Override
+        public LabelUse visitLabelUse(LabelUse lu){
+            return lu;
+        }
+    });
+
+    @Test
+    public void testPriority(){
+        List<LabelUse> uses = labelGatherer.visitAllNonNull(parse("a<-x.x;a->a{0},a{1},a{-1};").getRule(0).ruleBody);
+        assertEquals(0, uses.get(0).priority);
+        assertEquals(1, uses.get(1).priority);
+        assertEquals(-1, uses.get(2).priority);
+    }
+
+    private Problem parse(String s){
+        try{
+            AntlrParser ap = new AntlrParser();
+            ap.parse(s);
+            return ap.problem;
+        } catch(Exception exc){
+            fail("Failed to parse: " + s + " : " + exc.getMessage());
+            return null;
         }
     }
 

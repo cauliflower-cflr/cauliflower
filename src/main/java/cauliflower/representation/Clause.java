@@ -188,6 +188,12 @@ public abstract class Clause {
             subVisitor = trueVisitor;
         }
 
+        public List<T> visitAllNonNull(Clause cl){
+            visits.clear();
+            this.visit(cl);
+            return visits.stream().filter(t -> t!=null).collect(Collectors.toList());
+        }
+
         @Override
         public Void visitCompose(Compose cl) {
             visit(cl.left);
