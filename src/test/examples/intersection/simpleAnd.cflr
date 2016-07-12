@@ -1,0 +1,5 @@
+a <- x.x;
+b <- x.x;
+simple <- x.x;
+
+simple -> a & b;

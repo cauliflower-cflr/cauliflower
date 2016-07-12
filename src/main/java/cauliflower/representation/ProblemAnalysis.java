@@ -1,8 +1,4 @@
-package cauliflower.optimiser;
-
-import cauliflower.representation.Clause;
-import cauliflower.representation.LabelUse;
-import cauliflower.representation.Rule;
+package cauliflower.representation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +30,18 @@ public class ProblemAnalysis {
      */
     public static class Bound {
         public final List<Binding> boundEndpoints = new ArrayList<>();
+        public Binding getOrNull(LabelUse lu, boolean source){
+            return boundEndpoints.stream().filter(bnd -> bnd.bindsSource == source && bnd.bound == lu).findAny().orElse(null);
+        }
+        public boolean has(LabelUse lu, boolean source){
+            return getOrNull(lu, source) != null;
+        }
     }
 
     /**
      * determine the variable bindings for a given rule
      * @param r the rule to get the bindings for
-     * @return a list of bindings
+     * @return a list of bindings, such that the output's source is at size()-2 and the output's sink is at size()-1
      */
     public static List<Bound> getBindings(Rule r){
         BindingFinder find = new BindingFinder(null, null, false);
@@ -113,7 +115,26 @@ public class ProblemAnalysis {
 
         @Override
         public List<Bound> visitEpsilon(Clause.Epsilon cl) {
-            throw new RuntimeException("Epsilon is not handled"); // TODO
+            throw new RuntimeException("Epsilon is not handled"); // TODO merge the source and sink sets (somehow?)
         }
+    }
+
+    /**
+     * Sorts the usages so that highest priority comes FIRST, and preserves left-to-right order.
+     * This is bubble sort for the time being because i'm lazy and collections.sort does not say
+     * that it preserves original order amongst ties.
+     */
+    public static List<LabelUse> getEvaluationOrder(List<LabelUse> leftToRightOrder){
+        ArrayList<LabelUse> ret = new ArrayList<>(leftToRightOrder);
+        for(int end=1; end<ret.size(); end++){
+            for(int swp=0; swp<ret.size()-end-1; swp++){
+                if(ret.get(swp).priority < ret.get(swp+1).priority){
+                    LabelUse tmp = ret.get(swp+1);
+                    ret.set(swp+1, ret.get(swp));
+                    ret.set(swp, tmp);
+                }
+            }
+        }
+        return ret;
     }
 }

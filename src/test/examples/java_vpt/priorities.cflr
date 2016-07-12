@@ -1,0 +1,9 @@
+Alloc <- vert . heap;
+Assign <- vert . vert;
+Load[field] <- vert . vert;
+Store[field] <- vert . vert;
+VarPointsTo <- vert . heap;
+VarPointsTo -> Alloc;
+VarPointsTo -> -Assign{1}, VarPointsTo;
+VarPointsTo -> -Load[f]{2}, VarPointsTo{2}, -VarPointsTo{0}, -Store[f]{1}, VarPointsTo{0};
+

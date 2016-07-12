@@ -3,6 +3,8 @@ package cauliflower.generator;
 import cauliflower.application.Configuration;
 import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
+import cauliflower.util.Pair;
+import cauliflower.util.Streamer;
 import cauliflower.util.TarjanScc;
 
 import java.io.PrintStream;
@@ -170,17 +172,16 @@ public class CppSemiNaiveBackend {
         Scope entryScope = scopeStack.peek();
         if(emitTiming()) new TimeScope("exp " + delta.toString(), "");
         Rule rule = delta.usedInRule;
+
         // find label usages with and without fields
-        List<LabelUse> usesWithoutFields = new ArrayList<>();
-        List<LabelUse> usesWithFields = new ArrayList<>();
-        new Clause.InOrderVisitor<>(new Clause.VisitorBase<Void>() {
-            @Override
-            public Void visitLabelUse(LabelUse cl) {
-                if(cl.usedField.size() > 0) usesWithFields.add(cl);
-                else if(cl != delta) usesWithoutFields.add(cl); // only check the delta usages when they HAVE fields
-                return null;
-            }
-        }).visit(rule.ruleBody);
+        List<LabelUse> usesLeftToRight = Clause.getUsedLabelsInOrder(rule.ruleBody);
+        List<LabelUse> usesWithoutFields = usesLeftToRight.stream()
+                .filter(l -> l.usedField.size() == 0 && l != delta) // we already know the delta is non-zero
+                .collect(Collectors.toList());
+        List<LabelUse> usesWithFields = usesLeftToRight.stream()
+                .filter(l -> l.usedField.size() > 0)
+                .collect(Collectors.toList());
+
         // only perform delta expansion when all relations have non-empty values
         // TODO this breaks in the face of negation
         if(usesWithoutFields.size() != 0) new Scope("without fields", "if(" + multiNonEmptyCheck(usesWithoutFields, delta, "&&") + ")");
@@ -190,89 +191,53 @@ public class CppSemiNaiveBackend {
             rule.allFieldReferences.stream().forEach(dp ->
                     new Scope("field projection " + dp.name, simpleFor(varProject(dp), idxField(dp.referencedField))));
         }
-
         if(usesWithFields.size() != 0) new Scope("with fields", "if(" + multiNonEmptyCheck(usesWithFields, delta, "&&") + ")");
-        //expand the rule body
-        DeltaExpansionVisitor completion = new DeltaExpansionVisitor(delta, null, null);
-        completion.visit(rule.ruleBody);
-        line(declarePair("result", completion.fromContext, completion.toContext));
+
+        //determine the evaluation strategy
+        List<ProblemAnalysis.Bound> binds = ProblemAnalysis.getBindings(rule);
+        List<Pair<ProblemAnalysis.Bound, String>> boundNames = Streamer.zip(binds.stream(), binds.stream().map(b -> (String)null), Pair::new).collect(Collectors.toList());
+        List<LabelUse> evaluationOrder = ProblemAnalysis.getEvaluationOrder(usesLeftToRight);
+        // for each relation in the evaluation order
+        for(LabelUse usage : evaluationOrder){
+            String fromContext = boundNames.stream().filter(b -> b.first.has(usage, true)).findAny().get().second;
+            String toContext = boundNames.stream().filter(b -> b.first.has(usage, false)).findAny().get().second;
+            String nm = usage.usedLabel.name + " " + usage.usageIndex + " " + (fromContext == null?"f":"b") + (toContext == null?"f":"b");
+            // TODO to handle epsilon
+            // a positive epsilon rule forces the path to be a cycle, or prevents binding where the fromcontext does not
+            // equal the tocontext, if the path is long enough, the from- and to- contexts will be different, and we can
+            // simply bind the start and source nodes with the same variable, but if the path is UNIT LENGTH, then we must
+            // have a check to ensure that the iterated relation is a self-loop
+            // a -> b,~ => a->b
+            // a -> (b,c)&~ => for all b if (b.snk, b.src) in c
+            // a -> b&~ => for all b if (b.src == b.snk)
+            if(fromContext == null && toContext == null){ // no constraint, therefore just iterate through forwards
+                maybeParallelIteration(nm, usage, "forwards", delta);
+                fromContext = varIter(usage) + "[0]";
+                toContext = varIter(usage) + "[1]";
+            } else if(fromContext == null){
+                line("auto range_%s = %s.backwards.getBoundaries<1>({{%s, 0}});", varIter(usage), relationAccess(usage, delta), toContext);
+                new Scope(nm, "for(const auto& " + varIter(usage) + " : range_" + varIter(usage) + ")");
+                fromContext = varIter(usage) + "[1]";
+            } else if(toContext == null){
+                line("auto range_%s = %s.forwards.getBoundaries<1>({{%s, 0}});", varIter(usage), relationAccess(usage, delta), fromContext);
+                new Scope(nm, "for(const auto& " + varIter(usage) + " : range_" + varIter(usage) + ")");
+                toContext = varIter(usage) + "[1]";
+            } else {
+                new Scope(nm, "if(" + relationAccess(usage, delta) + ".forwards.contains(" + initPair(fromContext, toContext) + "))");
+            }
+            for(Pair<ProblemAnalysis.Bound, String> bnd : boundNames){
+                if(bnd.first.has(usage, true)) bnd.second = fromContext;
+                if(bnd.first.has(usage, false)) bnd.second = toContext;
+            }
+        }
+        // finally, output the correct relations
+        String fromContext = boundNames.get(boundNames.size()-2).second;
+        String toContext = boundNames.get(boundNames.size()-1).second;
+        line(declarePair("result", fromContext, toContext));
         new Scope("check add", "if(!" + relationAccess(rule.ruleHead, delta) + ".forwards.contains(result))");
         line("%s.forwards.insert(result);", relationNewAccess(rule.ruleHead));
-        line("%s.backwards.insert(%s);", relationNewAccess(rule.ruleHead), initPair(completion.toContext, completion.fromContext));
+        line("%s.backwards.insert(%s);", relationNewAccess(rule.ruleHead), initPair(toContext, fromContext));
         entryScope.popInto();
-    }
-
-    /**
-     * A visitor to create expanded label code
-     * The context for expansion is entered where the relation can know its start/end/both/neither
-     */
-    private class DeltaExpansionVisitor implements Clause.Visitor<Void> {
-        public final LabelUse delta;
-        public final Rule rule;
-        public String fromContext;
-        public String toContext;
-        public DeltaExpansionVisitor(LabelUse de, String from, String to){
-            this.delta = de;
-            this.rule = de.usedInRule;
-            this.fromContext = from;
-            this.toContext = to;
-        }
-
-        @Override
-        public Void visitCompose(Clause.Compose cl) {
-            DeltaExpansionVisitor left = new DeltaExpansionVisitor(delta, fromContext, null);
-            left.visit(cl.left);
-            DeltaExpansionVisitor right = new DeltaExpansionVisitor(delta, left.toContext, toContext);
-            right.visit(cl.right);
-            fromContext = left.fromContext;
-            toContext = right.toContext;
-            return null;
-        }
-
-        @Override
-        public Void visitIntersect(Clause.Intersect cl) {
-            throw new RuntimeException("Intersection is not supported"); // TODO
-        }
-
-        @Override
-        public Void visitReverse(Clause.Reverse cl) {
-            DeltaExpansionVisitor sub = new DeltaExpansionVisitor(delta, toContext, fromContext);
-            sub.visit(cl.sub);
-            fromContext = sub.toContext;
-            toContext = sub.fromContext;
-            return null;
-        }
-
-        @Override
-        public Void visitNegate(Clause.Negate cl) {
-            throw new RuntimeException("Negation is not supported"); // TODO
-        }
-
-        @Override
-        public Void visitLabelUse(LabelUse cl) {
-            String nm = cl.usedLabel.name + " " + cl.usageIndex + " " + (fromContext == null?"f":"b") + (toContext == null?"f":"b");
-            if(fromContext == null && toContext == null){ // no constraint, therefore just iterate through forwards
-                maybeParallelIteration(nm, cl, "forwards", delta);
-                fromContext = varIter(cl) + "[0]";
-                toContext = varIter(cl) + "[1]";
-            } else if(fromContext == null){
-                line("auto range_%s = %s.backwards.getBoundaries<1>({{%s, 0}});", varIter(cl), relationAccess(cl, delta), toContext);
-                new Scope(nm, "for(const auto& " + varIter(cl) + " : range_" + varIter(cl) + ")");
-                fromContext = varIter(cl) + "[1]";
-            } else if(toContext == null){
-                line("auto range_%s = %s.forwards.getBoundaries<1>({{%s, 0}});", varIter(cl), relationAccess(cl, delta), fromContext);
-                new Scope(nm, "for(const auto& " + varIter(cl) + " : range_" + varIter(cl) + ")");
-                toContext = varIter(cl) + "[1]";
-            } else {
-                new Scope(nm, "if(" + relationAccess(cl, delta) + ".forwards.contains(" + initPair(fromContext, toContext) + "))");
-            }
-            return null;
-        }
-
-        @Override
-        public Void visitEpsilon(Clause.Epsilon cl) {
-            throw new RuntimeException("Epsilon is not supported"); // TODO
-        }
     }
 
     private void maybeParallelIteration(String innerName, LabelUse lu, String direction, LabelUse delta){

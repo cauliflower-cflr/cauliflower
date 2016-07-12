@@ -3,7 +3,6 @@ package cauliflower;
 import cauliflower.parser.AntlrParser;
 import cauliflower.representation.Clause;
 import cauliflower.representation.LabelUse;
-import cauliflower.representation.Problem;
 import org.junit.Test;
 
 import java.util.List;
@@ -170,21 +169,14 @@ public class TestParser {
 
     @Test
     public void testPriority(){
-        List<LabelUse> uses = labelGatherer.visitAllNonNull(parse("a<-x.x;a->a{0},a{1},a{-1};").getRule(0).ruleBody);
+        List<LabelUse> uses = labelGatherer.visitAllNonNull(Utilities.parseOrFail("a<-x.x;a->a,a,a;").getRule(0).ruleBody);
+        assertEquals(0, uses.get(0).priority);
+        assertEquals(0, uses.get(1).priority);
+        assertEquals(0, uses.get(2).priority);
+        uses = labelGatherer.visitAllNonNull(Utilities.parseOrFail("a<-x.x;a->a{0},a{1},a{-1};").getRule(0).ruleBody);
         assertEquals(0, uses.get(0).priority);
         assertEquals(1, uses.get(1).priority);
         assertEquals(-1, uses.get(2).priority);
-    }
-
-    private Problem parse(String s){
-        try{
-            AntlrParser ap = new AntlrParser();
-            ap.parse(s);
-            return ap.problem;
-        } catch(Exception exc){
-            fail("Failed to parse: " + s + " : " + exc.getMessage());
-            return null;
-        }
     }
 
 }

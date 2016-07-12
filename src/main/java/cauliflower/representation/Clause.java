@@ -237,4 +237,13 @@ public abstract class Clause {
         }
     }
 
+    public static List<LabelUse> getUsedLabelsInOrder(Clause c){
+        return new Clause.InOrderVisitor<>(new Clause.VisitorBase<LabelUse>(){
+            @Override
+            public LabelUse visitLabelUse(LabelUse cl) {
+                return cl;
+            }
+        }).visitAllNonNull(c);
+    }
+
 }

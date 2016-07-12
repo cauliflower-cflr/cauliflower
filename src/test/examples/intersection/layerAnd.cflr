@@ -1,0 +1,7 @@
+a <- x.x;
+b <- x.x;
+c <- x.x;
+d <- x.x;
+layer <- x.x;
+
+layer -> (c, a) & (b, d);
