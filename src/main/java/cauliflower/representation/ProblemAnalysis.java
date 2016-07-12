@@ -1,7 +1,12 @@
 package cauliflower.representation;
 
+import cauliflower.util.Pair;
+import cauliflower.util.Streamer;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * ProblemAnalysis
@@ -120,21 +125,17 @@ public class ProblemAnalysis {
     }
 
     /**
-     * Sorts the usages so that highest priority comes FIRST, and preserves left-to-right order.
-     * This is bubble sort for the time being because i'm lazy and collections.sort does not say
-     * that it preserves original order amongst ties.
+     * Returns a list of labeluses ordered according to their evaluation priority
      */
     public static List<LabelUse> getEvaluationOrder(List<LabelUse> leftToRightOrder){
-        ArrayList<LabelUse> ret = new ArrayList<>(leftToRightOrder);
-        for(int end=1; end<ret.size(); end++){
-            for(int swp=0; swp<ret.size()-end-1; swp++){
-                if(ret.get(swp).priority < ret.get(swp+1).priority){
-                    LabelUse tmp = ret.get(swp+1);
-                    ret.set(swp+1, ret.get(swp));
-                    ret.set(swp, tmp);
-                }
-            }
-        }
-        return ret;
+        return getEvaluationOrder(leftToRightOrder, leftToRightOrder.stream().map(lu -> lu.priority).collect(Collectors.toList()));
+    }
+    public static List<LabelUse> getEvaluationOrder(List<LabelUse> leftToRightOrder, List<Integer> priorityOverride){
+        return getEvaluationOrderOverride(Streamer.zip(leftToRightOrder.stream(), priorityOverride.stream(), Pair::new).collect(Collectors.toList()));
+    }
+    private static List<LabelUse> getEvaluationOrderOverride(List<Pair<LabelUse, Integer>> order){
+        List<Pair<LabelUse, Integer>> prio = Streamer.enumerate(order.stream(), (p, i) -> new Pair<>(p.first, p.second*order.size() - i)).collect(Collectors.toList());
+        Collections.sort(prio, (p1,p2) -> p2.second - p1.second); // had to factor this out of the stream for REASONS UNKNOWN TODO
+        return prio.stream().map(p ->p.first).collect(Collectors.toList());
     }
 }

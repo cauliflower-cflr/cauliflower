@@ -1,17 +1,14 @@
 package cauliflower;
 
-import cauliflower.optimiser.RuleOrderer;
-import cauliflower.parser.AntlrParser;
 import cauliflower.representation.Clause;
 import cauliflower.representation.LabelUse;
 import cauliflower.representation.Problem;
-import cauliflower.util.CFLRException;
+import cauliflower.representation.ProblemAnalysis;
 import org.junit.Test;
 
-import java.util.stream.Collectors;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * TestOptimiser
@@ -21,25 +18,16 @@ import static org.junit.Assert.fail;
  */
 public class TestOptimiser {
 
-    private void checkClauseForm(String form, Clause recieved){
-        assertEquals(form, new Utilities.ClauseSimpleString().visit(recieved));
-    }
-
     @Test
-    public void canonicalClausePreservesLabelUse(){
-        Problem p = Utilities.parseOrFail("a<-x.x;a->a;");
-        checkClauseForm("a", new RuleOrderer.CanonicalClauseMaker(false).visit(p.getRule(0).ruleBody));
-    }
-
-    @Test
-    public void canonicalClauseFlipsComposes(){
-        Problem p = Utilities.parseOrFail("a<-x.x;b<-x.x;a->a,b;");
-        checkClauseForm("(a,b)", new RuleOrderer.CanonicalClauseMaker(false).visit(p.getRule(0).ruleBody));
-        p = Utilities.parseOrFail("a<-x.x;b<-x.x;a->-a,b;");
-        checkClauseForm("(-a,b)", new RuleOrderer.CanonicalClauseMaker(false).visit(p.getRule(0).ruleBody));
-        p = Utilities.parseOrFail("a<-x.x;b<-x.x;a->a,-b;");
-        checkClauseForm("(a,-b)", new RuleOrderer.CanonicalClauseMaker(false).visit(p.getRule(0).ruleBody));
-        p = Utilities.parseOrFail("a<-x.x;b<-x.x;a->-(a,b);");
-        checkClauseForm("(-b,-a)", new RuleOrderer.CanonicalClauseMaker(false).visit(p.getRule(0).ruleBody));
+    public void testDefaultPriorityOrderings(){
+        Problem p = Utilities.parseOrFail("a<-x.x;b<-x.x;c<-x.x;d<-x.x;a->a,b,c,d;b->a{1},b{2},c{3},d{4};c->a{0},b{1},c{0},d{1};");
+        int[][] correctOrders = {{0,1,2,3}, {3,2,1,0}, {1,3,0,2}};
+        for(int i=0; i<correctOrders.length; i++){
+            List<LabelUse> givens = Clause.getUsedLabelsInOrder(p.getRule(i).ruleBody);
+            List<LabelUse> pri = ProblemAnalysis.getEvaluationOrder(givens);
+            for(int j=0; j<correctOrders[i].length; j++){
+                assertEquals(givens.get(correctOrders[i][j]), pri.get(j));
+            }
+        }
     }
 }

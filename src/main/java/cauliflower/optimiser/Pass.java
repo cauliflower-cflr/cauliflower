@@ -22,6 +22,8 @@ import java.util.stream.IntStream;
  */
 public class Pass {
 
+    public static final int MAX_PERMUTATIONS=2*3*4*5*6*7*8; // i.e. 8 factorial
+
     private final int round;
     private final Controller parent;
     private final Path spec;
@@ -88,8 +90,10 @@ public class Pass {
     }
 
     /*local*/ void annotateParse() throws IOException {
+        Profile uberProfile = Profile.sumOfProfiles(profiles);
         Problem parse = OmniParser.get(spec);
-        parse.labels.stream().forEach(l -> System.out.println(String.format("%s - %d", l.name, profiles.get(0).getRelationSize(l))));
+        parse.vertexDomains.stream().forEach(d -> System.out.printf("%s, %d\n", d.name, uberProfile.getVertexDomainSize(d)));
+        parse.labels.stream().forEach(l -> System.out.println(String.format("%s - %d [%d  %d]", l.name, uberProfile.getRelationSize(l), uberProfile.getRelationSources(l), uberProfile.getRelationSinks(l))));
         List<Rule> rulePriority = IntStream.range(0, parse.getNumRules())
                 .mapToObj(parse::getRule)
                 .map(r -> new Pair<>(r, ruleWeight(r)))
@@ -98,16 +102,23 @@ public class Pass {
                 .collect(Collectors.toList());
         rulePriority.forEach(r ->{
             System.out.println(r);
-            ProblemAnalysis.getBindings(r).forEach(b -> {
-                System.out.print("  - ");
-                b.boundEndpoints.forEach(e -> {
-                    System.out.print(e.bound.toString() + " s=" + e.bindsSource + " !=" + e.bindsNegation + "  -  ");
-                });
-                System.out.println();
-            });
-            RuleOrderer.enumerateOrders(r).forEach(c ->{
-                System.out.println(" -> " + new Clause.ClauseString().visit(c));
-            });
+            List<ProblemAnalysis.Bound> bindings = ProblemAnalysis.getBindings(r);
+
+            List<LabelUse> bodyUses = Clause.getUsedLabelsInOrder(r.ruleBody);
+            int cur = 1;
+            for(int i=2; i<=bodyUses.size() && cur < MAX_PERMUTATIONS; i++) cur *= i;
+            cur = Math.min(cur, MAX_PERMUTATIONS);
+            IntStream.range(0, cur)
+                    .parallel()
+                    .mapToObj(i -> Streamer.permuteIndices(i, bodyUses.size()))
+                    .map(lst -> new RuleCostEstimation(uberProfile, bodyUses, lst, bindings))
+                    .sequential()
+                    .sorted()
+                    .forEach(System.out::println);
+
+            //RuleOrderer.enumerateOrders(r).forEach(c ->{
+            //    System.out.println(" -> " + new Clause.ClauseString().visit(c));
+            //});
         });
     }
 

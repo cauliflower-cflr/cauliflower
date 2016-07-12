@@ -4,12 +4,16 @@ import cauliflower.representation.Domain;
 import cauliflower.representation.Label;
 import cauliflower.representation.LabelUse;
 import cauliflower.util.FileSystem;
+import cauliflower.util.Pair;
+import cauliflower.util.Streamer;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Profile
@@ -28,7 +32,7 @@ public class Profile {
 
     Map<String, Integer> data = new HashMap<>();
 
-    /*local*/ Profile(Path logPath) throws IOException {
+    public Profile(Path logPath) throws IOException {
         FileSystem.getLineStream(logPath).forEach(l -> {
             if(TIME_UPDATE.matcher(l).matches()){
                 int time = Integer.parseInt(l.substring(l.lastIndexOf(" ") + 1));
@@ -50,6 +54,9 @@ public class Profile {
             }
         });
     }
+
+    // this constructor used to make the aggregate profiles
+    private Profile() {}
 
     public int getDeltaExpansionTime(LabelUse lu){
         String s = "x:" + lu.toString();
@@ -74,5 +81,20 @@ public class Profile {
     public int getVertexDomainSize(Domain d){
         String s = "dv:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
+    }
+
+    public static Profile sumOfProfiles(List<Profile> profs){
+        return weightedAverageOfProfiles(profs, profs.stream().map(p -> 1.0d).collect(Collectors.toList()));
+    }
+
+    public static Profile weightedAverageOfProfiles(List<Profile> profs, List<Double> weights){
+        Profile ret = new Profile();
+        Streamer.zip(profs.stream(), weights.stream(), Pair::new).forEach(p -> {
+            p.first.data.forEach((k, v) -> {
+                if(!ret.data.containsKey(k)) ret.data.put(k, 0);
+                ret.data.put(k, ret.data.get(k) + (int)(v*p.second));
+            });
+        });
+        return ret;
     }
 }

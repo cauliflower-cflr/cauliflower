@@ -10,4 +10,8 @@ public class Pair<T, U> {
         first = f;
         second = s;
     }
+    @Override
+    public String toString(){
+        return String.format("(%s,%s)", first.toString(), second.toString());
+    }
 }
