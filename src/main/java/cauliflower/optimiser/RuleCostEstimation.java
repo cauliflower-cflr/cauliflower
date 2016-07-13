@@ -1,10 +1,12 @@
 package cauliflower.optimiser;
 
+import cauliflower.representation.Label;
 import cauliflower.representation.LabelUse;
 import cauliflower.representation.ProblemAnalysis;
 import cauliflower.util.Pair;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -19,38 +21,77 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
 
     private final Profile profile;
     private final List<LabelUse> evalOrder;
-    private final List<Pair<ProblemAnalysis.Bound, Boolean>> currentBindings;
+    private final List<Pair<ProblemAnalysis.Bound, Binder>> currentBindings;
+    private final Map<LabelUse, Pair<Binder, Binder>> bindingsAtEval;
 
     public RuleCostEstimation(Profile prof, List<LabelUse> leftToRight, List<Integer> priorities, List<ProblemAnalysis.Bound> bindings) {
         this.profile = prof;
         this.evalOrder = ProblemAnalysis.getEvaluationOrder(leftToRight, priorities);
-        this.currentBindings = bindings.stream().map(b -> new Pair<>(b, false)).collect(Collectors.toList());
-        this.timeCost = 1;
-        evalOrder.forEach(lu -> {
-            boolean sourceBound = currentBindings.stream().anyMatch(b -> b.second && b.first.has(lu, true));
-            boolean sinkBound = currentBindings.stream().anyMatch(b -> b.second && b.first.has(lu, false));
-            this.timeCost *= getIterationCount(lu, sourceBound, sinkBound);
-            currentBindings.stream().filter(bind -> bind.first.has(lu, true) || bind.first.has(lu, false)).forEach(bind -> bind.second = true);
-        });
+        currentBindings = bindings.stream().map(b -> new Pair<>(b, (Binder)null)).collect(Collectors.toList());
+        bindingsAtEval = evalOrder.stream()
+                .sequential()
+                .collect(Collectors.toMap(lu -> lu, lu -> {
+                    Binder sourceBound = currentBindings.stream().filter(b -> b.second != null && b.first.has(lu, true)).findAny().map(p -> p.second).orElse(null);
+                    Binder sinkBound = currentBindings.stream().filter(b -> b.second != null && b.first.has(lu, false)).findAny().map(p -> p.second).orElse(null);
+                    if(sourceBound == null) currentBindings.stream().filter(bind -> bind.first.has(lu, true )).forEach(bind -> bind.second = new Binder(lu.usedLabel, true));
+                    if(sinkBound == null)   currentBindings.stream().filter(bind -> bind.first.has(lu, false)).forEach(bind -> bind.second = new Binder(lu.usedLabel, false));
+                    return new Pair<>(sourceBound, sinkBound);
+                }));
+        double iterCount = 1;
+        for(LabelUse lu : evalOrder){
+            timeCost += iterCount*workForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
+            iterCount *= outputsForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
+        }
     }
 
-    private double getIterationCount(LabelUse lu, boolean sourceBound, boolean sinkBound){
-        int logFactor = profile.getRelationSize(lu.usedLabel);
-        double rsize;
-        if(sourceBound){
-            if(sinkBound) {
-                rsize = 1;
-            } else {
-                rsize = logFactor*(profile.getRelationSinks(lu.usedLabel)/(double)profile.getVertexDomainSize(lu.usedLabel.dstDomain));
-            }
-        } else {
-            if(sinkBound) {
-                rsize = logFactor*(profile.getRelationSources(lu.usedLabel)/(double)profile.getVertexDomainSize(lu.usedLabel.srcDomain));
-            } else {
-                rsize = logFactor;
-            }
+    private double outputsForIteration(LabelUse lu, Binder source, Binder sink) {
+        double ret = profile.getRelationSize(lu.usedLabel);
+        if(source != null) ret = ret/(double)(profile.getVertexDomainSize(lu.usedLabel.srcDomain));
+        if(sink != null) ret = ret/(double)(profile.getVertexDomainSize(lu.usedLabel.dstDomain));
+        return ret;
+//        if(source == null && sink == null){
+//            return profile.getRelationSize(lu.usedLabel);
+//        } else if(source == null){
+//            return profile.getVertexDomainSize(lu.usedLabel.srcDomain)/(double)profile.getVertexDomainSize(lu.usedLabel.dstDomain);
+//        } else if(sink == null){
+//            return profile.getVertexDomainSize(lu.usedLabel.dstDomain)/(double)profile.getVertexDomainSize(lu.usedLabel.srcDomain);
+//        } else {
+//            return profile.getRelationSize(lu.usedLabel)/(double)(profile.getVertexDomainSize(lu.usedLabel.srcDomain)*profile.getVertexDomainSize(lu.usedLabel.dstDomain));
+//        }
+    }
+
+    private double workForIteration(LabelUse lu, Binder source, Binder sink) {
+        return Math.log(profile.getRelationSize(lu.usedLabel));
+//        int logFactor =;
+//        double rsize;
+//        if(source != null){
+//            if(sink != null) {
+//                rsize = 1;
+//            } else {
+//                rsize = logFactor*(profile.getRelationSinks(lu.usedLabel)/(double)profile.getVertexDomainSize(lu.usedLabel.dstDomain));
+//            }
+//        } else {
+//            if(sink != null) {
+//                rsize = logFactor*(profile.getRelationSources(lu.usedLabel)/(double)profile.getVertexDomainSize(lu.usedLabel.srcDomain));
+//            } else {
+//                return profile.getRelationSize(lu.usedLabel);
+//            }
+//        }
+//        return rsize*Math.log(logFactor);
+    }
+
+    private static class Binder{
+        final Label lbl;
+        final boolean source;
+        public Binder(Label l, boolean src){
+            lbl = l;
+            source = src;
         }
-        return rsize*Math.log(logFactor);
+
+        @Override
+        public String toString() {
+            return lbl.toString() + "(" + source + ")";
+        }
     }
 
     @Override
@@ -60,6 +101,7 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
 
     @Override
     public String toString(){
-        return timeCost + evalOrder.toString();
+        return timeCost + evalOrder.stream().map(lu -> lu.toString() + bindingsAtEval.get(lu).toString()).collect(Collectors.joining("   "));
     }
 }
+
