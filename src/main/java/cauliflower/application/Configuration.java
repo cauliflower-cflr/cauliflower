@@ -28,6 +28,7 @@ public class Configuration {
 
     public final Path specFile;
     public final String problemName;
+    private final Path outputDir;
     public final List<Path> sampleDirs;
     public final Adt adt;
     public final boolean compile;
@@ -36,8 +37,7 @@ public class Configuration {
     public final boolean parallel;
     public final boolean reports;
     public final boolean timers;
-
-    private final Path outputDir;
+    public final boolean statuses = false;
 
     public Configuration(String... args) throws ConfigurationException, HelpException {
         this(new ConfigurationInternal(args));
@@ -69,14 +69,8 @@ public class Configuration {
         if (optimise && sampleDirs.isEmpty()) throw new ConfigurationException("When optimising, you must provide at least one sample directory for training.");
     }
 
-    public Path getOutput(String ext){
-        String n = problemName;
-        if(ext != null) n = n + "." + ext;
-        return Paths.get(outputDir.toString(), n);
-    }
-
-    public Path getOutput(){
-        return getOutput(null);
+    public Path getOutputDir(){
+        return outputDir;
     }
 
     public static void main(String[] args) throws Exception {

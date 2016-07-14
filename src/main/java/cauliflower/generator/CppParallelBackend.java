@@ -1,13 +1,10 @@
 package cauliflower.generator;
 
-import cauliflower.application.Info;
 import cauliflower.cflr.Problem;
 import cauliflower.cflr.Rule;
 import cauliflower.util.CFLRException;
 
 import java.io.PrintStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;

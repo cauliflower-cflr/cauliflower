@@ -30,4 +30,8 @@ public class Info {
     public static final String buildVersion;
     public static final String buildDate;
     public static final String cauliDistributionDirectory;
+
+    public static final int FAILURE_ARG=2;
+    public static final int FAILURE_EXEC=1;
+    public static final int FAILURE_SPEC=3;
 }

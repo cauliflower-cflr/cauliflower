@@ -1,12 +1,17 @@
 package cauliflower.optimiser;
 
+import cauliflower.application.CauliflowerException;
+import cauliflower.application.Task;
+import cauliflower.representation.Problem;
 import cauliflower.util.Logs;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -15,34 +20,45 @@ import java.util.stream.Stream;
  * Author: nic
  * Date: 8/07/16
  */
-public class Controller {
+public class Controller implements Task<Problem> {
 
-    private final Path inputSpec;
-    private final Path optimisedSpec;
-    private final Path workingDir;
+    private final int maxRounds;
     private final List<Path> trainingSet;
+    private Path workingDir;
 
-    public Controller(Path srcSpec, Path targetSpec, List<Path> trainingSet) throws IOException {
-        this.inputSpec = srcSpec;
-        this.optimisedSpec = targetSpec;
+    public Controller(int maxRounds, List<Path> trainingSet) {
+        this.maxRounds = maxRounds;
         this.trainingSet = trainingSet;
-        workingDir = Files.createTempDirectory("cauli_opt_" + inputSpec.getFileName().toString());
     }
 
-    public void optimise(int maxRounds) throws IOException, InterruptedException {
-        Files.copy(inputSpec, getSpecFileForRound(0));
-        boolean going = true;
+    @Override
+    public Problem perform(Problem inputSpec) throws CauliflowerException {
+        this.workingDir = null;
+        try {
+            this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
+        } catch (IOException e) {
+            except(e);
+        }
         int optimisationRound = 0;
-        while (going && optimisationRound < maxRounds) {
+        Problem curSpec = inputSpec;
+        while (optimisationRound < maxRounds) {
             Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
-            Pass pass = new Pass(this, optimisationRound);
-            pass.compileExe();
-            pass.generateLogs();
-            pass.annotateParse();
+            try {
+                Pass pass = new Pass(this, optimisationRound, Arrays.asList(
+                        new CommonSubexpressionTransformation(),
+                        new RelationFilterTransformation(),
+                        new EvaluationOrderTransformation(true, true)
+                ));
+                Optional<Problem> nextSpec = pass.perform(curSpec);
+                if(nextSpec.isPresent()) curSpec = nextSpec.get();
+                else break;
+            } catch (IOException e) {
+                except(e);
+            }
             optimisationRound++;
         }
-        // TODO copy the best file, not the most recent one
-        // Files.copy(getSpecFileForRound(optimisationRound), optimisedSpec); TODO uncomment me
+        //TODO return the best spec, not the most recent one
+        return curSpec;
     }
 
     /*local*/ Stream<Path> trainingSetStream(){

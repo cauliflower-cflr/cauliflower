@@ -1,8 +1,8 @@
 package cauliflower.application;
 
 import cauliflower.optimiser.Controller;
+import cauliflower.representation.Problem;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -16,16 +16,21 @@ import java.util.List;
  * Author: nic
  * Date: 24/05/16
  */
-public class Optimiser {
+public class Optimiser implements Task<Void>{
 
     private final Controller controller;
 
-    public Optimiser(Path srcSpec, Path targetSpec, List<Path> trainingSet) throws IOException{
-        this.controller = new Controller(srcSpec, targetSpec, trainingSet);
+    public Optimiser(Configuration conf){
+        this(conf.sampleDirs);
     }
 
-    public void optimise() throws IOException, InterruptedException {
-        controller.optimise(1);
+    public Optimiser(List<Path> trainingSet){
+        this.controller = new Controller(1, trainingSet);
+    }
+
+    public Void perform(Problem spec) throws CauliflowerException {
+        controller.perform(spec);
+        return null;
     }
 
 }

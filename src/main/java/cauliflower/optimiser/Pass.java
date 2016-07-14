@@ -1,9 +1,10 @@
 package cauliflower.optimiser;
 
+import cauliflower.application.CauliflowerException;
 import cauliflower.application.Compiler;
-import cauliflower.application.Configuration;
-import cauliflower.parser.OmniParser;
-import cauliflower.representation.*;
+import cauliflower.application.Task;
+import cauliflower.generator.Verbosity;
+import cauliflower.representation.Problem;
 import cauliflower.util.Logs;
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
@@ -11,8 +12,8 @@ import cauliflower.util.Streamer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Pass
@@ -20,42 +21,40 @@ import java.util.stream.IntStream;
  * Author: nic
  * Date: 8/07/16
  */
-public class Pass {
-
-    public static final int MAX_PERMUTATIONS=2*3*4*5*6*7*8; // i.e. 8 factorial
+public class Pass implements Task<Optional<Problem>> {
 
     private final int round;
     private final Controller parent;
-    private final Path spec;
     private final Path executable;
     private List<Profile> profiles;
+    private List<Transform> transformations;
 
-    /*local*/ Pass(Controller context, int roundNumber) throws IOException {
+    /*local*/ Pass(Controller context, int roundNumber, List<Transform> transforms) throws IOException {
         round = roundNumber;
         parent = context;
-        spec = parent.getSpecFileForRound(round);
         executable = parent.getExeFileForRound(round);
         profiles = null;
+        transformations = transforms;
     }
 
-    /*local*/ void compileExe() throws IOException, InterruptedException {
-        Configuration curConf;
-        try {
-            curConf = new Configuration.Builder(spec)
-                    .compiling().reporting().timing().optimising().parallelising()
-                    .output(executable.getParent())
-                    .named(executable.getFileName().toString())
-                    .sampleProblem(parent.trainingSetStream().findAny().get())
-                    .finalise();
-        } catch (Configuration.ConfigurationException e) {
-            //unreachable
-            throw new IOException(e.msg);
+    @Override
+    public Optional<Problem> perform(Problem spec) throws CauliflowerException {
+        compileExe(spec);
+        generateLogs();
+        Profile prof = profileLogs();
+        for(Transform tfm : transformations){
+            Optional<Problem> maybeSpec = tfm.apply(spec, prof);
+            if(maybeSpec.isPresent()) return maybeSpec;
         }
-        Compiler comp = new Compiler(executable.toAbsolutePath(), curConf);
-        comp.compile();
+        return Optional.empty();
     }
 
-    /*local*/ void generateLogs() throws IOException{
+    private void compileExe(Problem spec) throws CauliflowerException{
+        Compiler comp = new Compiler(executable.getFileName().toString(), executable.getParent(), false, new Verbosity(true, true, true, false));
+        comp.perform(spec);
+    }
+
+    private void generateLogs() throws CauliflowerException{
         profiles = Streamer.enumerate(parent.trainingSetStream(),
                 (tset, idx) -> new Pair<>(tset, parent.getLogFileForRound(round, idx)))
                 .map(p -> {
@@ -67,10 +66,10 @@ public class Pass {
                     }
                 })
                 .collect(Collectors.toList());
-        if(profiles.stream().anyMatch(p -> p == null)) throw new IOException("Failed to generate logs.");
+        if(profiles.stream().anyMatch(p -> p == null)) except("Failed to generate logs.");
     }
 
-    /*local*/ Profile generateLog(Path trainingDir, Path logFile) throws IOException, InterruptedException {
+    private Profile generateLog(Path trainingDir, Path logFile) throws IOException, InterruptedException {
         Logs.forClass(Pass.class).debug("Logging {} from {}", logFile, trainingDir);
         ProcessBuilder pb = new ProcessBuilder(executable.toString(), trainingDir.toString())
                 .redirectErrorStream(true).redirectOutput(logFile.toFile());
@@ -89,48 +88,7 @@ public class Pass {
         return new Profile(logFile);
     }
 
-    /*local*/ void annotateParse() throws IOException {
-        Profile uberProfile = Profile.sumOfProfiles(profiles);
-        Problem parse = OmniParser.get(spec);
-        parse.vertexDomains.stream().forEach(d -> System.out.printf("%s, %d\n", d.name, uberProfile.getVertexDomainSize(d)));
-        parse.labels.stream().forEach(l -> System.out.println(String.format("%s - %d [%d  %d]", l.name, uberProfile.getRelationSize(l), uberProfile.getRelationSources(l), uberProfile.getRelationSinks(l))));
-        List<Rule> rulePriority = IntStream.range(0, parse.getNumRules())
-                .mapToObj(parse::getRule)
-                .map(r -> new Pair<>(r, ruleWeight(r)))
-                .sorted((p1, p2) -> p2.second.compareTo(p1.second))
-                .map(p -> p.first)
-                .collect(Collectors.toList());
-        rulePriority.forEach(r ->{
-            System.out.println(r);
-            List<ProblemAnalysis.Bound> bindings = ProblemAnalysis.getBindings(r);
-
-            List<LabelUse> bodyUses = Clause.getUsedLabelsInOrder(r.ruleBody);
-            int cur = 1;
-            for(int i=2; i<=bodyUses.size() && cur < MAX_PERMUTATIONS; i++) cur *= i;
-            cur = Math.min(cur, MAX_PERMUTATIONS);
-            IntStream.range(0, cur)
-                    .parallel()
-                    .mapToObj(i -> Streamer.permuteIndices(i, bodyUses.size()))
-                    .map(lst -> new RuleCostEstimation(uberProfile, bodyUses, lst, bindings))
-                    .sequential()
-                    .sorted()
-                    .forEach(System.out::println);
-
-            //RuleOrderer.enumerateOrders(r).forEach(c ->{
-            //    System.out.println(" -> " + new Clause.ClauseString().visit(c));
-            //});
-        });
+    private Profile profileLogs(){
+        return Profile.sumOfProfiles(profiles);
     }
-
-    private Integer ruleWeight(Rule r){
-        Clause.InOrderVisitor<Integer> iov = new Clause.InOrderVisitor<>(new Clause.VisitorBase<Integer>(){
-            @Override
-            public Integer visitLabelUse(LabelUse lu){
-                return profiles.stream().mapToInt(p -> p.getDeltaExpansionTime(lu)).sum();
-            }
-        });
-        iov.visit(r.ruleBody);
-        return iov.visits.stream().filter(i -> i != null).mapToInt(Integer::intValue).sum();
-    }
-
 }

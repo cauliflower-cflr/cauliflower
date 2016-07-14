@@ -1,6 +1,6 @@
 package cauliflower.generator;
 
-import cauliflower.application.Configuration;
+import cauliflower.application.CauliflowerException;
 import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
 import cauliflower.util.Pair;
@@ -20,31 +20,34 @@ import java.util.stream.Collectors;
  *
  * Created by nic on 25/11/15.
  */
-public class CppSemiNaiveBackend {
+public class CppSemiNaiveBackend extends GeneratorForProblem {
 
     public static final String INDENT = "    ";
     public static final String PARALLEL_SCOPE = "parallel";
     public static final int PARTITION_COUNT = 400; // arbitrary value i borrowed from souffle
 
-    //static constructor
-    public static void generate(String problemName, Problem prob, Configuration config, PrintStream out) throws CFLRException{
-        new CppSemiNaiveBackend(problemName, prob, config, out).generate();
-    }
-
-    private final Problem p;
-    private final PrintStream outputStream;
     private final String name;
-    private final Configuration cfg;
-    private final boolean useHints = false;
+    private final boolean emitTimers;
+    private final boolean emitSizes;
+    // TODO tree traversal hints private final boolean emitHints = false;
 
     private Stack<Scope> scopeStack;
 
-    private CppSemiNaiveBackend(String problemName, Problem prob, Configuration config, PrintStream out){
-        this.outputStream = out;
-        this.p = prob;
+    public CppSemiNaiveBackend(String problemName, PrintStream out, Verbosity verbosity){
+        super(out, verbosity);
         this.name = problemName;
-        this.cfg = config;
+        this.emitTimers = verb.isTimed();
+        this.emitSizes = verb.isSized();
         this.scopeStack = new Stack<>();
+    }
+
+    @Override
+    public void performInternal() throws CauliflowerException{
+        try {
+            generate();
+        } catch (CFLRException e) {
+            except(e);
+        }
     }
 
     private String structName(){
@@ -81,42 +84,42 @@ public class CppSemiNaiveBackend {
     }
 
     private void generateIdxes(){
-        p.labels.stream().forEach(l -> line("static const unsigned " + idxer(l) + " = " + l.index + ";"));
+        prob().labels.stream().forEach(l -> line("static const unsigned " + idxer(l) + " = " + l.index + ";"));
         //field indices precede vertex indices because of some limitation i once programmed into this thing
-        p.fieldDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + d.index + ";"));
-        p.vertexDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + (p.fieldDomains.size() + d.index + ";")));
+        prob().fieldDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + d.index + ";"));
+        prob().vertexDomains.stream().forEach(d -> line("static const unsigned " + idxer(d) + " = " + (prob().fieldDomains.size() + d.index + ";")));
     }
 
     private void generateDefs(){
-        line("static const unsigned num_lbls = " + p.labels.size() + ";");
-        line("static const unsigned num_domains = " + (p.vertexDomains.size() + p.fieldDomains.size()) + ";");
+        line("static const unsigned num_lbls = " + prob().labels.size() + ";");
+        line("static const unsigned num_domains = " + (prob().vertexDomains.size() + prob().fieldDomains.size()) + ";");
         line("typedef " + Adt.Souffle.typename + " adt_t;");
         line("typedef std::array<relation<adt_t>, num_lbls> rels_t;");
         line("typedef std::array<size_t, num_domains> vols_t;");
     }
 
     private void generateSizeReport(String name){
-        p.labels.stream().forEach(l -> reportSize(name, l));
+        prob().labels.stream().forEach(l -> reportSize(name, l));
     }
 
     private void generateInitialisers(){
         // Epsilon initialisation
         line("size_t largest_vertex_domain = 0;");
-        p.vertexDomains.stream().forEach(d -> line("largest_vertex_domain = std::max(largest_vertex_domain, volume[" + idxer(d) + "]);"));
+        prob().vertexDomains.stream().forEach(d -> line("largest_vertex_domain = std::max(largest_vertex_domain, volume[" + idxer(d) + "]);"));
         line("const adt_t epsilon = adt_t::identity(largest_vertex_domain);");
-        for(int ri=0; ri<p.getNumRules(); ri++){
-            Rule r = p.getRule(ri);
+        for(int ri = 0; ri< prob().getNumRules(); ri++){
+            Rule r = prob().getRule(ri);
             if(r.ruleBody instanceof Clause.Epsilon) line("for(auto& a : " + idxRel(r.ruleHead.usedLabel) + ".adts) a.union_copy(epsilon);");
         }
 
         // Delta initialisation
-        line("rels_t deltas{" + p.labels.stream().map(l -> relationDecl(l, "")).collect(Collectors.joining(",")) + "};");
-        p.labels.stream()
+        line("rels_t deltas{" + prob().labels.stream().map(l -> relationDecl(l, "")).collect(Collectors.joining(",")) + "};");
+        prob().labels.stream()
                 .forEach(l -> line("for(unsigned i=0; i<%s.adts.size(); ++i) %s.adts[i].deep_copy(%s.adts[i]);", idxRel(l), idxRel(l), idxDelta(l)));
     }
 
     private void generateSemiNaive(){
-        Map<Label, Set<Label>> depGraph = GeneratorUtils.getLabelDependencyGraph(p), depGraphInverse = GeneratorUtils.inverse(depGraph);
+        Map<Label, Set<Label>> depGraph = GeneratorUtils.getLabelDependencyGraph(prob()), depGraphInverse = GeneratorUtils.inverse(depGraph);
         List<List<Label>> order = GeneratorUtils.fixOrder(TarjanScc.getSCC(depGraph));
         for(List<Label> group : order){
             // while there are deltas to expand
@@ -277,10 +280,10 @@ public class CppSemiNaiveBackend {
     }
 
     private boolean emitTiming(){
-        return cfg.timers || cfg.optimise;
+        return emitTimers;
     }
 
-    private boolean emitSizes() { return cfg.optimise; }
+    private boolean emitSizes() { return emitSizes; }
 
     /**
      * Pretty-printing utilities

@@ -1,70 +1,81 @@
 package cauliflower.application;
 
+import cauliflower.generator.Verbosity;
+import cauliflower.representation.Problem;
 import cauliflower.util.Logs;
+import cauliflower.util.Pair;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
  * Interfaces with the system compiler to compile
  * generated code into executables.
  */
-public class Compiler {
+public class Compiler implements Task<Path>{
 
-    public final File execFile;
-    public final File buildDir;
-    public final File frontEnd;
-    public final File backEnd;
-    public final File logFile;
+    private final String name;
+    private final Path execFile;
+    private final Path buildDir;
+    private final Path logFile;
+    private final boolean debugGenerated;
+    private final Verbosity verb;
 
-    private final Configuration configuration;
-
-    public Compiler(Path execPath, Configuration conf) throws IOException {
-        this.execFile = execPath.toFile();
-        this.buildDir = new File(execFile.getParentFile(), execFile.getName() + "_build");
-        if(execFile.exists()) throw new IOException("Executable " + execFile.getPath() + " already exists.");
-        if(buildDir.exists()) throw new IOException("Build directory " + buildDir.getPath() + " already exists.");
-        if (!buildDir.mkdirs()) throw new IOException("Failed to create a build directory at: " + buildDir.getAbsolutePath());
-        this.logFile = new File(buildDir, "build.log");
-        this.backEnd = new File(buildDir, execFile.getName() + ".h");
-        this.frontEnd = new File(buildDir, execFile.getName() + ".cpp");
-        this.configuration = conf;
+    public Compiler(Configuration conf){
+        this(conf.problemName, conf.getOutputDir(), conf.debugGenerated, new Verbosity(conf));
     }
 
-    public void compile() throws IOException, InterruptedException {
+    public Compiler(String exeName, Path exeDir, boolean debug, Verbosity verbosity) {
+        this.name = exeName;
+        this.execFile = Paths.get(exeDir.toString(), name);
+        this.buildDir = Paths.get(exeDir.toString(), name + "_build");
+        this.logFile = Paths.get(buildDir.toString(), "build.log");
+        this.debugGenerated = debug;
+        this.verb = verbosity;
+    }
+
+
+    @Override
+    public Path perform(Problem spec) throws CauliflowerException {
         // initialising
-        Generator gen = new Generator(execFile.getName(), configuration);
-        gen.generateBackend(backEnd.toPath());
-        gen.generateFrontend(frontEnd.toPath(), backEnd.toPath());
+        Generator gen = new Generator(name, buildDir, true, verb);
+        Pair<Path, Optional<Path>> generatedFiles = gen.perform(spec);
+        Path frontEnd = generatedFiles.second.get(); // this is safe because the generator is forced to generate it above
 
-        // Run the build
-        runProcess(processBuilderInit().command("env"));
-        runProcess(processBuilderInit().command("cmake", Info.cauliDistributionDirectory));
-        runProcess(processBuilderInit().command("make", "VERBOSE=1", "-j4"));
+        try {
+            // Run the build
+            runProcess(frontEnd, "env");
+            runProcess(frontEnd, "cmake", Info.cauliDistributionDirectory);
+            runProcess(frontEnd, "make", "VERBOSE=1", "-j4");
 
-        // copy the executable
-        Files.copy(new File(buildDir, execFile.getName()).toPath(), execFile.toPath());
+            // copy the executable
+            Files.copy(Paths.get(buildDir.toString(), name), execFile);
+            return execFile;
+        } catch(IOException e){
+            except(e);
+        } catch(InterruptedException e) {
+            except(e.getMessage());
+        }
+        return null; // for some reason intelliJ complains without this, even though control cannot reach it...
     }
 
-    private void runProcess(ProcessBuilder proc) throws IOException, InterruptedException {
+    private void runProcess(Path frontEndFile, String... cmd) throws IOException, InterruptedException, CauliflowerException{
+        // build the process
+        ProcessBuilder proc = new ProcessBuilder(cmd)
+                .directory(buildDir.toFile())
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
+        proc.environment().put("CAULI_FRONT", frontEndFile.toAbsolutePath().toString());
+        proc.environment().put("CAULI_NAME", name);
+        if(debugGenerated) proc.environment().put("CAULI_DEBUG", "true");
+
+        // execute the process
         Logs.forClass(Compiler.class).debug("Executing: {}", proc.command().stream().collect(Collectors.joining(" ")));
         Process p = proc.start();
-        if(p.waitFor() != 0){
-            throw new IOException("Process exited with non-zero status: " + proc.command().toString());
-        }
+        if(p.waitFor() != 0) except("Process exited with non-zero status: " + proc.command().toString());
     }
-
-    private ProcessBuilder processBuilderInit(){
-        ProcessBuilder ret = new ProcessBuilder();
-        ret.environment().put("CAULI_FRONT", frontEnd.getAbsolutePath());
-        ret.environment().put("CAULI_NAME", execFile.getName());
-        if(configuration.debugGenerated) ret.environment().put("CAULI_DEBUG", "true");
-        return ret.directory(buildDir)
-                .redirectErrorStream(true)
-                .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
-    }
-
 }

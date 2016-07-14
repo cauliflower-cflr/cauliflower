@@ -1,25 +1,75 @@
 package cauliflower.optimiser;
 
-import cauliflower.representation.Clause;
-import cauliflower.representation.LabelUse;
-import cauliflower.representation.Rule;
+import cauliflower.representation.*;
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
- * RuleOrderer: reorders the highest-level compositions/reversals for a rule
+ * EvaluationOrderTransformation: reorders the highest-level compositions/reversals for a rule
  * <p>
  * Author: nic
  * Date: 8/07/16
  */
-public class RuleOrderer {
+public class EvaluationOrderTransformation implements Transform{
 
-//    public static final int MAX_PERMUTATIONS=2*3*4*5*6*7*8; // i.e. 8 factorial
+    public static final int MAX_PERMUTATIONS=2*3*4*5*6*7*8; // i.e. 8 factorial
+
+    boolean forAllRules;
+    boolean exhaustiveMode;
+
+    public EvaluationOrderTransformation(boolean allRules, boolean exhaustive){
+        this.forAllRules = allRules;
+        this.exhaustiveMode = exhaustive;
+    }
+
+    @Override
+    public Optional<Problem> apply(Problem spec, Profile prof) {
+        spec.vertexDomains.stream().forEach(d -> System.out.printf("%s, %d\n", d.name, prof.getVertexDomainSize(d)));
+        spec.labels.stream().forEach(l -> System.out.println(String.format("%s - %d [%d  %d]", l.name, prof.getRelationSize(l), prof.getRelationSources(l), prof.getRelationSinks(l))));
+        List<Rule> rulePriority = IntStream.range(0, spec.getNumRules())
+                .mapToObj(spec::getRule)
+                .map(r -> new Pair<>(r, ruleWeight(r, prof)))
+                .sorted((p1, p2) -> p2.second.compareTo(p1.second))
+                .map(p -> p.first)
+                .collect(Collectors.toList());
+        rulePriority.forEach(r ->{
+            System.out.println(r);
+            List<ProblemAnalysis.Bound> bindings = ProblemAnalysis.getBindings(r);
+
+            List<LabelUse> bodyUses = Clause.getUsedLabelsInOrder(r.ruleBody);
+            int cur = 1;
+            for(int i=2; i<=bodyUses.size() && cur < MAX_PERMUTATIONS; i++) cur *= i;
+            cur = Math.min(cur, MAX_PERMUTATIONS);
+            IntStream.range(0, cur)
+                    .parallel()
+                    .mapToObj(i -> Streamer.permuteIndices(i, bodyUses.size()))
+                    .map(lst -> new RuleCostEstimation(prof, bodyUses, lst, bindings))
+                    .sequential()
+                    .sorted()
+                    .forEach(System.out::println);
+
+            //EvaluationOrderTransformation.enumerateOrders(r).forEach(c ->{
+            //    System.out.println(" -> " + new Clause.ClauseString().visit(c));
+            //});
+        });
+        return Optional.empty();
+    }
+
+    private Integer ruleWeight(Rule r, Profile prof){
+        Clause.InOrderVisitor<Integer> iov = new Clause.InOrderVisitor<>(new Clause.VisitorBase<Integer>(){
+            @Override
+            public Integer visitLabelUse(LabelUse lu){
+                return prof.getDeltaExpansionTime(lu);
+            }
+        });
+        iov.visit(r.ruleBody);
+        return iov.visits.stream().filter(i -> i != null).mapToInt(Integer::intValue).sum();
+    }
 //
 //    public static Stream<Clause> enumerateOrders(Rule r){
 //        Clause base = new CanonicalClauseMaker(false).visit(r.ruleBody);
