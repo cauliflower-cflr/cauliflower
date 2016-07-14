@@ -160,20 +160,13 @@ public class TestParser {
         }
     }
 
-    Clause.InOrderVisitor<LabelUse> labelGatherer = new Clause.InOrderVisitor<>(new Clause.VisitorBase<LabelUse>(){
-        @Override
-        public LabelUse visitLabelUse(LabelUse lu){
-            return lu;
-        }
-    });
-
     @Test
     public void testPriority(){
-        List<LabelUse> uses = labelGatherer.visitAllNonNull(Utilities.parseOrFail("a<-x.x;a->a,a,a;").getRule(0).ruleBody);
+        List<LabelUse> uses = Clause.getUsedLabelsInOrder(Utilities.parseOrFail("a<-x.x;a->a,a,a;").getRule(0).ruleBody);
         assertEquals(0, uses.get(0).priority);
         assertEquals(0, uses.get(1).priority);
         assertEquals(0, uses.get(2).priority);
-        uses = labelGatherer.visitAllNonNull(Utilities.parseOrFail("a<-x.x;a->a{0},a{1},a{-1};").getRule(0).ruleBody);
+        uses = Clause.getUsedLabelsInOrder(Utilities.parseOrFail("a<-x.x;a->a{0},a{1},a{-1};").getRule(0).ruleBody);
         assertEquals(0, uses.get(0).priority);
         assertEquals(1, uses.get(1).priority);
         assertEquals(-1, uses.get(2).priority);

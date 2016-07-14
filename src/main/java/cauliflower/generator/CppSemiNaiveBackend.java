@@ -119,8 +119,8 @@ public class CppSemiNaiveBackend extends GeneratorForProblem {
     }
 
     private void generateSemiNaive(){
-        Map<Label, Set<Label>> depGraph = GeneratorUtils.getLabelDependencyGraph(prob()), depGraphInverse = GeneratorUtils.inverse(depGraph);
-        List<List<Label>> order = GeneratorUtils.fixOrder(TarjanScc.getSCC(depGraph));
+        Map<Label, Set<Label>> depGraphInverse = ProblemAnalysis.getInverseLabelDependencyGraph(prob());
+        List<List<Label>> order = ProblemAnalysis.getStronglyConnectedLabels(prob());
         for(List<Label> group : order){
             // while there are deltas to expand
             String cond = group.stream()

@@ -45,7 +45,7 @@ public class Controller implements Task<Problem> {
             Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
             try {
                 Pass pass = new Pass(this, optimisationRound, Arrays.asList(
-                        new CommonSubexpressionTransformation(),
+                        new SubexpressionTransformation(),
                         new RelationFilterTransformation(),
                         new EvaluationOrderTransformation(true, true)
                 ));

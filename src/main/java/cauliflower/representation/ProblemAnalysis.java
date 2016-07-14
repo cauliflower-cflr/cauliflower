@@ -2,11 +2,12 @@ package cauliflower.representation;
 
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
+import cauliflower.util.TarjanScc;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * ProblemAnalysis
@@ -15,6 +16,50 @@ import java.util.stream.Collectors;
  * Date: 8/07/16
  */
 public class ProblemAnalysis {
+
+    /**
+     * Get the dependency mapping where A maps to B if "A -> ...B..." is a rule
+     */
+    public static Map<Label, Set<Label>> getLabelDependencyGraph(Problem prob){
+        return toCompletedMap(prob.labels.stream(),
+                IntStream.range(0, prob.getNumRules())
+                        .mapToObj(i -> prob.getRule(i))
+                        .flatMap(r -> Clause.getUsedLabelsInOrder(r.ruleBody).stream().distinct().map(lu -> new Pair<>(r.ruleHead.usedLabel, lu.usedLabel))));
+    }
+
+    /**
+     * Get the inverse dependency mapping where A maps to B if "B -> ...A..." is a rule
+     */
+    public static Map<Label, Set<Label>> getInverseLabelDependencyGraph(Problem prob){
+        return toCompletedMap(prob.labels.stream(),
+                IntStream.range(0, prob.getNumRules())
+                        .mapToObj(i -> prob.getRule(i))
+                        .flatMap(r -> Clause.getUsedLabelsInOrder(r.ruleBody).stream().distinct().map(lu -> new Pair<>(lu.usedLabel, r.ruleHead.usedLabel))));
+    }
+
+    private static Map<Label, Set<Label>> toCompletedMap(Stream<Label> allLabels, Stream<Pair<Label, Label>> pairs){
+        return Stream.concat(
+                allLabels.map(l -> new Pair<Label, Set<Label>>(l, Collections.emptySet())), // DO NOT BELIEVE INTELLIJ, THAT GENERIC NOTATION IS VERY NECESSARY
+                pairs.map(p -> new Pair<>(p.first, Collections.singleton(p.second)))
+                )
+                .collect(Collectors.toMap(
+                        p -> p.first,
+                        p -> p.second,
+                        (a,b) -> Stream.concat(a.stream(), b.stream()).collect(Collectors.toSet()))); // probably very inefficient
+    }
+
+    /**
+     * Get the strongly connected components for this problem ordered by earliest declared label first
+     */
+    public static List<List<Label>> getStronglyConnectedLabels(Problem prob){
+        return TarjanScc.getSCC(getLabelDependencyGraph(prob)).stream()
+                .map(l -> l.stream()
+                        .sorted((l1, l2)->l1.index - l2.index)
+                        .collect(Collectors.toList()))
+                // it is an error to provide an empty group, so getAsInt is safe to use here
+                .sorted((li1, li2) -> li1.stream().mapToInt(l -> l.index).min().getAsInt() - li2.stream().mapToInt(l -> l.index).min().getAsInt())
+                .collect(Collectors.toList());
+    }
 
     /**
      * The label's endpoint for a bound variable
