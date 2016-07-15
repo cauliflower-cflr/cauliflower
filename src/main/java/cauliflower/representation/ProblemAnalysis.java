@@ -51,8 +51,15 @@ public class ProblemAnalysis {
     /**
      * Get the strongly connected components for this problem ordered by earliest declared label first
      */
-    public static List<List<Label>> getStronglyConnectedLabels(Problem prob){
-        return TarjanScc.getSCC(getLabelDependencyGraph(prob)).stream()
+    public static List<List<Label>> getStronglyConnectedLabels(Problem prob) {
+        return getStronglyConnectedLabels(getLabelDependencyGraph(prob));
+    }
+
+    /**
+     * Get the strongly connected components for this label dependency ordered by earliest declared label first
+     */
+    public static List<List<Label>> getStronglyConnectedLabels(Map<Label, Set<Label>> deps) {
+        return TarjanScc.getSCC(deps).stream()
                 .map(l -> l.stream()
                         .sorted((l1, l2)->l1.index - l2.index)
                         .collect(Collectors.toList()))
@@ -167,6 +174,10 @@ public class ProblemAnalysis {
         public List<Bound> visitEpsilon(Clause.Epsilon cl) {
             throw new RuntimeException("Epsilon is not handled"); // TODO merge the source and sink sets (somehow?)
         }
+    }
+
+    public static Stream<Rule> getRuleStream(Problem p){
+        return IntStream.range(0, p.getNumRules()).mapToObj(p::getRule);
     }
 
     /**

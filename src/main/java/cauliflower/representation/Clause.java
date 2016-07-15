@@ -246,4 +246,97 @@ public abstract class Clause {
         }).visitAllNonNull(c);
     }
 
+    /**
+     * Converts the visited clause into a normal-form clause, i.e. reversals as low as possible and left-leaning
+     */
+    public static Clause toNormalForm(Clause in){
+        return new ComposeOrderer(true).visit(new ReverseSinker(false).visit(in));
+    }
+    private static class ComposeOrderer implements Visitor<Clause> {
+
+        final boolean leftDeep;
+
+        private ComposeOrderer(boolean leftDeep) {
+            this.leftDeep = leftDeep;
+        }
+
+        @Override
+        public Clause visitCompose(Compose cl) {
+            Clause lft = new ComposeOrderer(true).visit(cl.left);
+            Clause rgh = new ComposeOrderer(false).visit(cl.right);
+            Clause from = leftDeep ? rgh : lft;
+            Clause onto = leftDeep ? lft : rgh;
+            while(from instanceof Compose){
+                Clause extract = leftDeep ? ((Compose) from).left : ((Compose) from).right;
+                from = leftDeep ? ((Compose) from).right : ((Compose) from).left;
+                onto = leftDeep ? new Compose(onto, extract) : new Compose(extract, onto);
+            }
+            return leftDeep ? new Compose(onto, from) : new Compose(from, onto);
+        }
+
+        @Override
+        public Clause visitIntersect(Intersect cl) {
+            ComposeOrderer forwards = new ComposeOrderer(true);
+            return new Intersect(forwards.visit(cl.left), forwards.visit(cl.right));
+        }
+
+        @Override
+        public Clause visitReverse(Reverse cl) {
+            return new Reverse(new ComposeOrderer(true).visit(cl.sub));
+        }
+
+        @Override
+        public Clause visitNegate(Negate cl) {
+            return new Negate(new ComposeOrderer(true).visit(cl.sub));
+        }
+
+        @Override
+        public Clause visitLabelUse(LabelUse cl) {
+            return cl;
+        }
+
+        @Override
+        public Clause visitEpsilon(Epsilon cl) {
+            return cl;
+        }
+    }
+    private static class ReverseSinker implements Visitor<Clause>{
+
+        final boolean reversed;
+
+        private ReverseSinker(boolean reversing){
+            reversed = reversing;
+        }
+
+        @Override
+        public Clause visitCompose(Compose cl) {
+            return reversed ? new Compose(visit(cl.right), visit(cl.left)) : new Compose(visit(cl.left), visit(cl.right));
+        }
+
+        @Override
+        public Clause visitIntersect(Intersect cl) {
+            return new Intersect(visit(cl.left), visit(cl.right));
+        }
+
+        @Override
+        public Clause visitReverse(Reverse cl) {
+            return new ReverseSinker(!reversed).visit(cl.sub);
+        }
+
+        @Override
+        public Clause visitNegate(Negate cl) {
+            return new Negate(visit(cl.sub));
+        }
+
+        @Override
+        public Clause visitLabelUse(LabelUse cl) {
+            return reversed ? new Reverse(cl) : cl;
+        }
+
+        @Override
+        public Clause visitEpsilon(Epsilon cl) {
+            return cl;
+        }
+    }
+
 }

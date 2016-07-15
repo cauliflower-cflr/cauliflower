@@ -1,16 +1,14 @@
 package cauliflower;
 
-import cauliflower.representation.Label;
-import cauliflower.representation.Problem;
-import cauliflower.representation.ProblemAnalysis;
+import cauliflower.representation.*;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.*;
 
 /**
  * TestRepresentation
@@ -106,6 +104,33 @@ public class TestRepresentation {
         } catch(Exception exc){
             fail(exc.getMessage());
         }
+    }
+
+    @Test
+    public void testNormalFormLeansLeft(){
+        Utilities.ClauseSimpleString css = new Utilities.ClauseSimpleString();
+        Rule r;
+        r = Utilities.parseOrFail("a<-x.x;a->a,a,a;").getRule(0);
+        assertThat(css.visit(r.ruleBody), is(css.visit(Clause.toNormalForm(r.ruleBody))));
+
+        r = Utilities.parseOrFail("a<-x.x;a->a,(a,a);").getRule(0);
+        assertThat(css.visit(Clause.toNormalForm(r.ruleBody)), is("((a,a),a)"));
+
+        r = Utilities.parseOrFail("a<-x.x;a->a,(a,a),a;").getRule(0);
+        assertThat(css.visit(Clause.toNormalForm(r.ruleBody)), is("(((a,a),a),a)"));
+
+        r = Utilities.parseOrFail("a<-x.x;a->a,(a,a,a);").getRule(0);
+        assertThat(css.visit(Clause.toNormalForm(r.ruleBody)), is("(((a,a),a),a)"));
+    }
+
+    @Test
+    public void testNormalFormFlipsReversedChains(){
+        Utilities.ClauseSimpleString css = new Utilities.ClauseSimpleString();
+        Rule r;
+        r = Utilities.parseOrFail("a<-x.x;b<-x.x;a->-(a,b);").getRule(0);
+        assertThat(css.visit(Clause.toNormalForm(r.ruleBody)), is("(-b,-a)"));
+        r = Utilities.parseOrFail("a<-x.x;b<-x.x;c<-x.x;a->-(a,b,c);").getRule(0);
+        assertThat(css.visit(Clause.toNormalForm(r.ruleBody)), is("((-c,-b),-a)"));
     }
 
 }

@@ -9,6 +9,7 @@ import cauliflower.util.Streamer;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,10 @@ public class Profile {
     public int getVertexDomainSize(Domain d){
         String s = "dv:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
+    }
+
+    public static Profile emptyProfile(){
+        return sumOfProfiles(Collections.emptyList());
     }
 
     public static Profile sumOfProfiles(List<Profile> profs){

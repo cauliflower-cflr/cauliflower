@@ -27,14 +27,14 @@ public class Pass implements Task<Optional<Problem>> {
     private final Controller parent;
     private final Path executable;
     private List<Profile> profiles;
-    private List<Transform> transformations;
+    private Transform.Group transformations;
 
     /*local*/ Pass(Controller context, int roundNumber, List<Transform> transforms) throws IOException {
         round = roundNumber;
         parent = context;
         executable = parent.getExeFileForRound(round);
         profiles = null;
-        transformations = transforms;
+        transformations = new Transform.Group(false, transforms);
     }
 
     @Override
@@ -42,11 +42,7 @@ public class Pass implements Task<Optional<Problem>> {
         compileExe(spec);
         generateLogs();
         Profile prof = profileLogs();
-        for(Transform tfm : transformations){
-            Optional<Problem> maybeSpec = tfm.apply(spec, prof);
-            if(maybeSpec.isPresent()) return maybeSpec;
-        }
-        return Optional.empty();
+        return transformations.apply(spec, prof);
     }
 
     private void compileExe(Problem spec) throws CauliflowerException{

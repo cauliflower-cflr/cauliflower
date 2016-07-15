@@ -1,27 +1,265 @@
 package cauliflower.optimiser;
 
 import cauliflower.application.CauliflowerException;
-import cauliflower.representation.Problem;
+import cauliflower.representation.*;
+import cauliflower.util.CFLRException;
+import cauliflower.util.Logs;
+import cauliflower.util.Pair;
+import cauliflower.util.Streamer;
 
-import java.util.Optional;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * SubexpressionTransformation
  * <p>
- *     Performs two kinds of subexpression optimisations:
+ *     Performs three kinds of subexpression optimisations:
  *     <ul>
- *         <li>Chains of relations which are fixed in this cyclic SCC are moved to a previous SCC</li>
- *         <li>Chains of relations which occur multiple times in this SCC are make into their own nonterminal</li>
+ *         <li>Chains which are fixed in this cyclic SCC are calculated in an earlier SCC</li>
+ *         <li>Chains which occur multiple times in this SCC are put into their own nonterminal</li>
+ *         <li>Chains with a high probability of coincidence are moved to their own nonterminal</li>
  *     </ul>
- *     Realistically this optimisation does not need a profile, and should be run immediately after reading the spec
+ *     Realistically the first two optimisations do not need a profile, and should be run immediately after reading the spec
+ *     The last one uses the profile to work out if a subchain has a good chance of coincidence.
+ *
+ *     TODO actually we should use the profile to prioritise which subexpressions to hoist
  *
  * Author: nic
  * Date: 14/07/16
  */
 public class SubexpressionTransformation implements Transform {
 
+    public static final Comparator<ProblemAnalysis.Binding> bindingOrder = (b1, b2) -> {
+        int nc = b1.bound.usedLabel.name.compareTo(b2.bound.usedLabel.name);
+        return nc == 0 ? ((Boolean) b1.bindsSource).compareTo(b2.bindsSource) : nc;
+    };
+    private Map<Label, Set<Label>> deps;
+    private Map<Label, Set<Label>> ideps;
+    private List<List<Label>> groups;
+    private Map<Label, List<Label>> memberships;
+    private List<BoundPair> allBoundPairs;
+
     @Override
     public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
-        return Optional.empty();
+        deps = ProblemAnalysis.getLabelDependencyGraph(spec);
+        ideps = ProblemAnalysis.getInverseLabelDependencyGraph(spec);
+        groups = ProblemAnalysis.getStronglyConnectedLabels(deps);
+        memberships = groups.stream().flatMap(ls -> ls.stream().map(l -> new Pair<Label, List<Label>>(l, ls))).collect(Collectors.toMap(p -> p.first, p->p.second));
+        // we are only interested in pairs that are not negating
+        allBoundPairs = ProblemAnalysis.getRuleStream(spec)
+                .map(ProblemAnalysis::getBindings)
+                .flatMap(List::stream)
+                .filter(b -> b.boundEndpoints.size() == 2) // we are only interested in pairs
+                .filter(b -> b.boundEndpoints.stream().noneMatch(e -> e.bindsNegation)) // that are not negated
+                // TODO Conservatively only one of the labels can be fielded, practically their fields just cant bind each other
+                .map(BoundPair::new)
+                .collect(Collectors.toList());
+        Logs.forClass(this.getClass()).trace("Bound pairs:{}", allBoundPairs);
+        return new Transform.Group(false, // only do at most one optimisation
+                new TerminalChain(), // termi-chains first because they reduce the number of cases in redundant
+                new RedundantChain(), // redundancies second because we don't want to accidentally break some options for terminal-chains
+                new SummarisingChain()) // this occurs last because this optimisation is temperamental, so only do it if there is nothing better
+                .apply(spec, prof);
     }
+
+    private boolean isEffectivelyTerminal(LabelUse lu){
+        return !memberships.get(lu.usedInRule.ruleHead.usedLabel).contains(lu.usedLabel);
+    }
+
+    private boolean ruleIsCyclic(Rule r){
+        return Clause.getUsedLabelsInOrder(r.ruleBody).stream().anyMatch(lu -> memberships.get(r.ruleHead.usedLabel).contains(lu.usedLabel));
+    }
+
+    private class BoundPair{
+        final LabelUse loLabel, hiLabel;
+        final boolean loSource, hiSource;
+        public BoundPair(ProblemAnalysis.Bound bound){
+            this(bound.boundEndpoints.stream().min(bindingOrder).get(), bound.boundEndpoints.stream().max(bindingOrder).get());
+        }
+        public BoundPair(ProblemAnalysis.Binding lower, ProblemAnalysis.Binding higher){
+            loLabel = lower.bound;
+            loSource = lower.bindsSource;
+            hiLabel = higher.bound;
+            hiSource = higher.bindsSource;
+        }
+
+        public boolean involvesDirectly(Clause cl){
+            Boolean ret = new Clause.VisitorBase<Boolean>(){
+                @Override
+                public Boolean visitReverse(Clause.Reverse cl) {
+                    return visit(cl.sub);
+                }
+                @Override
+                public Boolean visitLabelUse(LabelUse cl) {
+                    return cl == loLabel || cl == hiLabel;
+                }
+            }.visit(cl);
+            return (ret == null) ? false : ret;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s(%b)<->%s(%b)", loLabel, loSource, hiLabel, hiSource);
+        }
+
+        public String getNonterminalName() {
+            return String.format("%s%s_%s%s", loLabel.usedLabel.name, loSource?"S":"T", hiLabel.usedLabel.name, hiSource?"S":"T");
+        }
+
+        public String getNonterminalSourceDomain(){
+            return (loSource ? loLabel.usedLabel.dstDomain : loLabel.usedLabel.srcDomain).name;
+        }
+
+        public String getNonterminalSinkDomain(){
+            return (hiSource ? hiLabel.usedLabel.dstDomain : hiLabel.usedLabel.srcDomain).name;
+        }
+
+        public List<String> getNonterminalFieldDomains(){
+            return Stream.concat(loLabel.usedLabel.fieldDomains.stream(), hiLabel.usedLabel.fieldDomains.stream()).map(d -> d.name).collect(Collectors.toList());
+        }
+
+        public Rule toRule(Rule.RuleBuilder r) throws CFLRException{
+            BiFunction<Integer, Stream<?>, List<String>> conv = (offset, strm) -> Streamer.enumerate(strm, (f, i) -> "f" + (i+offset)).collect(Collectors.toList());
+            BiFunction<LabelUse, Boolean, Clause> toClause = (lu, src) -> src ? new Clause.Reverse(lu) : lu;
+            LabelUse head = r.useLabel(getNonterminalName(), 0, conv.apply(0, getNonterminalFieldDomains().stream()));
+            LabelUse lo = r.useLabel(loLabel.usedLabel.name, 0, conv.apply(0, loLabel.usedField.stream()));
+            LabelUse hi = r.useLabel(hiLabel.usedLabel.name, 0, conv.apply(lo.usedField.size(), hiLabel.usedField.stream()));
+            return r.setHead(head)
+                    .setBody(new Clause.Compose(toClause.apply(lo, loSource), toClause.apply(hi, !hiSource)))
+                    .finish();
+        }
+    }
+
+    private Problem rebuildWithNonterminalInsteadOf(Problem spec, BoundPair chain) throws CauliflowerException {
+        /* find all the bound pairs with the same labels
+         * this is only safe to do because of the ORDER of optimisations:
+         *  - if ab appears in many sccs, and a or b are nonterminals in the lowest one,
+         *    they must be terminals in the higher ones, so the terminalChain
+         *    optimisation will automatically optimise the redundant (cyclic) part.
+         *  - if ab is a redundant op, we can guarantee there is not already
+         *    a nonterminal calculating ab, since that would have been caught by
+         *    terminalChain
+         */
+        List<BoundPair> relevantPairs = allBoundPairs.stream().filter(bp ->
+                bp.loSource == chain.loSource
+                        && bp.hiSource == chain.hiSource
+                        && bp.loLabel.usedLabel == chain.loLabel.usedLabel
+                        && bp.hiLabel.usedLabel == chain.hiLabel.usedLabel)
+                .collect(Collectors.toList());
+        Logs.forClass(this.getClass()).trace("Relevant pairs: {}", relevantPairs);
+        try {
+            String name = chain.getNonterminalName();
+            ProblemBuilder bp = new ProblemBuilder().withAllLabels(spec)
+                    .withType(name, chain.getNonterminalSourceDomain(), chain.getNonterminalSinkDomain(), chain.getNonterminalFieldDomains());
+            chain.toRule(bp.buildRule());
+            for(int i=0; i<spec.getNumRules(); i++){
+                Rule r = spec.getRule(i);
+                Rule.RuleBuilder rbuild = bp.buildRule();
+                rbuild.setHead(ProblemBuilder.copyLabelUsage(r.ruleHead, rbuild));
+                List<BoundPair> pairsInRule = relevantPairs.stream().filter(rel -> Clause.getUsedLabelsInOrder(r.ruleBody).contains(rel.loLabel)).collect(Collectors.toList());
+                Clause start = Clause.toNormalForm(r.ruleBody);
+                for(BoundPair pair : pairsInRule) start = removeChain(start, pair, name);
+                rbuild.setBody(adoptClause(start, rbuild, name)).finish();
+            }
+            Logs.forClass(this.getClass()).debug("NO RULES {}", bp.finalise());
+        } catch(CFLRException exc){
+            except(exc);
+        }
+        return spec;
+    }
+
+    private Clause removeChain(Clause base, BoundPair chain, String stubName){
+        /*
+         * in normal form, a chain AB can have the forms:
+         *  - ((_,A),B)   -> (_,X)
+         *  - ((_,-B),-A) -> (_,-X)
+         *  - (A,B)       -> X
+         *  - (-B,-A)     -> -X
+         * All these transformations have the benefit of retaining normal form, so we dont need to
+         * call it repeatedly in this method
+         */
+        return new Clause.Visitor<Clause>(){
+            @Override
+            public Clause visitCompose(Clause.Compose cl) {
+                if(chain.involvesDirectly(cl.right)){
+                    Clause rc = cl.right;
+                    Clause lc = cl.left;
+                    Clause other = null;
+                    if(cl.left instanceof Clause.Compose){
+
+                    }
+                    assert(chain.involvesDirectly(lc));
+                    //Clause fin = (rc instanceof Clause.Reverse) //TODO
+                    return cl;
+                } else return new Clause.Compose(visit(cl.left), visit(cl.right));
+            }
+            @Override
+            public Clause visitIntersect(Clause.Intersect cl) {
+                return new Clause.Intersect(visit(cl.left), visit(cl.right));
+            }
+            @Override
+            public Clause visitReverse(Clause.Reverse cl) {
+                return cl; // don't bother recursion since we aren't involved
+            }
+            @Override
+            public Clause visitNegate(Clause.Negate cl) {
+                return new Clause.Negate(visit(cl.sub)); // i mean this works...but we dont really handle negation
+            }
+            @Override
+            public Clause visitLabelUse(LabelUse cl) {
+                return cl; // we know we are not involved
+            }
+            @Override
+            public Clause visitEpsilon(Clause.Epsilon cl) {
+                return cl; // this is not involved
+            }
+        }.visit(base);
+    }
+
+    private Clause adoptClause(Clause base, Rule.RuleBuilder forRule, String stubName) throws CFLRException {
+        return new ProblemBuilder.ClauseCopier(forRule){
+            @Override
+            public Clause visitLabelUse(LabelUse cl) {
+                if(cl.usedLabel.name.equals(stubName)) return cl;
+                return super.visitLabelUse(cl);
+            }
+        }.copy(base);
+    }
+
+    /**
+     * if a chain is fixed in this SCC, move it to an earlier one
+     */
+    private class TerminalChain implements Transform {
+        @Override
+        public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+            for(BoundPair bp : allBoundPairs) if(isEffectivelyTerminal(bp.loLabel) && isEffectivelyTerminal(bp.hiLabel) && ruleIsCyclic(bp.hiLabel.usedInRule)){
+                Logs.forClass(this.getClass()).trace("Hoisting: {}", bp);
+                return Optional.of(rebuildWithNonterminalInsteadOf(spec, bp));
+            }
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * if a chain appears multiple times in this scc, make a nonterminal for it
+     */
+    private class RedundantChain implements Transform {
+        @Override
+        public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * If a chain has a high degree of redundancy, make a nonterminal for it
+     */
+    private class SummarisingChain implements Transform {
+        @Override
+        public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+            return Optional.empty();
+        }
+    }
+
 }
