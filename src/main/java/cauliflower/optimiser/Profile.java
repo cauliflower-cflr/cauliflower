@@ -63,13 +63,22 @@ public class Profile {
         String s = "x:" + lu.toString();
         return data.containsKey(s) ? data.get(s) : 0;
     }
+    public void setRelationSize(Label l, int s){
+        data.put("st:" + l.name, s);
+    }
     public int getRelationSize(Label l){
         String s = "st:" + l.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
+    public void setRelationSources(Label l, int s){
+        data.put("s:" + l.name, s);
+    }
     public int getRelationSources(Label l){
         String s = "s:" + l.name;
         return data.containsKey(s) ? data.get(s) : 0;
+    }
+    public void setRelationSinks(Label l, int s){
+        data.put("t:" + l.name, s);
     }
     public int getRelationSinks(Label l){
         String s = "t:" + l.name;

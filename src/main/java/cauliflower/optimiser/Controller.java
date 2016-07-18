@@ -44,7 +44,7 @@ public class Controller implements Task<Problem> {
         while (optimisationRound < maxRounds) {
             Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
             try {
-                Pass pass = new Pass(this, optimisationRound, Arrays.asList(
+                Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
                         new SubexpressionTransformation(),
                         new RelationFilterTransformation(),
                         new EvaluationOrderTransformation(true, true)

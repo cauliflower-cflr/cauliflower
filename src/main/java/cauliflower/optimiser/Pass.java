@@ -29,12 +29,12 @@ public class Pass implements Task<Optional<Problem>> {
     private List<Profile> profiles;
     private Transform.Group transformations;
 
-    /*local*/ Pass(Controller context, int roundNumber, List<Transform> transforms) throws IOException {
+    /*local*/ Pass(Controller context, int roundNumber, Transform.Group transforms) throws IOException {
         round = roundNumber;
         parent = context;
         executable = parent.getExeFileForRound(round);
         profiles = null;
-        transformations = new Transform.Group(false, transforms);
+        transformations = transforms;
     }
 
     @Override

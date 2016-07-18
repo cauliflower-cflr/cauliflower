@@ -72,7 +72,7 @@ public class SubexpressionTransformation implements Transform {
         return Clause.getUsedLabelsInOrder(r.ruleBody).stream().anyMatch(lu -> memberships.get(r.ruleHead.usedLabel).contains(lu.usedLabel));
     }
 
-    private class BoundPair{
+    private class BoundPair implements Comparable<BoundPair>{
         final LabelUse loLabel, hiLabel;
         final boolean loSource, hiSource;
         public BoundPair(ProblemAnalysis.Bound bound){
@@ -105,7 +105,7 @@ public class SubexpressionTransformation implements Transform {
         }
 
         public String getNonterminalName() {
-            return String.format("%s%s_%s%s", loLabel.usedLabel.name, loSource?"S":"T", hiLabel.usedLabel.name, hiSource?"S":"T");
+            return subexpressionName(loLabel.usedLabel.name, loSource, hiLabel.usedLabel.name, hiSource);
         }
 
         public String getNonterminalSourceDomain(){
@@ -130,9 +130,28 @@ public class SubexpressionTransformation implements Transform {
                     .setBody(new Clause.Compose(toClause.apply(lo, loSource), toClause.apply(hi, !hiSource)))
                     .finish();
         }
+
+        public double estimateJoinRedundancy(Profile prof){
+            long pre = loSource ? prof.getRelationSinks(loLabel.usedLabel) : prof.getRelationSources(loLabel.usedLabel);
+            long lMid = loSource ? prof.getRelationSources(loLabel.usedLabel) : prof.getRelationSinks(loLabel.usedLabel);
+            long hMid = hiSource ? prof.getRelationSources(hiLabel.usedLabel) : prof.getRelationSinks(hiLabel.usedLabel);
+            long post = hiSource ? prof.getRelationSinks(hiLabel.usedLabel) : prof.getRelationSources(hiLabel.usedLabel);
+            double inner = Math.min(lMid, hMid);
+            double outer = Math.max(pre, post);
+            return outer == 0 ? 0 : inner/outer;
+        }
+
+        @Override
+        public int compareTo(BoundPair other) {
+            int ret = bindingOrder.compare(new ProblemAnalysis.Binding(this.loLabel, this.loSource, false), new ProblemAnalysis.Binding(other.loLabel, other.loSource, false));
+            if (ret == 0) {
+                return bindingOrder.compare(new ProblemAnalysis.Binding(this.hiLabel, this.hiSource, false), new ProblemAnalysis.Binding(other.hiLabel, other.hiSource, false));
+            }
+            return ret;
+        }
     }
 
-    private Problem rebuildWithNonterminalInsteadOf(Problem spec, BoundPair chain) throws CauliflowerException {
+    private Problem rebuildWithNonterminalInsteadOf(Problem spec, BoundPair chain) {
         /* find all the bound pairs with the same labels
          * this is only safe to do because of the ORDER of optimisations:
          *  - if ab appears in many sccs, and a or b are nonterminals in the lowest one,
@@ -160,17 +179,17 @@ public class SubexpressionTransformation implements Transform {
                 rbuild.setHead(ProblemBuilder.copyLabelUsage(r.ruleHead, rbuild));
                 List<BoundPair> pairsInRule = relevantPairs.stream().filter(rel -> Clause.getUsedLabelsInOrder(r.ruleBody).contains(rel.loLabel)).collect(Collectors.toList());
                 Clause start = Clause.toNormalForm(r.ruleBody);
-                for(BoundPair pair : pairsInRule) start = removeChain(start, pair, name);
+                for(BoundPair pair : pairsInRule) start = removeChain(start, pair, name, rbuild);
                 rbuild.setBody(adoptClause(start, rbuild, name)).finish();
             }
-            Logs.forClass(this.getClass()).debug("NO RULES {}", bp.finalise());
+            return bp.finalise();
         } catch(CFLRException exc){
-            except(exc);
+            Logs.forClass(this.getClass()).error("UNREACHABLE - {}", exc);
+            return null; // this should be unreachable, unless the construction of the problem is broken somehow
         }
-        return spec;
     }
 
-    private Clause removeChain(Clause base, BoundPair chain, String stubName){
+    private Clause removeChain(Clause base, BoundPair chain, String stubName, Rule.RuleBuilder forRule){
         /*
          * in normal form, a chain AB can have the forms:
          *  - ((_,A),B)   -> (_,X)
@@ -187,12 +206,25 @@ public class SubexpressionTransformation implements Transform {
                     Clause rc = cl.right;
                     Clause lc = cl.left;
                     Clause other = null;
-                    if(cl.left instanceof Clause.Compose){
-
+                    if(lc instanceof Clause.Compose){
+                        other = ((Clause.Compose) cl.left).left;
+                        lc = ((Clause.Compose) cl.left).right;
                     }
                     assert(chain.involvesDirectly(lc));
                     //Clause fin = (rc instanceof Clause.Reverse) //TODO
-                    return cl;
+                    try {
+                        Clause ret = forRule.useLabel(stubName, Math.max(chain.loLabel.priority, chain.hiLabel.priority), Stream.concat(chain.loLabel.usedField.stream(), chain.hiLabel.usedField.stream()).map(dp -> dp.name).collect(Collectors.toList()));
+                        if(Clause.getUsedLabelsInOrder(lc).get(0) == chain.hiLabel){
+                            ret = new Clause.Reverse(ret);
+                        }
+                        if(other != null){
+                            ret = new Clause.Compose(other, ret);
+                        }
+                        return ret;
+                    } catch (CFLRException e) {
+                        Logs.forClass(this.getClass()).error("Failed to remove chain");
+                        return null; // unreachable
+                    }
                 } else return new Clause.Compose(visit(cl.left), visit(cl.right));
             }
             @Override
@@ -234,6 +266,7 @@ public class SubexpressionTransformation implements Transform {
     private class TerminalChain implements Transform {
         @Override
         public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+            // TODO pick the most useful one, not just any one
             for(BoundPair bp : allBoundPairs) if(isEffectivelyTerminal(bp.loLabel) && isEffectivelyTerminal(bp.hiLabel) && ruleIsCyclic(bp.hiLabel.usedInRule)){
                 Logs.forClass(this.getClass()).trace("Hoisting: {}", bp);
                 return Optional.of(rebuildWithNonterminalInsteadOf(spec, bp));
@@ -248,7 +281,16 @@ public class SubexpressionTransformation implements Transform {
     private class RedundantChain implements Transform {
         @Override
         public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
-            return Optional.empty();
+            return allBoundPairs.stream()
+                    .map(BoundPair::getNonterminalName)
+                    .collect(Collectors.groupingBy(s->s, Collectors.counting()))
+                    .entrySet().stream()
+                    .filter(e -> e.getValue() > 1)
+                    // TODO pick the most useful one, not just any one
+                    .findAny()
+                    .map(s -> allBoundPairs.stream().filter(abp -> abp.getNonterminalName().equals(s.getKey())).findAny())
+                    .orElse(Optional.empty())
+                    .map(bp -> rebuildWithNonterminalInsteadOf(spec, bp));
         }
     }
 
@@ -258,8 +300,17 @@ public class SubexpressionTransformation implements Transform {
     private class SummarisingChain implements Transform {
         @Override
         public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
-            return Optional.empty();
+            return allBoundPairs.stream()
+                    .filter(bp -> Clause.getUsedLabelsInOrder(bp.loLabel.usedInRule.ruleBody).size() > 2)
+                    .map(bp -> new Pair<>(bp, bp.estimateJoinRedundancy(prof)))
+                    .filter(p -> p.second > 1.5) // arbitrary cutoff
+                    .max((p1, p2) -> p2.second.compareTo(p1.second)) // sort descending (i.e. highest redundancy factor first
+                    .map(p -> rebuildWithNonterminalInsteadOf(spec, p.first));
         }
+    }
+
+    public static String subexpressionName(String ln, boolean ls, String hn, boolean hs){
+        return String.format("%s%s_%s%s", ln, ls?"S":"T", hn, hs?"S":"T");
     }
 
 }
