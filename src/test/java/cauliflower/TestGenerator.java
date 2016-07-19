@@ -2,8 +2,10 @@ package cauliflower;
 
 import cauliflower.representation.*;
 import org.junit.Test;
+import org.slf4j.helpers.Util;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertTrue;
 
@@ -22,6 +24,23 @@ public class TestGenerator {
         List<LabelUse> lus = Clause.getUsedLabelsInOrder(r.ruleBody);
         assertTrue(bindings.get(bindings.size()-2).has(lus.get(0), true));
         assertTrue(bindings.get(bindings.size()-1).has(lus.get(2), false));
+    }
+
+    @Test
+    public void testEpsilonChain(){
+        Problem prob = Utilities.parseOrFail("a<-x.x; b<-x.x; c<-x.x; a->b,~,c;");
+        List<ProblemAnalysis.Bound> bindings = ProblemAnalysis.getBindings(prob.getRule(0));
+        bindings.stream().forEach(b -> System.out.println(b.boundEndpoints.stream().map(bn -> bn.bound + " - " + bn.bindsSource).collect(Collectors.joining(" , "))));
+    }
+
+    @Test
+    public void testEpsilonSimpleIntersection(){
+
+    }
+
+    @Test
+    public void testEpsilonMultiIntersection(){
+
     }
 
 }

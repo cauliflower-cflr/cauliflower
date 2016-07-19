@@ -1,8 +1,6 @@
 package cauliflower.optimiser;
 
-import cauliflower.representation.Domain;
-import cauliflower.representation.Label;
-import cauliflower.representation.LabelUse;
+import cauliflower.representation.*;
 import cauliflower.util.FileSystem;
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
@@ -91,6 +89,18 @@ public class Profile {
     public int getVertexDomainSize(Domain d){
         String s = "dv:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
+    }
+
+    /*
+     * Aggregates
+     */
+    public Integer ruleWeight(Rule r){
+        return new Clause.InOrderVisitor<>(new Clause.VisitorBase<Integer>(){
+            @Override
+            public Integer visitLabelUse(LabelUse lu){
+                return getDeltaExpansionTime(lu);
+            }
+        }).visitAllNonNull(r.ruleBody).stream().mapToInt(Integer::intValue).sum();
     }
 
     public static Profile emptyProfile(){

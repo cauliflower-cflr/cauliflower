@@ -202,8 +202,10 @@ public class CppSemiNaiveBackend extends GeneratorForProblem {
         List<LabelUse> evaluationOrder = ProblemAnalysis.getEvaluationOrder(usesLeftToRight);
         // for each relation in the evaluation order
         for(LabelUse usage : evaluationOrder){
-            String fromContext = boundNames.stream().filter(b -> b.first.has(usage, true)).findAny().get().second;
-            String toContext = boundNames.stream().filter(b -> b.first.has(usage, false)).findAny().get().second;
+            Pair<ProblemAnalysis.Bound, String> fromBinding = boundNames.stream().filter(b -> b.first.has(usage, true)).findAny().get();
+            Pair<ProblemAnalysis.Bound, String> toBinding = boundNames.stream().filter(b -> b.first.has(usage, false)).findAny().get();
+            String fromContext = fromBinding.second;
+            String toContext = toBinding.second;
             String nm = usage.usedLabel.name + " " + usage.usageIndex + " " + (fromContext == null?"f":"b") + (toContext == null?"f":"b");
             // TODO to handle epsilon
             // a positive epsilon rule forces the path to be a cycle, or prevents binding where the fromcontext does not

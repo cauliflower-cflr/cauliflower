@@ -35,18 +35,10 @@ public class SubexpressionTransformation implements Transform {
         int nc = b1.bound.usedLabel.name.compareTo(b2.bound.usedLabel.name);
         return nc == 0 ? ((Boolean) b1.bindsSource).compareTo(b2.bindsSource) : nc;
     };
-    private Map<Label, Set<Label>> deps;
-    private Map<Label, Set<Label>> ideps;
-    private List<List<Label>> groups;
-    private Map<Label, List<Label>> memberships;
     private List<BoundPair> allBoundPairs;
 
     @Override
     public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
-        deps = ProblemAnalysis.getLabelDependencyGraph(spec);
-        ideps = ProblemAnalysis.getInverseLabelDependencyGraph(spec);
-        groups = ProblemAnalysis.getStronglyConnectedLabels(deps);
-        memberships = groups.stream().flatMap(ls -> ls.stream().map(l -> new Pair<Label, List<Label>>(l, ls))).collect(Collectors.toMap(p -> p.first, p->p.second));
         // we are only interested in pairs that are not negating
         allBoundPairs = ProblemAnalysis.getRuleStream(spec)
                 .map(ProblemAnalysis::getBindings)
@@ -62,14 +54,6 @@ public class SubexpressionTransformation implements Transform {
                 new RedundantChain(), // redundancies second because we don't want to accidentally break some options for terminal-chains
                 new SummarisingChain()) // this occurs last because this optimisation is temperamental, so only do it if there is nothing better
                 .apply(spec, prof);
-    }
-
-    private boolean isEffectivelyTerminal(LabelUse lu){
-        return !memberships.get(lu.usedInRule.ruleHead.usedLabel).contains(lu.usedLabel);
-    }
-
-    private boolean ruleIsCyclic(Rule r){
-        return Clause.getUsedLabelsInOrder(r.ruleBody).stream().anyMatch(lu -> memberships.get(r.ruleHead.usedLabel).contains(lu.usedLabel));
     }
 
     private class BoundPair implements Comparable<BoundPair>{
@@ -267,7 +251,10 @@ public class SubexpressionTransformation implements Transform {
         @Override
         public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
             // TODO pick the most useful one, not just any one
-            for(BoundPair bp : allBoundPairs) if(isEffectivelyTerminal(bp.loLabel) && isEffectivelyTerminal(bp.hiLabel) && ruleIsCyclic(bp.hiLabel.usedInRule)){
+            for(BoundPair bp : allBoundPairs)
+                if(ProblemAnalysis.isEffectivelyTerminal(spec, bp.loLabel)
+                    && ProblemAnalysis.isEffectivelyTerminal(spec, bp.hiLabel)
+                    && ProblemAnalysis.ruleIsCyclic(spec, bp.hiLabel.usedInRule)){
                 Logs.forClass(this.getClass()).trace("Hoisting: {}", bp);
                 return Optional.of(rebuildWithNonterminalInsteadOf(spec, bp));
             }

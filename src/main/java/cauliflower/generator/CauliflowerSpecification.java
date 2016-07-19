@@ -11,26 +11,26 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 
 /**
- * CauliSpecification
+ * CauliflowerSpecification
  * <p>
  * Author: nic
  * Date: 19/07/16
  */
-public class CauliSpecification extends GeneratorForProblem {
+public class CauliflowerSpecification extends GeneratorForProblem {
 
-    public CauliSpecification(Path out, Verbosity verbosity) throws IOException{
+    public CauliflowerSpecification(Path out, Verbosity verbosity) throws IOException{
         this(FileSystem.getOutputStream(out), verbosity);
     }
 
-    public CauliSpecification(PrintStream out, Verbosity verbosity) {
+    public CauliflowerSpecification(PrintStream out, Verbosity verbosity) {
         super(out, verbosity);
     }
 
     @Override
     protected void performInternal() throws CauliflowerException {
-        prob().labels.stream().map(Label::toStringDesc).map(CauliSpecification::makeDeclaration).forEach(outputStream::println);
+        prob().labels.stream().map(Label::toStringDesc).map(CauliflowerSpecification::makeDeclaration).forEach(outputStream::println);
         outputStream.println();
-        ProblemAnalysis.getRuleStream(prob()).map(Rule::toSpecString).map(CauliSpecification::makeDeclaration).forEach(outputStream::println);
+        ProblemAnalysis.getRuleStream(prob()).map(Rule::toSpecString).map(CauliflowerSpecification::makeDeclaration).forEach(outputStream::println);
     }
 
     public static String makeDeclaration(String s){

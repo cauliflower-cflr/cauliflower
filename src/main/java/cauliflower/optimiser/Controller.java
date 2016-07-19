@@ -2,17 +2,15 @@ package cauliflower.optimiser;
 
 import cauliflower.application.CauliflowerException;
 import cauliflower.application.Task;
-import cauliflower.generator.CauliSpecification;
+import cauliflower.generator.CauliflowerSpecification;
 import cauliflower.generator.Verbosity;
 import cauliflower.representation.Problem;
-import cauliflower.util.FileSystem;
 import cauliflower.util.Logs;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -43,7 +41,7 @@ public class Controller implements Task<Problem> {
             int optimisationRound = 0;
             while (optimisationRound < maxRounds) {
                 Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
-                new CauliSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
+                new CauliflowerSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
                 Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
                         new SubexpressionTransformation(),
                         new RelationFilterTransformation(),

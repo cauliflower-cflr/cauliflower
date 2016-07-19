@@ -17,6 +17,39 @@ import java.util.stream.Stream;
  */
 public class ProblemAnalysis {
 
+    private Map<Label, Set<Label>> deps;
+    private Map<Label, Set<Label>> ideps;
+    private List<List<Label>> groups;
+    private Map<Label, List<Label>> memberships;
+
+    private static Map<Problem, ProblemAnalysis> analysed = new HashMap<>();
+
+    private ProblemAnalysis(Problem problem){
+        deps = ProblemAnalysis.getLabelDependencyGraph(problem);
+        ideps = ProblemAnalysis.getInverseLabelDependencyGraph(problem);
+        groups = ProblemAnalysis.getStronglyConnectedLabels(deps);
+        memberships = groups.stream().flatMap(ls -> ls.stream().map(l -> new Pair<Label, List<Label>>(l, ls))).collect(Collectors.toMap(p -> p.first, p->p.second));
+        analysed.put(problem, this);
+    }
+
+    private boolean isEffectivelyTerminal(LabelUse lu){
+        return !memberships.get(lu.usedInRule.ruleHead.usedLabel).contains(lu.usedLabel);
+    }
+
+    private boolean ruleIsCyclic(Rule r){
+        return Clause.getUsedLabelsInOrder(r.ruleBody).stream().anyMatch(lu -> memberships.get(r.ruleHead.usedLabel).contains(lu.usedLabel));
+    }
+
+    public static boolean isEffectivelyTerminal(Problem prob, LabelUse lu){
+        analysed.computeIfAbsent(prob, ProblemAnalysis::new);
+        return analysed.get(prob).isEffectivelyTerminal(lu);
+    }
+
+    public static boolean ruleIsCyclic(Problem prob, Rule r){
+        analysed.computeIfAbsent(prob, ProblemAnalysis::new);
+        return analysed.get(prob).ruleIsCyclic(r);
+    }
+
     /**
      * Get the dependency mapping where A maps to B if "A -> ...B..." is a rule
      */
@@ -101,78 +134,91 @@ public class ProblemAnalysis {
      * @return a list of bindings, such that the output's source is at size()-2 and the output's sink is at size()-1
      */
     public static List<Bound> getBindings(Rule r){
-        BindingFinder find = new BindingFinder(null, null, false);
-        List<Bound> grp = find.visit(r.ruleBody);
-        grp.add(find.source);
-        grp.add(find.sink);
-        return grp;
+        BindingFinder find = new BindingFinder(new HashSet<>(), null, null, false);
+        Pair<Binding, Binding> outers = find.visit(r.ruleBody);
+        return find.bindings.stream()
+                //this is a trick to ensure the source and sink nodes are second last and last resp.
+                .map(b -> new Pair<>(b, b.boundEndpoints.contains(outers.first) ? 1 : b.boundEndpoints.contains(outers.second) ? 2 : 0))
+                .sorted(Pair::secondaryOrder)
+                .map(p -> p.first)
+                .collect(Collectors.toList());
     }
 
-    private static class BindingFinder implements Clause.Visitor<List<Bound>>{
+    private static class BindingFinder implements Clause.Visitor<Pair<Binding, Binding>>{
 
-        Bound source;
-        Bound sink;
+        final Set<Bound> bindings;
+        final Binding source;
+        final Binding sink;
         boolean anti;
 
-        public BindingFinder(Bound src, Bound snk, boolean negative){
+        public BindingFinder(Set<Bound> bindings, Binding src, Binding snk, boolean negative){
+            this.bindings = bindings;
             this.source = src;
             this.sink = snk;
             this.anti = negative;
         }
 
         @Override
-        public List<Bound> visitCompose(Clause.Compose cl) {
-            BindingFinder left = new BindingFinder(source, null, anti);
-            List<Bound> ret = left.visit(cl.left);
-            BindingFinder right = new BindingFinder(left.sink, sink, anti);
-            ret.addAll(right.visit(cl.right));
-            source = left.source;
-            sink = right.sink;
-            ret.add(left.sink);
+        public Pair<Binding, Binding> visitCompose(Clause.Compose cl) {
+            if(anti) throw new RuntimeException("Negation currently only supports singleton clauses");
+            Pair<Binding, Binding> l = new BindingFinder(bindings, source, null, false).visit(cl.left);
+            Pair<Binding, Binding> r = new BindingFinder(bindings, l.second, sink, false).visit(cl.right);
+            return new Pair<>(l.first, r.second);
+        }
+
+        @Override
+        public Pair<Binding, Binding> visitIntersect(Clause.Intersect cl) {
+            if(anti) throw new RuntimeException("Negation currently only supports singleton clauses");
+            Pair<Binding, Binding> l = new BindingFinder(bindings, source, sink, false).visit(cl.left);
+            return new BindingFinder(bindings, l.first, l.second, false).visit(cl.right);
+        }
+
+        @Override
+        public Pair<Binding, Binding> visitReverse(Clause.Reverse cl) {
+            Pair<Binding, Binding> sub = new BindingFinder(bindings, sink, source, anti).visit(cl.sub);
+            return new Pair<>(sub.second, sub.first);
+        }
+
+        @Override
+        public Pair<Binding, Binding> visitNegate(Clause.Negate cl) {
+            return new BindingFinder(bindings, source, sink, !anti).visit(cl.sub);
+        }
+
+        @Override
+        public Pair<Binding, Binding> visitLabelUse(LabelUse cl) {
+            Bound src;
+            if(source != null){
+                src = bindings.stream().filter(b -> b.has(source.bound, source.bindsSource)).findAny().get();
+            } else {
+                src = new Bound();
+                bindings.add(src);
+            }
+            Bound snk;
+            if(sink != null){
+                snk = bindings.stream().filter(b -> b.has(sink.bound, sink.bindsSource)).findAny().get();
+            } else {
+                snk = new Bound();
+                bindings.add(snk);
+            }
+            Pair<Binding, Binding> ret = new Pair<>(new Binding(cl, true, anti), new Binding(cl, false, anti));
+            src.boundEndpoints.add(ret.first);
+            snk.boundEndpoints.add(ret.second);
             return ret;
         }
 
         @Override
-        public List<Bound> visitIntersect(Clause.Intersect cl) {
-            BindingFinder left = new BindingFinder(source, sink, anti);
-            List<Bound> ret = left.visit(cl.left);
-            source = left.source;
-            sink = left.sink;
-            BindingFinder right = new BindingFinder(source, sink, anti);
-            ret.addAll(right.visit(cl.right));
-            return ret;
-        }
-
-        @Override
-        public List<Bound> visitReverse(Clause.Reverse cl) {
-            BindingFinder sub = new BindingFinder(sink, source, anti);
-            List<Bound> ret = sub.visit(cl.sub);
-            source = sub.sink;
-            sink = sub.source;
-            return ret;
-        }
-
-        @Override
-        public List<Bound> visitNegate(Clause.Negate cl) {
-            BindingFinder sub = new BindingFinder(source, sink, !anti);
-            List<Bound> ret = sub.visit(cl.sub);
-            source = sub.source;
-            sink = sub.sink;
-            return ret;
-        }
-
-        @Override
-        public List<Bound> visitLabelUse(LabelUse cl) {
-            if(source == null) source = new Bound();
-            if(sink == null) sink = new Bound();
-            source.boundEndpoints.add(new Binding(cl, true, anti));
-            sink.boundEndpoints.add(new Binding(cl, false, anti));
-            return new ArrayList<>();
-        }
-
-        @Override
-        public List<Bound> visitEpsilon(Clause.Epsilon cl) {
-            throw new RuntimeException("Epsilon is not handled"); // TODO merge the source and sink sets (somehow?)
+        public Pair<Binding, Binding> visitEpsilon(Clause.Epsilon cl) {
+            if(source != null && sink != null){
+                Bound src = bindings.stream().filter(b -> b.has(source.bound, source.bindsSource)).findAny().get();
+                Bound snk = bindings.stream().filter(b -> b.has(sink.bound, sink.bindsSource)).findAny().get();
+                src.boundEndpoints.addAll(snk.boundEndpoints);
+                bindings.remove(snk);
+            }
+            if(source == null) {
+                return new Pair<>(sink, sink);
+            } else {
+                return new Pair<>(source, source);
+            }
         }
     }
 

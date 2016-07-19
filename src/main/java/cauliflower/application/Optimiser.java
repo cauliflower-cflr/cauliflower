@@ -1,6 +1,6 @@
 package cauliflower.application;
 
-import cauliflower.generator.CauliSpecification;
+import cauliflower.generator.CauliflowerSpecification;
 import cauliflower.generator.Verbosity;
 import cauliflower.optimiser.Controller;
 import cauliflower.representation.Problem;
@@ -41,7 +41,7 @@ public class Optimiser implements Task<Void>{
             Logs.forClass(this.getClass()).warn("Could not find an optimisation for this spec.");
         } else {
             try {
-                new CauliSpecification(optimisedSpec, new Verbosity()).perform(out);
+                new CauliflowerSpecification(optimisedSpec, new Verbosity()).perform(out);
             } catch (IOException e) {
                 except(e);
             }

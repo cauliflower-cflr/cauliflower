@@ -39,6 +39,11 @@ public class TestOptimiser {
     }
 
     @Test
+    public void testFilterGeneratedForLargeRelation() {
+
+    }
+
+    @Test
     public void testSubexpressionDoesNothing() {
         try {
             Optional<Problem> out = new SubexpressionTransformation().apply(Utilities.parseOrFail(""), Profile.emptyProfile());
