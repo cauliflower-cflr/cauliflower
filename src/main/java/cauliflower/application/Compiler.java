@@ -2,13 +2,13 @@ package cauliflower.application;
 
 import cauliflower.generator.Verbosity;
 import cauliflower.representation.Problem;
+import cauliflower.util.FileSystem;
 import cauliflower.util.Logs;
 import cauliflower.util.Pair;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -31,9 +31,9 @@ public class Compiler implements Task<Path>{
 
     public Compiler(String exeName, Path exeDir, boolean debug, Verbosity verbosity) {
         this.name = exeName;
-        this.execFile = Paths.get(exeDir.toString(), name);
-        this.buildDir = Paths.get(exeDir.toString(), name + "_build");
-        this.logFile = Paths.get(buildDir.toString(), "build.log");
+        this.execFile = FileSystem.constructPath(exeDir, name);
+        this.buildDir = FileSystem.constructPath(exeDir, name + "_build");
+        this.logFile = FileSystem.constructPath(buildDir, "build", "log");
         this.debugGenerated = debug;
         this.verb = verbosity;
     }
@@ -53,7 +53,7 @@ public class Compiler implements Task<Path>{
             runProcess(frontEnd, "make", "VERBOSE=1", "-j4");
 
             // copy the executable
-            Files.copy(Paths.get(buildDir.toString(), name), execFile);
+            Files.copy(FileSystem.constructPath(buildDir, name), execFile);
             return execFile;
         } catch(IOException e){
             except(e);

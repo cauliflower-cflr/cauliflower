@@ -1,13 +1,13 @@
 package cauliflower;
 
 import cauliflower.representation.*;
+import cauliflower.util.CFLRException;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.*;
 
 /**
@@ -17,6 +17,34 @@ import static org.junit.Assert.*;
  * Date: 14/07/16
  */
 public class TestRepresentation {
+
+    @Test
+    public void ensureLabelSpecStringIsIdempotentNoField() throws CFLRException {
+        String lbl = "a<-x.y";
+        Problem prob = Utilities.parseOrFail(lbl + ";");
+        assertThat(prob.labels.get("a").toStringDesc(), is(lbl));
+        Problem prob2 = Utilities.parseOrFail(prob.labels.get("a").toStringDesc() + ";");
+        assertThat(prob2.labels.get("a").toStringDesc(), is(lbl));
+    }
+
+    @Test
+    public void ensureLabelSpecStringIsIdempotentWithField() throws CFLRException {
+        String lbl = "a[f][g]<-x.y";
+        Problem prob = Utilities.parseOrFail(lbl + ";");
+        assertThat(prob.labels.get("a").toStringDesc(), is(lbl));
+        Problem prob2 = Utilities.parseOrFail(prob.labels.get("a").toStringDesc() + ";");
+        assertThat(prob2.labels.get("a").toStringDesc(), is(lbl));
+    }
+
+    @Test
+    public void ensureRuleSpecStringIsIdempotent() throws CFLRException {
+        String lbls = "a[o]<-x.y;b<-x.z;c<-x.z;d[o]<-y.z;";
+        String r = "a[f]->((b&!c),-d[f])";
+        Problem prob = Utilities.parseOrFail(lbls + r + ";");
+        assertThat(prob.getRule(0).toSpecString(), is(r));
+        Problem prob2 = Utilities.parseOrFail(lbls + prob.getRule(0).toSpecString() + ";");
+        assertThat(prob2.getRule(0).toSpecString(), is(r));
+    }
 
     @Test
     public void testStratifiedDependencies(){

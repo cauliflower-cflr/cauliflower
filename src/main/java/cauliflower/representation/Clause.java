@@ -179,6 +179,20 @@ public abstract class Clause {
         }
     }
 
+    public static class SpecString extends ClauseString {
+        @Override
+        public String visitLabelUse(LabelUse lu) {
+            return String.format("%s%s%s", lu.usedLabel.name,
+                    lu.usedField.stream().map(dp -> "[" + dp.name + "]").collect(Collectors.joining()),
+                    lu.priority == 0 ? "": "{" + lu.priority + "}");
+        }
+
+        @Override
+        public String visitEpsilon(Epsilon cl) {
+            return "~";
+        }
+    }
+
     public static class InOrderVisitor<T> implements Visitor<Void> {
         public final List<T> visits;
         public final Visitor<T> subVisitor;

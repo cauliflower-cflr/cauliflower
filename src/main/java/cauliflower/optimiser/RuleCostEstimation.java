@@ -1,12 +1,15 @@
 package cauliflower.optimiser;
 
+import cauliflower.representation.Clause;
 import cauliflower.representation.Label;
 import cauliflower.representation.LabelUse;
 import cauliflower.representation.ProblemAnalysis;
 import cauliflower.util.Pair;
+import cauliflower.util.Streamer;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -20,13 +23,15 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
     public double timeCost;
 
     private final Profile profile;
-    private final List<LabelUse> evalOrder;
+    public final List<LabelUse> evalOrder;
+    private Map<LabelUse, Integer> evalPriorities;
     private final List<Pair<ProblemAnalysis.Bound, Binder>> currentBindings;
     private final Map<LabelUse, Pair<Binder, Binder>> bindingsAtEval;
 
     public RuleCostEstimation(Profile prof, List<LabelUse> leftToRight, List<Integer> priorities, List<ProblemAnalysis.Bound> bindings) {
         this.profile = prof;
         this.evalOrder = ProblemAnalysis.getEvaluationOrder(leftToRight, priorities);
+        evalPriorities = Streamer.zip(leftToRight.stream(), priorities.stream(), Pair::new).collect(Collectors.toMap(p -> p.first, p -> p.second));
         currentBindings = bindings.stream().map(b -> new Pair<>(b, (Binder)null)).collect(Collectors.toList());
         bindingsAtEval = evalOrder.stream()
                 .sequential()
@@ -42,6 +47,14 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
             timeCost += iterCount*workForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
             iterCount *= outputsForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
         }
+    }
+
+    public int getPriority(LabelUse lu){
+        return evalPriorities.get(lu);
+    }
+
+    public boolean hasSameEvalOrder(Clause body){
+        return ProblemAnalysis.getEvaluationOrder(Clause.getUsedLabelsInOrder(body)).equals(evalOrder);
     }
 
     private double outputsForIteration(LabelUse lu, Binder source, Binder sink) {

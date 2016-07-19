@@ -5,14 +5,11 @@ import cauliflower.generator.CppSemiNaiveBackend;
 import cauliflower.generator.GeneratorForProblem;
 import cauliflower.generator.Verbosity;
 import cauliflower.representation.Problem;
+import cauliflower.util.FileSystem;
 import cauliflower.util.Pair;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -39,8 +36,8 @@ public class Generator implements Task<Pair<Path, Optional<Path>>>{
 
     public Generator(String name, Path directory, boolean generateFrontEnd, Verbosity verbosity){
         this.name = name;
-        this.outputBack = constructPath(directory, name, "h");
-        this.outputFront = constructPath(directory, name, "cpp");
+        this.outputBack = FileSystem.constructPath(directory, name, "h");
+        this.outputFront = FileSystem.constructPath(directory, name, "cpp");
         this.frontEnd = generateFrontEnd;
         this.verb = verbosity;
     }
@@ -57,32 +54,20 @@ public class Generator implements Task<Pair<Path, Optional<Path>>>{
     public Pair<Path, Optional<Path>> perform(Problem spec) throws CauliflowerException {
         try {
             Pair<Path, Optional<Path>> ret = new Pair<>(outputBack, Optional.empty());
-            mkdirFor(outputBack);
+            FileSystem.mkdirFor(outputBack);
             List<GeneratorForProblem> tasks = new ArrayList<>();
-            tasks.add(new CppSemiNaiveBackend(name, new PrintStream(new FileOutputStream(outputBack.toFile())), verb));
+            tasks.add(new CppSemiNaiveBackend(name, FileSystem.getOutputStream(outputBack), verb));
             if(frontEnd){
                 ret.second = Optional.of(outputFront);
-                mkdirFor(outputFront);
+                FileSystem.mkdirFor(outputFront);
                 String relPath = outputFront.getParent().toAbsolutePath().relativize(outputBack.toAbsolutePath()).toString();
-                tasks.add(new CppCSVBackend(name, relPath, new PrintStream(new FileOutputStream(outputFront.toFile())), verb));
+                tasks.add(new CppCSVBackend(name, relPath, FileSystem.getOutputStream(outputFront), verb));
             }
             for(GeneratorForProblem t : tasks) t.perform(spec);
             return ret;
         } catch (IOException e) {
             except(e);
             return null;
-        }
-    }
-
-    private Path constructPath(Path dir, String name, String ext){
-        return Paths.get(dir.toString(), name + "." + ext);
-    }
-
-    private void mkdirFor(Path p) throws CauliflowerException {
-        try {
-            Files.createDirectories(p.getParent());
-        } catch (IOException e) {
-            except(e);
         }
     }
 }

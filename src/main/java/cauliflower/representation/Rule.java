@@ -81,4 +81,8 @@ public class Rule {
     public String toString() {
         return ruleHead.toString() + "->" + ruleBody.toString();
     }
+
+    public String toSpecString(){
+        return new Clause.SpecString().visit(ruleHead) + "->" + new Clause.SpecString().visit(ruleBody);
+    }
 }

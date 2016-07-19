@@ -1,10 +1,7 @@
 package cauliflower.util;
 
 import java.io.*;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.stream.Stream;
 
@@ -62,6 +59,22 @@ public class FileSystem {
         String ret = file.getFileName().toString();
         if(ret.contains(".")) ret = ret.substring(0, ret.lastIndexOf("."));
         return ret;
+    }
+
+    public static Path constructPath(Path dir, String name){
+        return Paths.get(dir.toString(), name);
+    }
+
+    public static Path constructPath(Path dir, String name, String ext){
+        return constructPath(dir, name + "." + ext);
+    }
+
+    public static void mkdirFor(Path p) throws IOException {
+        Files.createDirectories(p.getParent());
+    }
+
+    public static PrintStream getOutputStream(Path p) throws FileNotFoundException {
+        return new PrintStream(new FileOutputStream(p.toFile()));
     }
 
 }

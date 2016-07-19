@@ -15,6 +15,10 @@ public class Verbosity {
     private boolean report;
     private boolean status;
 
+    public Verbosity(){
+        this(false, false, false, false);
+    }
+
     public Verbosity(Configuration conf){
         this(conf.timers || conf.optimise, conf.optimise, conf.reports, conf.statuses);
     }

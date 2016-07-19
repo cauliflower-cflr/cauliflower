@@ -2,7 +2,10 @@ package cauliflower.optimiser;
 
 import cauliflower.application.CauliflowerException;
 import cauliflower.application.Task;
+import cauliflower.generator.CauliSpecification;
+import cauliflower.generator.Verbosity;
 import cauliflower.representation.Problem;
+import cauliflower.util.FileSystem;
 import cauliflower.util.Logs;
 
 import java.io.IOException;
@@ -33,29 +36,26 @@ public class Controller implements Task<Problem> {
 
     @Override
     public Problem perform(Problem inputSpec) throws CauliflowerException {
-        this.workingDir = null;
-        try {
-            this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
-        } catch (IOException e) {
-            except(e);
-        }
-        int optimisationRound = 0;
         Problem curSpec = inputSpec;
-        while (optimisationRound < maxRounds) {
-            Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
-            try {
+        try {
+            this.workingDir = null;
+            this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
+            int optimisationRound = 0;
+            while (optimisationRound < maxRounds) {
+                Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
+                new CauliSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
                 Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
                         new SubexpressionTransformation(),
                         new RelationFilterTransformation(),
                         new EvaluationOrderTransformation(true, true)
                 ));
                 Optional<Problem> nextSpec = pass.perform(curSpec);
-                if(nextSpec.isPresent()) curSpec = nextSpec.get();
-                else break;
-            } catch (IOException e) {
-                except(e);
+                if (!nextSpec.isPresent()) break;
+                curSpec = nextSpec.get();
+                optimisationRound++;
             }
-            optimisationRound++;
+        } catch(IOException exc){
+            except(exc);
         }
         //TODO return the best spec, not the most recent one
         return curSpec;

@@ -2,6 +2,7 @@ package cauliflower.optimiser;
 
 import cauliflower.application.CauliflowerException;
 import cauliflower.representation.Problem;
+import cauliflower.util.Logs;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -46,8 +47,11 @@ public interface Transform {
             for(Transform tfm : subTransforms){
                 Optional<Problem> next = tfm.apply(cur, prof);
                 if(next.isPresent()){
+                    Logs.forClass(tfm.getClass()).trace("Optimised: {}", next.get());
                     if(doAll) cur = next.get();
                     else return next;
+                } else {
+                    Logs.forClass(tfm.getClass()).trace("No optimisation made");
                 }
             }
             return cur == spec ? Optional.empty() : Optional.of(cur);

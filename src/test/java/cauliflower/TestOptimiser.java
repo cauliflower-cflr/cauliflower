@@ -1,6 +1,5 @@
 package cauliflower;
 
-import cauliflower.Utilities;
 import cauliflower.application.CauliflowerException;
 import cauliflower.optimiser.Profile;
 import cauliflower.optimiser.SubexpressionTransformation;
