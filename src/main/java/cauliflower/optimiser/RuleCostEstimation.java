@@ -28,11 +28,11 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
     private final List<Pair<ProblemAnalysis.Bound, Binder>> currentBindings;
     private final Map<LabelUse, Pair<Binder, Binder>> bindingsAtEval;
 
-    public RuleCostEstimation(Profile prof, List<LabelUse> leftToRight, List<Integer> priorities, List<ProblemAnalysis.Bound> bindings) {
+    public RuleCostEstimation(Profile prof, List<LabelUse> leftToRight, List<Integer> priorities, ProblemAnalysis.Bounds bindings) {
         this.profile = prof;
         this.evalOrder = ProblemAnalysis.getEvaluationOrder(leftToRight, priorities);
         evalPriorities = Streamer.zip(leftToRight.stream(), priorities.stream(), Pair::new).collect(Collectors.toMap(p -> p.first, p -> p.second));
-        currentBindings = bindings.stream().map(b -> new Pair<>(b, (Binder)null)).collect(Collectors.toList());
+        currentBindings = bindings.all.stream().map(b -> new Pair<>(b, (Binder)null)).collect(Collectors.toList());
         bindingsAtEval = evalOrder.stream()
                 .sequential()
                 .collect(Collectors.toMap(lu -> lu, lu -> {

@@ -1,0 +1,20 @@
+a <- x.x;
+b <- x.x;
+
+identity <- x.x;
+identity -> ~;
+
+elision <- x.x;
+elision -> a,~,b;
+
+unitloop <- x.x;
+unitloop -> (a&~),b;
+
+selfloop <- x.x;
+selfloop -> a&~&b;
+
+ffilter <- x.x;
+ffilter -> (a,-a)&~;
+
+rfilter <- x.x;
+rfilter -> (-a,a)&~;

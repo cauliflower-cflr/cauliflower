@@ -1,6 +1,8 @@
 package cauliflower.util;
 
 import java.util.Comparator;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * C++4lyf
@@ -15,6 +17,14 @@ public class Pair<T, U> {
     @Override
     public String toString(){
         return String.format("(%s,%s)", first, second);
+    }
+
+    public <X> X map(BiFunction<T, U, X> f){
+        return f.apply(first, second);
+    }
+
+    public static <A, B, X> Function<Pair<A, B>, X> forward(BiFunction<A, B, X> bf){
+        return (Pair<A, B> p) -> p.map(bf);
     }
 
     public static <X, Y> int primaryOrder(Pair<? extends Comparable<X>, Y> a, Pair<? extends X,Y> b){

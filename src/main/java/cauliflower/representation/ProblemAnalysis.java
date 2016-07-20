@@ -113,6 +113,10 @@ public class ProblemAnalysis {
             bindsSource = sourceBinding;
             bindsNegation = antiBinding;
         }
+        @Override
+        public String toString() {
+            return String.format("%s-%s", bound.toString(), bindsSource ?"S":"T");
+        }
     }
 
     /**
@@ -120,11 +124,38 @@ public class ProblemAnalysis {
      */
     public static class Bound {
         public final List<Binding> boundEndpoints = new ArrayList<>();
+        public Bound(Collection<Bound> group){
+            group.add(this);
+        }
         public Binding getOrNull(LabelUse lu, boolean source){
             return boundEndpoints.stream().filter(bnd -> bnd.bindsSource == source && bnd.bound == lu).findAny().orElse(null);
         }
         public boolean has(LabelUse lu, boolean source){
             return getOrNull(lu, source) != null;
+        }
+
+        @Override
+        public String toString() {
+            return boundEndpoints.toString();
+        }
+    }
+
+    public static class Bounds {
+        public final Set<Bound> all;
+        public final Bound entry;
+        public final Bound exit;
+        private Bounds(Set<Bound> all, Bound ent, Bound exi){
+            this.all = all;
+            this.entry = ent;
+            this.exit = exi;
+        }
+        public Optional<Bound> find(LabelUse lu, boolean source){
+            return all.stream().filter(b -> b.has(lu, source)).findAny();
+        }
+
+        @Override
+        public String toString() {
+            return "<" + all.stream().map(b -> (b==entry?"I":"") + (b==exit?"O":"") + b.toString()).collect(Collectors.joining(", ")) + ">";
         }
     }
 
@@ -133,25 +164,20 @@ public class ProblemAnalysis {
      * @param r the rule to get the bindings for
      * @return a list of bindings, such that the output's source is at size()-2 and the output's sink is at size()-1
      */
-    public static List<Bound> getBindings(Rule r){
+    public static Bounds getBindings(Rule r){
         BindingFinder find = new BindingFinder(new HashSet<>(), null, null, false);
-        Pair<Binding, Binding> outers = find.visit(r.ruleBody);
-        return find.bindings.stream()
-                //this is a trick to ensure the source and sink nodes are second last and last resp.
-                .map(b -> new Pair<>(b, b.boundEndpoints.contains(outers.first) ? 1 : b.boundEndpoints.contains(outers.second) ? 2 : 0))
-                .sorted(Pair::secondaryOrder)
-                .map(p -> p.first)
-                .collect(Collectors.toList());
+        Pair<Bound, Bound> outers = find.visit(r.ruleBody);
+        return new Bounds(find.bindings, outers.first, outers.second);
     }
 
-    private static class BindingFinder implements Clause.Visitor<Pair<Binding, Binding>>{
+    private static class BindingFinder implements Clause.Visitor<Pair<Bound, Bound>>{
 
         final Set<Bound> bindings;
-        final Binding source;
-        final Binding sink;
+        final Bound source;
+        final Bound sink;
         boolean anti;
 
-        public BindingFinder(Set<Bound> bindings, Binding src, Binding snk, boolean negative){
+        public BindingFinder(Set<Bound> bindings, Bound src, Bound snk, boolean negative){
             this.bindings = bindings;
             this.source = src;
             this.sink = snk;
@@ -159,64 +185,52 @@ public class ProblemAnalysis {
         }
 
         @Override
-        public Pair<Binding, Binding> visitCompose(Clause.Compose cl) {
+        public Pair<Bound, Bound> visitCompose(Clause.Compose cl) {
             if(anti) throw new RuntimeException("Negation currently only supports singleton clauses");
-            Pair<Binding, Binding> l = new BindingFinder(bindings, source, null, false).visit(cl.left);
-            Pair<Binding, Binding> r = new BindingFinder(bindings, l.second, sink, false).visit(cl.right);
+            Pair<Bound, Bound> l = new BindingFinder(bindings, source, null, false).visit(cl.left);
+            Pair<Bound, Bound> r = new BindingFinder(bindings, l.second, sink, false).visit(cl.right);
             return new Pair<>(l.first, r.second);
         }
 
         @Override
-        public Pair<Binding, Binding> visitIntersect(Clause.Intersect cl) {
+        public Pair<Bound, Bound> visitIntersect(Clause.Intersect cl) {
             if(anti) throw new RuntimeException("Negation currently only supports singleton clauses");
-            Pair<Binding, Binding> l = new BindingFinder(bindings, source, sink, false).visit(cl.left);
+            Pair<Bound, Bound> l = new BindingFinder(bindings, source, sink, false).visit(cl.left);
             return new BindingFinder(bindings, l.first, l.second, false).visit(cl.right);
         }
 
         @Override
-        public Pair<Binding, Binding> visitReverse(Clause.Reverse cl) {
-            Pair<Binding, Binding> sub = new BindingFinder(bindings, sink, source, anti).visit(cl.sub);
+        public Pair<Bound, Bound> visitReverse(Clause.Reverse cl) {
+            Pair<Bound, Bound> sub = new BindingFinder(bindings, sink, source, anti).visit(cl.sub);
             return new Pair<>(sub.second, sub.first);
         }
 
         @Override
-        public Pair<Binding, Binding> visitNegate(Clause.Negate cl) {
+        public Pair<Bound, Bound> visitNegate(Clause.Negate cl) {
             return new BindingFinder(bindings, source, sink, !anti).visit(cl.sub);
         }
 
         @Override
-        public Pair<Binding, Binding> visitLabelUse(LabelUse cl) {
-            Bound src;
-            if(source != null){
-                src = bindings.stream().filter(b -> b.has(source.bound, source.bindsSource)).findAny().get();
-            } else {
-                src = new Bound();
-                bindings.add(src);
-            }
-            Bound snk;
-            if(sink != null){
-                snk = bindings.stream().filter(b -> b.has(sink.bound, sink.bindsSource)).findAny().get();
-            } else {
-                snk = new Bound();
-                bindings.add(snk);
-            }
-            Pair<Binding, Binding> ret = new Pair<>(new Binding(cl, true, anti), new Binding(cl, false, anti));
-            src.boundEndpoints.add(ret.first);
-            snk.boundEndpoints.add(ret.second);
-            return ret;
+        public Pair<Bound, Bound> visitLabelUse(LabelUse cl) {
+            Bound src = source == null ? new Bound(bindings) : source;
+            Bound snk = sink == null ? new Bound(bindings) : sink;
+            src.boundEndpoints.add(new Binding(cl, true, anti));
+            snk.boundEndpoints.add(new Binding(cl, false, anti));
+            return new Pair<>(src, snk);
         }
 
         @Override
-        public Pair<Binding, Binding> visitEpsilon(Clause.Epsilon cl) {
-            if(source != null && sink != null){
-                Bound src = bindings.stream().filter(b -> b.has(source.bound, source.bindsSource)).findAny().get();
-                Bound snk = bindings.stream().filter(b -> b.has(sink.bound, sink.bindsSource)).findAny().get();
-                src.boundEndpoints.addAll(snk.boundEndpoints);
-                bindings.remove(snk);
-            }
-            if(source == null) {
+        public Pair<Bound, Bound> visitEpsilon(Clause.Epsilon cl) {
+            if(source == null && sink == null){
+                Bound tmp = new Bound(bindings);
+                return new Pair<>(tmp, tmp);
+            } else if(source == null){
                 return new Pair<>(sink, sink);
+            } else if(sink == null){
+                return new Pair<>(source, source);
             } else {
+                source.boundEndpoints.addAll(sink.boundEndpoints);
+                bindings.remove(sink);
                 return new Pair<>(source, source);
             }
         }

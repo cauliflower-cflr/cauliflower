@@ -39,7 +39,7 @@ public class EvaluationOrderTransformation implements Transform{
                 .sorted((p1, p2) -> p2.second.compareTo(p1.second))
                 .map(p -> p.first)
                 .map(r -> {
-                    List<ProblemAnalysis.Bound> bindings = ProblemAnalysis.getBindings(r);
+                    ProblemAnalysis.Bounds bindings = ProblemAnalysis.getBindings(r);
 
                     List<LabelUse> bodyUses = Clause.getUsedLabelsInOrder(r.ruleBody);
                     int cur = 1;

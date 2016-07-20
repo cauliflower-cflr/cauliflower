@@ -43,7 +43,9 @@ public class Controller implements Task<Problem> {
                 Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
                 new CauliflowerSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
                 Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
-                        new SubexpressionTransformation(),
+                        new SubexpressionTransformation.TerminalChain(),
+                        new SubexpressionTransformation.RedundantChain(),
+                        new SubexpressionTransformation.SummarisingChain(),
                         new RelationFilterTransformation(),
                         new EvaluationOrderTransformation(true, true)
                 ));

@@ -4,6 +4,7 @@ import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -131,6 +132,31 @@ public class TestRepresentation {
             assertEquals(1, deps.get(prob.labels.get("a")).size());
         } catch(Exception exc){
             fail(exc.getMessage());
+        }
+    }
+
+    @Test
+    public void testPriority(){
+        List<LabelUse> uses = Clause.getUsedLabelsInOrder(Utilities.parseOrFail("a<-x.x;a->a,a,a;").getRule(0).ruleBody);
+        assertEquals(0, uses.get(0).priority);
+        assertEquals(0, uses.get(1).priority);
+        assertEquals(0, uses.get(2).priority);
+        uses = Clause.getUsedLabelsInOrder(Utilities.parseOrFail("a<-x.x;a->a{0},a{1},a{-1};").getRule(0).ruleBody);
+        assertEquals(0, uses.get(0).priority);
+        assertEquals(1, uses.get(1).priority);
+        assertEquals(-1, uses.get(2).priority);
+    }
+
+    @Test
+    public void testDefaultPriorityOrderings() {
+        Problem p = Utilities.parseOrFail("a<-x.x;b<-x.x;c<-x.x;d<-x.x;a->a,b,c,d;b->a{1},b{2},c{3},d{4};c->a{0},b{1},c{0},d{1};");
+        int[][] correctOrders = {{0, 1, 2, 3}, {3, 2, 1, 0}, {1, 3, 0, 2}};
+        for (int i = 0; i < correctOrders.length; i++) {
+            List<LabelUse> givens = Clause.getUsedLabelsInOrder(p.getRule(i).ruleBody);
+            List<LabelUse> pri = ProblemAnalysis.getEvaluationOrder(givens);
+            for (int j = 0; j < correctOrders[i].length; j++) {
+                assertEquals(givens.get(correctOrders[i][j]), pri.get(j));
+            }
         }
     }
 

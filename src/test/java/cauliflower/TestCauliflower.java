@@ -2,6 +2,7 @@ package cauliflower;
 
 import cauliflower.application.Cauliflower;
 import cauliflower.util.FileSystem;
+import cauliflower.util.Logs;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -14,25 +15,44 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
 public class TestCauliflower {
 
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name = "{index}: {1} - {2}")
     public static Collection<Object[]> cases() throws IOException{
-        return Files.list(new File("src/test/examples/").toPath()) // for each example problem
-                .map(Path::toFile) // as a file
-                .filter(File::isDirectory) // find the directories
-                .flatMap(d -> Arrays.stream(d.listFiles())) // and for each of their files
-                .filter(f -> f.getName().endsWith(".cflr")) // choose the Cauliflower problems
-                .flatMap(p -> Arrays.stream(p.getParentFile().listFiles())
-                        .filter(File::isDirectory)
-                        .map(d -> new File[]{p, d}))
+        return Files.list(Paths.get("src", "test", "examples")) // for each example problem
+                .flatMap(p -> {
+                    try {
+                        return Files.list(p);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                })
+                .filter(p -> p.getFileName().toString().endsWith(".cflr"))
+                .filter(p -> p.getFileName().toString().equals("epsilonic.cflr"))
+                .flatMap(f -> {
+                    try {
+                        return Files.list(f.getParent())
+                                .filter(p -> Files.isDirectory(p))
+                                .map(p -> new Object[]{f.getParent(), f.getFileName().toString(), p.getFileName().toString()});
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                })
                 .collect(Collectors.toList());
     }
 
@@ -48,18 +68,23 @@ public class TestCauliflower {
 
     private static Path scratchpad;
 
-    @Parameterized.Parameter
-    public File specFile;
-    @Parameterized.Parameter(value = 1)
-    public File testDir;
+
+    public final Path problemFile;
+    public final Path sampleDir;
+
+    public TestCauliflower(Path dir, String probName, String sampleName){
+        problemFile = Paths.get(dir.toString(), probName);
+        sampleDir = Paths.get(dir.toString(), sampleName);
+    }
+
 
     @Test
     public void testCompilation(){
         // build the exe if it does not exist
-        File exeFile = new File(scratchpad.toFile(), specFile.getName().substring(0, specFile.getName().lastIndexOf(".")));
+        File exeFile = new File(scratchpad.toFile(), problemFile.getFileName().toString().substring(0, problemFile.getFileName().toString().lastIndexOf(".")));
         if(! exeFile.exists()){
             try{
-                Cauliflower.main(new String[]{"-p", "--compile", "--output-dir", exeFile.getParentFile().getAbsolutePath(), "--name", exeFile.getName(), specFile.getAbsolutePath()});
+                Cauliflower.main(new String[]{"-p", "--compile", "--output-dir", exeFile.getParentFile().getAbsolutePath(), "--name", exeFile.getName(), problemFile.toAbsolutePath().toString()});
             } catch(Exception exc){
                 fail();
             }
@@ -67,12 +92,13 @@ public class TestCauliflower {
 
         try{
             // for each known correct answer
-            Files.list(testDir.toPath()).filter(p -> p.toString().endsWith(".ans")).forEach(p -> {
+            Files.list(sampleDir).filter(p -> p.toString().endsWith(".ans")).forEach(p -> {
+                Logs.forClass(TestCauliflower.class).trace("Checking {}", p);
                 // determine the target relation
                 String rel = p.toFile().getName().substring(0, p.toFile().getName().length()-4);
                 try {
                     //run the exe in a process
-                    ProcessBuilder pb = new ProcessBuilder(exeFile.getAbsolutePath(), testDir.getAbsolutePath(), rel)
+                    ProcessBuilder pb = new ProcessBuilder(exeFile.getAbsolutePath(), sampleDir.toAbsolutePath().toString(), rel)
                             .redirectErrorStream(true);
                     Process proc = pb.start();
                     //get the calculated answer
@@ -81,9 +107,10 @@ public class TestCauliflower {
                     //get the correct answer
                     List<String> answ = captureOutput(new FileInputStream(p.toFile()), false);
                     //compare the answers
-                    assertTrue(answ.size() == outp.size());
+                    assertThat(outp, is(answ));
+                    assertThat("Incorrect size of output set " + p.getFileName(), outp.size(), is(answ.size()));
                     for(int i=0; i<answ.size(); i++){
-                        assertTrue(outp.get(i).equals(answ.get(i)));
+                        assertThat("Outputs should be identical in " + p.getFileName(), outp.get(i), is(answ.get(i)));
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

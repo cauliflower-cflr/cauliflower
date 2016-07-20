@@ -29,34 +29,32 @@ import java.util.stream.Stream;
  * Author: nic
  * Date: 14/07/16
  */
-public class SubexpressionTransformation implements Transform {
+public abstract class SubexpressionTransformation implements Transform{
 
     public static final Comparator<ProblemAnalysis.Binding> bindingOrder = (b1, b2) -> {
         int nc = b1.bound.usedLabel.name.compareTo(b2.bound.usedLabel.name);
         return nc == 0 ? ((Boolean) b1.bindsSource).compareTo(b2.bindsSource) : nc;
     };
-    private List<BoundPair> allBoundPairs;
+
+    protected List<BoundPair> allBoundPairs = null;
+
+    protected abstract Optional<Problem> applyInternal(Problem spec, Profile prof) throws CauliflowerException;
 
     @Override
     public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
-        // we are only interested in pairs that are not negating
         allBoundPairs = ProblemAnalysis.getRuleStream(spec)
                 .map(ProblemAnalysis::getBindings)
-                .flatMap(List::stream)
+                .map(b -> b.all)
+                .flatMap(Set::stream)
                 .filter(b -> b.boundEndpoints.size() == 2) // we are only interested in pairs
                 .filter(b -> b.boundEndpoints.stream().noneMatch(e -> e.bindsNegation)) // that are not negated
                 // TODO Conservatively only one of the labels can be fielded, practically their fields just cant bind each other
                 .map(BoundPair::new)
                 .collect(Collectors.toList());
-        Logs.forClass(this.getClass()).trace("Bound pairs:{}", allBoundPairs);
-        return new Transform.Group(false, // only do at most one optimisation
-                new TerminalChain(), // termi-chains first because they reduce the number of cases in redundant
-                new RedundantChain(), // redundancies second because we don't want to accidentally break some options for terminal-chains
-                new SummarisingChain()) // this occurs last because this optimisation is temperamental, so only do it if there is nothing better
-                .apply(spec, prof);
+        return applyInternal(spec, prof);
     }
 
-    private class BoundPair implements Comparable<BoundPair>{
+    private static class BoundPair implements Comparable<BoundPair>{
         final LabelUse loLabel, hiLabel;
         final boolean loSource, hiSource;
         public BoundPair(ProblemAnalysis.Bound bound){
@@ -135,7 +133,7 @@ public class SubexpressionTransformation implements Transform {
         }
     }
 
-    private Problem rebuildWithNonterminalInsteadOf(Problem spec, BoundPair chain) {
+    private static Problem rebuildWithNonterminalInsteadOf(List<BoundPair> allBoundPairs, Problem spec, BoundPair chain) {
         /* find all the bound pairs with the same labels
          * this is only safe to do because of the ORDER of optimisations:
          *  - if ab appears in many sccs, and a or b are nonterminals in the lowest one,
@@ -151,7 +149,7 @@ public class SubexpressionTransformation implements Transform {
                         && bp.loLabel.usedLabel == chain.loLabel.usedLabel
                         && bp.hiLabel.usedLabel == chain.hiLabel.usedLabel)
                 .collect(Collectors.toList());
-        Logs.forClass(this.getClass()).trace("Relevant pairs: {}", relevantPairs);
+        Logs.forClass(SubexpressionTransformation.class).trace("Relevant pairs: {}", relevantPairs);
         try {
             String name = chain.getNonterminalName();
             ProblemBuilder bp = new ProblemBuilder().withAllLabels(spec)
@@ -168,12 +166,12 @@ public class SubexpressionTransformation implements Transform {
             }
             return bp.finalise();
         } catch(CFLRException exc){
-            Logs.forClass(this.getClass()).error("UNREACHABLE - {}", exc);
+            Logs.forClass(SubexpressionTransformation.class).error("UNREACHABLE - {}", exc);
             return null; // this should be unreachable, unless the construction of the problem is broken somehow
         }
     }
 
-    private Clause removeChain(Clause base, BoundPair chain, String stubName, Rule.RuleBuilder forRule){
+    private static Clause removeChain(Clause base, BoundPair chain, String stubName, Rule.RuleBuilder forRule){
         /*
          * in normal form, a chain AB can have the forms:
          *  - ((_,A),B)   -> (_,X)
@@ -234,7 +232,7 @@ public class SubexpressionTransformation implements Transform {
         }.visit(base);
     }
 
-    private Clause adoptClause(Clause base, Rule.RuleBuilder forRule, String stubName) throws CFLRException {
+    private static Clause adoptClause(Clause base, Rule.RuleBuilder forRule, String stubName) throws CFLRException {
         return new ProblemBuilder.ClauseCopier(forRule){
             @Override
             public Clause visitLabelUse(LabelUse cl) {
@@ -247,27 +245,29 @@ public class SubexpressionTransformation implements Transform {
     /**
      * if a chain is fixed in this SCC, move it to an earlier one
      */
-    private class TerminalChain implements Transform {
+    public static class TerminalChain extends SubexpressionTransformation {
         @Override
-        public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
-            // TODO pick the most useful one, not just any one
-            for(BoundPair bp : allBoundPairs)
-                if(ProblemAnalysis.isEffectivelyTerminal(spec, bp.loLabel)
-                    && ProblemAnalysis.isEffectivelyTerminal(spec, bp.hiLabel)
-                    && ProblemAnalysis.ruleIsCyclic(spec, bp.hiLabel.usedInRule)){
-                Logs.forClass(this.getClass()).trace("Hoisting: {}", bp);
-                return Optional.of(rebuildWithNonterminalInsteadOf(spec, bp));
-            }
-            return Optional.empty();
+        public Optional<Problem> applyInternal(Problem spec, Profile prof) throws CauliflowerException {
+            return allBoundPairs.stream()
+                    .filter(bp -> ProblemAnalysis.isEffectivelyTerminal(spec, bp.loLabel))
+                    .filter(bp -> ProblemAnalysis.isEffectivelyTerminal(spec, bp.hiLabel))
+                    .filter(bp -> ProblemAnalysis.ruleIsCyclic(spec, bp.hiLabel.usedInRule))
+                    .collect(Collectors.groupingBy(BoundPair::getNonterminalName))
+                    .entrySet().stream()
+                    .map(Map.Entry::getValue)
+                    // TODO pick the best one, not just the one with the most occurrances
+                    .max((s1,s2)->s1.size() - s2.size())
+                    .map(s -> s.get(0))
+                    .map(bp -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, bp));
         }
     }
 
     /**
      * if a chain appears multiple times in this scc, make a nonterminal for it
      */
-    private class RedundantChain implements Transform {
+    public static class RedundantChain extends SubexpressionTransformation {
         @Override
-        public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+        public Optional<Problem> applyInternal(Problem spec, Profile prof) throws CauliflowerException {
             return allBoundPairs.stream()
                     .map(BoundPair::getNonterminalName)
                     .collect(Collectors.groupingBy(s->s, Collectors.counting()))
@@ -277,22 +277,22 @@ public class SubexpressionTransformation implements Transform {
                     .findAny()
                     .map(s -> allBoundPairs.stream().filter(abp -> abp.getNonterminalName().equals(s.getKey())).findAny())
                     .orElse(Optional.empty())
-                    .map(bp -> rebuildWithNonterminalInsteadOf(spec, bp));
+                    .map(bp -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, bp));
         }
     }
 
     /**
      * If a chain has a high degree of redundancy, make a nonterminal for it
      */
-    private class SummarisingChain implements Transform {
+    public static class SummarisingChain extends SubexpressionTransformation {
         @Override
-        public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+        public Optional<Problem> applyInternal(Problem spec, Profile prof) throws CauliflowerException {
             return allBoundPairs.stream()
                     .filter(bp -> Clause.getUsedLabelsInOrder(bp.loLabel.usedInRule.ruleBody).size() > 2)
                     .map(bp -> new Pair<>(bp, bp.estimateJoinRedundancy(prof)))
                     .filter(p -> p.second > 1.5) // arbitrary cutoff
                     .max((p1, p2) -> p2.second.compareTo(p1.second)) // sort descending (i.e. highest redundancy factor first
-                    .map(p -> rebuildWithNonterminalInsteadOf(spec, p.first));
+                    .map(p -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, p.first));
         }
     }
 

@@ -197,8 +197,8 @@ public class CppSemiNaiveBackend extends GeneratorForProblem {
         if(usesWithFields.size() != 0) new Scope("with fields", "if(" + multiNonEmptyCheck(usesWithFields, delta, "&&") + ")");
 
         //determine the evaluation strategy
-        List<ProblemAnalysis.Bound> binds = ProblemAnalysis.getBindings(rule);
-        List<Pair<ProblemAnalysis.Bound, String>> boundNames = Streamer.zip(binds.stream(), binds.stream().map(b -> (String)null), Pair::new).collect(Collectors.toList());
+        ProblemAnalysis.Bounds binds = ProblemAnalysis.getBindings(rule);
+        List<Pair<ProblemAnalysis.Bound, String>> boundNames = Streamer.zip(binds.all.stream(), binds.all.stream().map(b -> (String)null), Pair::new).collect(Collectors.toList());
         List<LabelUse> evaluationOrder = ProblemAnalysis.getEvaluationOrder(usesLeftToRight);
         // for each relation in the evaluation order
         for(LabelUse usage : evaluationOrder){
@@ -236,8 +236,8 @@ public class CppSemiNaiveBackend extends GeneratorForProblem {
             }
         }
         // finally, output the correct relations
-        String fromContext = boundNames.get(boundNames.size()-2).second;
-        String toContext = boundNames.get(boundNames.size()-1).second;
+        String fromContext = boundNames.stream().filter(p -> p.first == binds.entry).findAny().get().second;
+        String toContext = boundNames.stream().filter(p -> p.first == binds.exit).findAny().get().second;
         line(declarePair("result", fromContext, toContext));
         new Scope("check add", "if(!" + relationAccess(rule.ruleHead, delta) + ".forwards.contains(result))");
         line("%s.forwards.insert(result);", relationNewAccess(rule.ruleHead));
