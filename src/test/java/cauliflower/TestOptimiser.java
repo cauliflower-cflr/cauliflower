@@ -2,12 +2,10 @@ package cauliflower;
 
 import cauliflower.application.CauliflowerException;
 import cauliflower.optimiser.Profile;
+import cauliflower.optimiser.RelationFilterTransformation;
 import cauliflower.optimiser.SubexpressionTransformation;
 import cauliflower.optimiser.Transform;
-import cauliflower.representation.Clause;
-import cauliflower.representation.LabelUse;
-import cauliflower.representation.Problem;
-import cauliflower.representation.ProblemAnalysis;
+import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
 import org.junit.Test;
 
@@ -136,8 +134,27 @@ public class TestOptimiser {
     }
 
     @Test
-    public void testFilterGeneratedForLargeRelation() {
+    public void testFilterGeneratedForLargeRelation() throws CFLRException, CauliflowerException {
+        Problem p = Utilities.parseOrFail("a<-x.x; b<-x.x; c<-x.x; a -> b,a,c,a,a;");
+        Label a = p.labels.get("a");
+        Label b = p.labels.get("b");
+        Label c = p.labels.get("c");
 
-        fail(); // TODO write this
+        Profile prof = Profile.emptyProfile();
+        //a is huge
+        prof.setRelationSources(a, 1000);
+        prof.setRelationSize(a, 5000);
+        prof.setRelationSinks(a, 1000);
+        //b is a small fan-in
+        prof.setRelationSources(b, 5);
+        prof.setRelationSize(b, 6);
+        prof.setRelationSinks(b, 2);
+        //c is a small fan-in
+        prof.setRelationSources(c, 5);
+        prof.setRelationSize(c, 6);
+        prof.setRelationSinks(c, 2);
+
+        Optional<Problem> opti = new RelationFilterTransformation().apply(p, prof);
+        assertThat("should filter a big relation", opti, not(Optional.empty()));
     }
 }

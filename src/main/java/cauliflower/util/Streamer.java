@@ -1,5 +1,6 @@
 package cauliflower.util;
 
+import java.math.BigInteger;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -88,6 +89,18 @@ public class Streamer {
         //        .peek(p -> System.out.println(p.first + " - " + p.second))
         //        .forEach(p -> ret.set(p.first, p.second));
         return permuteInternal(permuteIdx, new LinkedList<>(base));
+    }
+
+    public static <A> Stream<List<A>> choices(List<A> base){
+        long lim = 1;
+        for(int i=0; i<base.size() && i < 62; i++){ // magic number prevents going outside of long bounds
+            lim*=2;
+        }
+        return Stream.iterate(BigInteger.ZERO, i -> i.add(BigInteger.ONE)).limit(lim).map(i -> choice(i, base));
+    }
+
+    public static <A> List<A> choice(BigInteger chosen, List<? extends A> base){
+        return zip(IntStream.range(0, base.size()).mapToObj(chosen::testBit), base.stream(), Pair::new).filter(p -> p.first).map(p -> p.second).collect(Collectors.toList());
     }
 
     /**

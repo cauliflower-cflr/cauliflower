@@ -1,11 +1,14 @@
 package cauliflower.optimiser;
 
 import cauliflower.application.CauliflowerException;
-import cauliflower.representation.Clause;
+import cauliflower.representation.LabelUse;
 import cauliflower.representation.Problem;
 import cauliflower.representation.ProblemAnalysis;
 import cauliflower.util.Pair;
+import cauliflower.util.Streamer;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -31,18 +34,43 @@ public class RelationFilterTransformation implements Transform {
     private final boolean allowsSingletonFilters = false; // needs some more advanced profiling to decide if this is smart
     private final boolean filtersRetainFields = false;
 
+    private Problem spec;
+
     @Override
-    public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
+    public Optional<Problem> apply(Problem spc, Profile prof) throws CauliflowerException {
+        spec = spc;
         spec.labels.stream()
                 .map(l -> new Pair<>(l, l.usages.stream().mapToLong(prof::getDeltaExpansionTime).sum()))
                 .sorted(Pair::InverseSecondaryOrder)
                 .map(l -> l.first)
-                .map(l -> l.usages.stream().filter(lu -> !ProblemAnalysis.isEffectivelyTerminal(spec, lu)).collect(Collectors.toList()))
-                .forEach(System.out::println);
+                .map(l -> l.usages.stream()
+                        .filter(lu -> !ProblemAnalysis.isEffectivelyTerminal(spec, lu)) // must be a nonterminal
+                        .filter(lu -> ProblemAnalysis.ruleIsCyclic(spec, lu.usedInRule)) // and in a cyclic rule
+                        .filter(lu -> lu.usedInRule.ruleHead != lu) // and not the head
+                        .filter(lu -> bindsWithTerminal(lu, true) || bindsWithTerminal(lu, false)) // and binds to at least one terminal
+                        .collect(Collectors.toList()))
+                .flatMap(Streamer::choices)
+                .filter(l -> !l.isEmpty())
+                .filter(l -> l.stream().allMatch(lu -> bindsWithTerminal(lu, true)) || l.stream().allMatch(lu -> bindsWithTerminal(lu, false)))
+                .map(l -> new Pair<>(l, benefitOfFilter(l)))
+                .max(Pair::secondaryOrder)
+                .map(p -> p.first)
+                .ifPresent(System.out::println);
         return Optional.empty();
     }
 
+    /**
+     * higher is better
+     */
+    private double benefitOfFilter(List<LabelUse> filt){
+        return filt.size();
+    }
 
-
-
+    public boolean bindsWithTerminal(LabelUse lu, boolean sourceBinding){
+        return ProblemAnalysis.getBindings(lu.usedInRule)
+                .find(lu, sourceBinding)
+                .map(b -> b.boundEndpoints.stream()
+                        .anyMatch(bnd -> ProblemAnalysis.isEffectivelyTerminal(spec, bnd.bound)))
+                .orElse(false);
+    }
 }
