@@ -207,18 +207,20 @@ public class CppSemiNaiveBackend extends GeneratorForProblem {
             String fromContext = fromBinding.second;
             String toContext = toBinding.second;
             String nm = usage.usedLabel.name + " " + usage.usageIndex + " " + (fromContext == null?"f":"b") + (toContext == null?"f":"b");
-            // TODO to handle epsilon
-            // a positive epsilon rule forces the path to be a cycle, or prevents binding where the fromcontext does not
-            // equal the tocontext, if the path is long enough, the from- and to- contexts will be different, and we can
-            // simply bind the start and source nodes with the same variable, but if the path is UNIT LENGTH, then we must
-            // have a check to ensure that the iterated relation is a self-loop
-            // a -> b,~ => a->b
-            // a -> (b,c)&~ => for all b if (b.snk, b.src) in c
-            // a -> b&~ => for all b if (b.src == b.snk)
             if(fromContext == null && toContext == null){ // no constraint, therefore just iterate through forwards
                 maybeParallelIteration(nm, usage, "forwards", delta);
                 fromContext = varIter(usage) + "[0]";
                 toContext = varIter(usage) + "[1]";
+                // a positive epsilon rule forces the path to be a cycle, or prevents binding where the fromcontext does not
+                // equal the tocontext, if the path is long enough, the from- and to- contexts will be different, and we can
+                // simply bind the start and source nodes with the same variable, but if the path is UNIT LENGTH, then we must
+                // have a check to ensure that the iterated relation is a self-loop
+                // a -> b,~ => a->b
+                // a -> (b,c)&~ => for all b if (b.snk, b.src) in c
+                // a -> b&~ => for all b if (b.src == b.snk)
+                if(fromBinding.first == toBinding.first){
+                    new Scope("Epsilon special-case", "if(" + fromContext + "==" + toContext + ")");
+                }
             } else if(fromContext == null){
                 line("auto range_%s = %s.backwards.getBoundaries<1>({{%s, 0}});", varIter(usage), relationAccess(usage, delta), toContext);
                 new Scope(nm, "for(const auto& " + varIter(usage) + " : range_" + varIter(usage) + ")");

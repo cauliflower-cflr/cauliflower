@@ -42,7 +42,6 @@ public class TestCauliflower {
                     }
                 })
                 .filter(p -> p.getFileName().toString().endsWith(".cflr"))
-                .filter(p -> p.getFileName().toString().equals("epsilonic.cflr"))
                 .flatMap(f -> {
                     try {
                         return Files.list(f.getParent())
