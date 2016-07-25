@@ -50,6 +50,15 @@ public class ProblemAnalysis {
         return analysed.get(prob).ruleIsCyclic(r);
     }
 
+    public static boolean isPartOfFilter(LabelUse lu){
+        Bounds myBounds = getBindings(lu.usedInRule);
+        return myBounds.find(lu, true).get().boundEndpoints.stream()
+                .filter(bnd -> bnd.bound.usedLabel == lu.usedLabel)
+                .filter(bnd -> bnd.bound != lu)
+                .filter(bnd -> bnd.bindsSource && !bnd.bindsNegation)
+                .anyMatch(bnd -> myBounds.find(lu, false).equals(myBounds.find(bnd.bound, false)));
+    }
+
     /**
      * Get the dependency mapping where A maps to B if "A -> ...B..." is a rule
      */
@@ -97,7 +106,7 @@ public class ProblemAnalysis {
                         .sorted((l1, l2)->l1.index - l2.index)
                         .collect(Collectors.toList()))
                 // it is an error to provide an empty group, so getAsInt is safe to use here
-                .sorted((li1, li2) -> li1.stream().mapToInt(l -> l.index).min().getAsInt() - li2.stream().mapToInt(l -> l.index).min().getAsInt())
+                //.sorted((li1, li2) -> li1.stream().mapToInt(l -> l.index).min().getAsInt() - li2.stream().mapToInt(l -> l.index).min().getAsInt())
                 .collect(Collectors.toList());
     }
 

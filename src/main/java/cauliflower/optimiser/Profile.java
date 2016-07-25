@@ -29,27 +29,27 @@ public class Profile {
     public static final Pattern DOM_FIELD = Pattern.compile("f:.*=[0-9]*");
     public static final Pattern DOM_VERTEX = Pattern.compile("v:.*=[0-9]*");
 
-    Map<String, Integer> data = new HashMap<>();
+    Map<String, Long> data = new HashMap<>();
 
     public Profile(Path logPath) throws IOException {
         FileSystem.getLineStream(logPath).forEach(l -> {
             if(TIME_UPDATE.matcher(l).matches()){
                 int time = Integer.parseInt(l.substring(l.lastIndexOf(" ") + 1));
                 String var = "u:" + l.substring(l.indexOf(" upd ") + 5, l.lastIndexOf(" "));
-                if(!data.containsKey(var)) data.put(var, 0);
+                if(!data.containsKey(var)) data.put(var, 0l);
                 data.put(var, data.get(var) + time);
             } else if (TIME_EXPAND.matcher(l).matches()){
                 int time = Integer.parseInt(l.substring(l.lastIndexOf(" ") + 1));
                 String var = "x:" + l.substring(l.indexOf(" exp ") + 5, l.lastIndexOf(" "));
-                if(!data.containsKey(var)) data.put(var, 0);
+                if(!data.containsKey(var)) data.put(var, 0l);
                 data.put(var, data.get(var) + time);
             } else if (SIZE_PARTS.matcher(l).matches()){
                 String[] ps = l.split(" ");
-                data.put("st:" + ps[2], Integer.parseInt(ps[3]));
-                data.put("s:" + ps[2], Integer.parseInt(ps[4]));
-                data.put("t:" + ps[2], Integer.parseInt(ps[5]));
+                data.put("st:" + ps[2], Long.parseLong(ps[3]));
+                data.put("s:" + ps[2], Long.parseLong(ps[4]));
+                data.put("t:" + ps[2], Long.parseLong(ps[5]));
             } else if (DOM_VERTEX.matcher(l).matches() || DOM_FIELD.matcher(l).matches()){
-                data.put("d" + l.substring(0, l.indexOf("=")), Integer.parseInt(l.substring(l.lastIndexOf("=") + 1)));
+                data.put("d" + l.substring(0, l.indexOf("=")), Long.parseLong(l.substring(l.lastIndexOf("=") + 1)));
             }
         });
     }
@@ -57,36 +57,36 @@ public class Profile {
     // this constructor used to make the aggregate profiles
     private Profile() {}
 
-    public int getDeltaExpansionTime(LabelUse lu){
+    public long getDeltaExpansionTime(LabelUse lu){
         String s = "x:" + lu.toString();
         return data.containsKey(s) ? data.get(s) : 0;
     }
-    public void setRelationSize(Label l, int s){
+    public void setRelationSize(Label l, long s){
         data.put("st:" + l.name, s);
     }
-    public int getRelationSize(Label l){
+    public long getRelationSize(Label l){
         String s = "st:" + l.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
-    public void setRelationSources(Label l, int s){
+    public void setRelationSources(Label l, long s){
         data.put("s:" + l.name, s);
     }
-    public int getRelationSources(Label l){
+    public long getRelationSources(Label l){
         String s = "s:" + l.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
-    public void setRelationSinks(Label l, int s){
+    public void setRelationSinks(Label l, long s){
         data.put("t:" + l.name, s);
     }
-    public int getRelationSinks(Label l){
+    public long getRelationSinks(Label l){
         String s = "t:" + l.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
-    public int getFieldDomainSize(Domain d){
+    public long getFieldDomainSize(Domain d){
         String s = "df:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
-    public int getVertexDomainSize(Domain d){
+    public long getVertexDomainSize(Domain d){
         String s = "dv:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
@@ -94,13 +94,13 @@ public class Profile {
     /*
      * Aggregates
      */
-    public Integer ruleWeight(Rule r){
-        return new Clause.InOrderVisitor<>(new Clause.VisitorBase<Integer>(){
+    public Long ruleWeight(Rule r){
+        return new Clause.InOrderVisitor<>(new Clause.VisitorBase<Long>(){
             @Override
-            public Integer visitLabelUse(LabelUse lu){
+            public Long visitLabelUse(LabelUse lu){
                 return getDeltaExpansionTime(lu);
             }
-        }).visitAllNonNull(r.ruleBody).stream().mapToInt(Integer::intValue).sum();
+        }).visitAllNonNull(r.ruleBody).stream().mapToLong(Long::longValue).sum();
     }
 
     public static Profile emptyProfile(){
@@ -115,7 +115,7 @@ public class Profile {
         Profile ret = new Profile();
         Streamer.zip(profs.stream(), weights.stream(), Pair::new).forEach(p -> {
             p.first.data.forEach((k, v) -> {
-                if(!ret.data.containsKey(k)) ret.data.put(k, 0);
+                if(!ret.data.containsKey(k)) ret.data.put(k, (long)0);
                 ret.data.put(k, ret.data.get(k) + (int)(v*p.second));
             });
         });

@@ -10,6 +10,11 @@ import java.util.stream.StreamSupport;
 
 public class Streamer {
 
+    @SafeVarargs
+    public static <T> List<T> concat(List<? extends T> ... ins){
+        return Stream.of(ins).flatMap(Collection::stream).collect(Collectors.toList());
+    }
+
     /**
      * Zips two streams according to a provided BiFunction
      * Code stolen shamelessly from http://stackoverflow.com/a/23529010

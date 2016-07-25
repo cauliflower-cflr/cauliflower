@@ -1,9 +1,15 @@
 package cauliflower.representation;
 
 import cauliflower.util.CFLRException;
+import cauliflower.util.Streamer;
 
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * ProblemBuilder
@@ -46,8 +52,8 @@ public class ProblemBuilder {
     }
 
     public static class ClauseCopier implements Clause.Visitor<Clause>{
-        private CFLRException failure;
-        private final Rule.RuleBuilder forThisRule;
+        protected CFLRException failure;
+        protected final Rule.RuleBuilder forThisRule;
         public ClauseCopier(Rule.RuleBuilder forRule) {
             this.forThisRule = forRule;
         }
@@ -96,5 +102,9 @@ public class ProblemBuilder {
         Problem ret = internal;
         internal = null;
         return ret;
+    }
+
+    public static List<String> anonFields(int startInclusive, int endExclusive){
+        return IntStream.range(startInclusive, endExclusive).mapToObj(i -> "f" + i).collect(Collectors.toList());
     }
 }

@@ -2,6 +2,7 @@ package cauliflower.representation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -258,6 +259,24 @@ public abstract class Clause {
                 return cl;
             }
         }).visitAllNonNull(c);
+    }
+
+    public static Optional<ProblemAnalysis.Binding> getIfFilter(Clause c){
+        if(c instanceof Intersect){
+            if(((Intersect) c).left instanceof Epsilon || ((Intersect) c).right instanceof Epsilon){
+                Clause other = ((Intersect) c).left instanceof Epsilon ? ((Intersect) c).right : ((Intersect) c).left;
+                if(other instanceof Compose){
+                    if(((Compose) other).left instanceof Reverse || ((Compose) other).right instanceof Reverse){
+                        Clause l = ((Compose) other).left instanceof Reverse ? ((Reverse) ((Compose) other).left).sub : ((Compose) other).left;
+                        Clause r = ((Compose) other).right instanceof Reverse ? ((Reverse) ((Compose) other).right).sub : ((Compose) other).right;
+                        if(l instanceof LabelUse && r instanceof LabelUse && ((LabelUse) l).usedLabel == ((LabelUse) r).usedLabel){
+                            return Optional.of(new ProblemAnalysis.Binding((LabelUse)l, ((Compose) other).right instanceof Reverse, false));
+                        }
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     /**

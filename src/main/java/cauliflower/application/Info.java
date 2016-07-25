@@ -15,6 +15,7 @@ public class Info {
         }
         buildVersion = prop.getProperty("build.version", "UNKNOWN");
         buildDate = prop.getProperty("build.date", "UNKNOWN");
+        optAllowSingletonFilters = Boolean.parseBoolean(prop.getProperty("opt.singleton_filters", "false"));
 
         // Determine where the Cauliflower 'include' directory is
         // - in a distribution it is ../include
@@ -30,6 +31,8 @@ public class Info {
     public static final String buildVersion;
     public static final String buildDate;
     public static final String cauliDistributionDirectory;
+
+    public static final boolean optAllowSingletonFilters;
 
     public static final int FAILURE_ARG=2;
     public static final int FAILURE_EXEC=1;

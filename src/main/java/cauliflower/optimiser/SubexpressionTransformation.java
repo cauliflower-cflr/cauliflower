@@ -50,6 +50,7 @@ public abstract class SubexpressionTransformation implements Transform{
                 .filter(b -> b.boundEndpoints.stream().noneMatch(e -> e.bindsNegation)) // that are not negated
                 // TODO Conservatively only one of the labels can be fielded, practically their fields just cant bind each other
                 .map(BoundPair::new)
+                .filter(bp -> !ProblemAnalysis.isPartOfFilter(bp.loLabel))
                 .collect(Collectors.toList());
         return applyInternal(spec, prof);
     }
@@ -273,10 +274,9 @@ public abstract class SubexpressionTransformation implements Transform{
                     .collect(Collectors.groupingBy(s->s, Collectors.counting()))
                     .entrySet().stream()
                     .filter(e -> e.getValue() > 1)
-                    // TODO pick the most useful one, not just any one
+                    .flatMap(s -> allBoundPairs.stream().filter(abp -> abp.getNonterminalName().equals(s.getKey())))
+                    // TODO find a good one, not just any one
                     .findAny()
-                    .map(s -> allBoundPairs.stream().filter(abp -> abp.getNonterminalName().equals(s.getKey())).findAny())
-                    .orElse(Optional.empty())
                     .map(bp -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, bp));
         }
     }
@@ -290,7 +290,7 @@ public abstract class SubexpressionTransformation implements Transform{
             return allBoundPairs.stream()
                     .filter(bp -> Clause.getUsedLabelsInOrder(bp.loLabel.usedInRule.ruleBody).size() > 2)
                     .map(bp -> new Pair<>(bp, bp.estimateJoinRedundancy(prof)))
-                    .filter(p -> p.second > 1.5) // arbitrary cutoff
+                    .filter(p -> p.second > 2) // arbitrary cutoff - i increased it because 1.5 didnt work in experiments...so shonky
                     .max((p1, p2) -> p2.second.compareTo(p1.second)) // sort descending (i.e. highest redundancy factor first
                     .map(p -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, p.first));
         }

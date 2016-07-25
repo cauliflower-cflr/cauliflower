@@ -1,6 +1,7 @@
 package cauliflower;
 
 import cauliflower.parser.AntlrParser;
+import cauliflower.parser.OmniParser;
 import cauliflower.representation.Clause;
 import cauliflower.representation.LabelUse;
 import cauliflower.representation.Problem;
@@ -9,6 +10,8 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -34,6 +37,10 @@ public class Utilities {
             fail("Failed to parse: " + s + " : " + exc.getMessage());
             return null;
         }
+    }
+
+    public static Problem parseOrFail(Path p) throws IOException {
+        return OmniParser.get(p);
     }
 
     public static String ruleForm(Rule r){

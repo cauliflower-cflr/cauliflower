@@ -2,10 +2,7 @@ package cauliflower.generator;
 
 import cauliflower.application.CauliflowerException;
 import cauliflower.representation.*;
-import cauliflower.util.CFLRException;
-import cauliflower.util.Pair;
-import cauliflower.util.Streamer;
-import cauliflower.util.TarjanScc;
+import cauliflower.util.*;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -121,6 +118,7 @@ public class CppSemiNaiveBackend extends GeneratorForProblem {
     private void generateSemiNaive(){
         Map<Label, Set<Label>> depGraphInverse = ProblemAnalysis.getInverseLabelDependencyGraph(prob());
         List<List<Label>> order = ProblemAnalysis.getStronglyConnectedLabels(prob());
+        Logs.forClass(this.getClass()).trace("Delta groups P{}", order);
         for(List<Label> group : order){
             // while there are deltas to expand
             String cond = group.stream()

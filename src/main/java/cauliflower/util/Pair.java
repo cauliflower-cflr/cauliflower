@@ -8,12 +8,23 @@ import java.util.function.Function;
  * C++4lyf
  */
 public class Pair<T, U> {
+
     public T first;
     public U second;
+
     public Pair(T f, U s){
         first = f;
         second = s;
     }
+
+    public T getFirst(){
+        return first;
+    }
+
+    public U getSecond(){
+        return second;
+    }
+
     @Override
     public String toString(){
         return String.format("(%s,%s)", first, second);

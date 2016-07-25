@@ -2,13 +2,14 @@ package cauliflower;
 
 import cauliflower.representation.*;
 import cauliflower.util.CFLRException;
+import cauliflower.util.Pair;
 import org.junit.Test;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Stream;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.*;
 
 /**
@@ -187,5 +188,47 @@ public class TestRepresentation {
         assertThat(css.visit(Clause.toNormalForm(r.ruleBody)), is("((-c,-b),-a)"));
     }
 
+    @Test
+    public void testFilterDetection(){
+        //really this should be its own class TODO
+        Stream.of(
+                // non-filters
+                new Object[]{"a->b", null, true},
+                new Object[]{"a->-b", null, true},
+                new Object[]{"a->b&~", null, true},
+                new Object[]{"a->b&-b,~", null, true},
+                new Object[]{"a->(b,b)&~", null, true},
+                // filters to a new relation
+                new Object[]{"a->(b,-b)&~", "b", true},
+                new Object[]{"a->~&(b,-b)", "b", true},
+                new Object[]{"a->~&(-b,b)", "b", false},
+                new Object[]{"a->(-b,b)&~", "b", false},
+                // filters to the same relation
+                new Object[]{"b->(b,-b)&~", "b", true},
+                new Object[]{"b->~&(b,-b)", "b", true},
+                new Object[]{"b->~&(-b,b)", "b", false},
+                new Object[]{"b->(-b,b)&~", "b", false},
+                // fields
+                new Object[]{"a->(c[i],-c[i])&~", "c", true},
+                new Object[]{"a->(-c[i],c[i])&~", "c", false},
+                new Object[]{"a->(c[i],-c[j])&~", "c", true},
+                new Object[]{"a->(-c[i],c[j])&~", "c", false}
+                ).forEach(this::filterChecker);
+    }
+
+    private void filterChecker(Object[] objs){
+        String s = (String) objs[0];
+        String lbl = (String) objs[1];
+        boolean source = (Boolean) objs[2];
+        Problem prob = Utilities.parseOrFail("a<-x.x; b<-x.x; c[f]<-x.x;" + s + ";");
+        Optional<ProblemAnalysis.Binding> flt = Clause.getIfFilter(prob.getRule(0).ruleBody);
+        if(lbl == null){
+            assertThat(s + " is not a filter", flt, is(Optional.empty()));
+        } else {
+            assertThat(s + " is a filter", flt, not(Optional.empty()));
+            assertThat(s + " label name missmatch", flt.get().bound.usedLabel.name, is(lbl));
+            assertThat(s + " source-sink missmatch", flt.get().bindsSource, is(source));
+        }
+    }
 }
 

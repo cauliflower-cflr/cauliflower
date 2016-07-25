@@ -4,6 +4,7 @@ import cauliflower.application.CauliflowerException;
 import cauliflower.application.Task;
 import cauliflower.generator.CauliflowerSpecification;
 import cauliflower.generator.Verbosity;
+import cauliflower.parser.OmniParser;
 import cauliflower.representation.Problem;
 import cauliflower.util.Logs;
 
@@ -42,6 +43,10 @@ public class Controller implements Task<Problem> {
             while (optimisationRound < maxRounds) {
                 Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
                 new CauliflowerSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
+                // re-read the specification from file, this should not be necessary, but i do it because
+                // the parser creates nicer looking internal representations than my optimisers do using
+                // the ProblemBuilder
+                curSpec = OmniParser.get(getSpecFileForRound(optimisationRound));
                 Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
                         new SubexpressionTransformation.TerminalChain(),
                         new SubexpressionTransformation.RedundantChain(),

@@ -8,6 +8,8 @@
 #                                                                         #
 # Check the correctness en-masse of a single cauliflower executable       #
 # against many cases                                                      #
+#                                                                         #
+# correctness <executable> <target relation> {samples...}                 #
 #=========================================================================#
 
 set -e
