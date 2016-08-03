@@ -33,7 +33,8 @@ dependencies {
     testCompile 'junit:junit:4.12';
     compile "com.beust:jcommander:1.48";
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5';
-    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.5';
+    //compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.5';
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.+';
     antlr "org.antlr:antlr4:4.5"; // use ANTLR version 4
 
 }

@@ -26,6 +26,6 @@ public interface Task<T> {
      * Utility for throwing CauliflowerExceptions when another exception occurs
      */
     default void except(IOException exc) throws CauliflowerException{
-        throw new CauliflowerException(this.getClass(), exc.getMessage());
+        throw new CauliflowerException(this.getClass(), exc.toString());
     }
 }

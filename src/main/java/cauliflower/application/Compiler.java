@@ -53,6 +53,7 @@ public class Compiler implements Task<Path>{
             runProcess(frontEnd, "make", "VERBOSE=1", "-j4");
 
             // copy the executable
+            Files.deleteIfExists(execFile);
             Files.copy(FileSystem.constructPath(buildDir, name), execFile);
             return execFile;
         } catch(IOException e){

@@ -2,7 +2,6 @@ package cauliflower.parser;
 
 import cauliflower.parser.grammar.SpecificationBaseVisitor;
 import cauliflower.parser.grammar.SpecificationParser;
-import cauliflower.util.Logs;
 import cauliflower.util.Registrar;
 import org.antlr.v4.runtime.tree.ParseTree;
 

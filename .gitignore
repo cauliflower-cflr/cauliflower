@@ -9,3 +9,5 @@ gen/
 .*.swp
 *.pyc
 
+# special files #
+cauliflower.log

@@ -1,0 +1,43 @@
+#! /usr/bin/env bash
+
+#=========================================================================#
+#                             optimiser_check                             #
+#                                                                         #
+# Author: Nic H.                                                          #
+# Date: 2016-Aug-03                                                       #
+#                                                                         #
+# run all the versions of the spec in the optimisation directory $1, and  #
+# optionally filter them by $3.  Use the problem in $2                    #
+#=========================================================================#
+
+set -e
+set -u
+
+function usage(){
+    grep "^#.*#$" $0
+}
+
+while getopts "h" opt; do
+    case $opt in
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+shift $(($OPTIND -1))
+
+SAMPLE="$2"
+FILTER=".*"
+[ $# == 3 ] && FILTER="$3"
+
+for FI in $1/r*_exe; do
+    echo
+    echo $(basename $FI)
+    echo
+    $FI $SAMPLE 2>&1 | grep "$FILTER"
+done
