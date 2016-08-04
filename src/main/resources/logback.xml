@@ -4,8 +4,9 @@
         <!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
         <target>System.err</target>
+        <withJansi>true</withJansi>
         <encoder>
-            <pattern>[%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%gray([%thread]) %highlight(%-5level) %boldWhite(%logger{36}) - %highlight(%msg%n)</pattern>
         </encoder>
     </appender>
 
@@ -18,7 +19,7 @@
         </encoder>
     </appender>
 
-    <root level="debug">
+    <root level="trace">
         <appender-ref ref="CONSOLE" />
         <appender-ref ref="FILE" />
     </root>

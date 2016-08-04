@@ -32,7 +32,7 @@ public class Optimiser implements Task<Void>{
 
     public Optimiser(Path optimisedSpec, List<Path> trainingSet){
         this.optimisedSpec = optimisedSpec;
-        this.controller = new Controller(5, trainingSet);
+        this.controller = new Controller(Info.optMaxRounds, trainingSet);
     }
 
     public Void perform(Problem spec) throws CauliflowerException {

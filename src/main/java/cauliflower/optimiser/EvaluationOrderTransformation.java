@@ -49,6 +49,9 @@ public class EvaluationOrderTransformation implements Transform{
                             .parallel()
                             .mapToObj(i -> Streamer.permuteIndices(i, bodyUses.size()))
                             .map(lst -> new RuleCostEstimation(prof, bodyUses, lst, bindings))
+                            .sequential()
+                            .sorted(RuleCostEstimation::compareTo)
+                            .peek(rce -> System.out.println(rce.timeCost + " == " + rce.evalOrder))
                             .min(RuleCostEstimation::compareTo)
                             .filter(rco -> !rco.hasSameEvalOrder(r.ruleBody))
                             .map(rco -> new Pair<Rule, RuleCostEstimation>(r, rco));
