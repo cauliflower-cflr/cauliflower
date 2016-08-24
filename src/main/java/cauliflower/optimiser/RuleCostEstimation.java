@@ -9,7 +9,6 @@ import cauliflower.util.Streamer;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -59,8 +58,16 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
 
     private double outputsForIteration(LabelUse lu, Binder source, Binder sink) {
         double ret = profile.getRelationSize(lu.usedLabel);
-        if(source != null) ret = ret/(double)(profile.getVertexDomainSize(lu.usedLabel.srcDomain));
-        if(sink != null) ret = ret/(double)(profile.getVertexDomainSize(lu.usedLabel.dstDomain));
+        if(source != null){
+            // apply a factor for the branchingness. i.e. if a elation has R edges emanating from D points, then
+            // R/D new points will result from the join
+            ret = ret/(double)(profile.getVertexDomainSize(lu.usedLabel.srcDomain));
+            ret *= getDomainSaturationFactor(lu.usedLabel, true, source.lbl, source.source);
+        }
+        if(sink != null){
+            ret = ret/(double)(profile.getVertexDomainSize(lu.usedLabel.dstDomain));
+            ret *= getDomainSaturationFactor(lu.usedLabel, false, sink.lbl, sink.source);
+        }
         return ret;
 //        if(source == null && sink == null){
 //            return profile.getRelationSize(lu.usedLabel);
@@ -71,6 +78,25 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
 //        } else {
 //            return profile.getRelationSize(lu.usedLabel)/(double)(profile.getVertexDomainSize(lu.usedLabel.srcDomain)*profile.getVertexDomainSize(lu.usedLabel.dstDomain));
 //        }
+    }
+
+    /**
+     * apply a factor of the probability that a match will be made, according to the saturation of this
+     * source's domain-sat and the binder's relevant domain-sat.  if the binder covers a much smaller fraction
+     * than this, the probability is small (i.e. many iterations fail), if the binder covers a much larger
+     * fraction, the probability is high.  IMPORTANTLY, if the binder is the same relation, ALL binds succeed
+     * (i.e. the factor is 1.0)
+     */
+    private double getDomainSaturationFactor(Label myLbl, boolean mySrc, Label otherLbl, boolean otherSrc){
+        double ret = 1.0;
+        if (myLbl != otherLbl || mySrc != otherSrc) {
+            if (otherSrc) {
+                ret = profile.getRelationSources(otherLbl) / (double) profile.getVertexDomainSize(otherLbl.srcDomain);
+            } else {
+                ret = profile.getRelationSinks(otherLbl) / (double) profile.getVertexDomainSize(otherLbl.dstDomain);
+            }
+        }
+        return (ret+1.0)/2.0;
     }
 
     private double workForIteration(LabelUse lu, Binder source, Binder sink) {

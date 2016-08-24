@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 /**
  * SubexpressionTransformation
  * <p>
- *     Performs three kinds of subexpression optimisations:
+ *     Performs several kinds of subexpression optimisations:
  *     <ul>
  *         <li>Chains which are fixed in this cyclic SCC are calculated in an earlier SCC</li>
  *         <li>Chains which occur multiple times in this SCC are put into their own nonterminal</li>
@@ -124,6 +124,12 @@ public abstract class SubexpressionTransformation implements Transform{
             return outer == 0 ? 0 : inner/outer;
         }
 
+        public double estimateJoinDisparity(Profile prof){
+            double l = loSource ? prof.getRelationSources(loLabel.usedLabel) : prof.getRelationSinks(loLabel.usedLabel);
+            double h = hiSource ? prof.getRelationSources(hiLabel.usedLabel) : prof.getRelationSinks(hiLabel.usedLabel);
+            return Math.max(l,h)/Math.min(l,h);
+        }
+
         @Override
         public int compareTo(BoundPair other) {
             int ret = bindingOrder.compare(new ProblemAnalysis.Binding(this.loLabel, this.loSource, false), new ProblemAnalysis.Binding(other.loLabel, other.loSource, false));
@@ -134,16 +140,17 @@ public abstract class SubexpressionTransformation implements Transform{
         }
     }
 
+    /**
+     * find all the bound pairs with the same labels
+     * this is only safe to do because of the ORDER of optimisations:
+     *  - if ab appears in many sccs, and a or b are nonterminals in the lowest one,
+     *    they must be terminals in the higher ones, so the terminalChain
+     *    optimisation will automatically optimise the redundant (cyclic) part.
+     *  - if ab is a redundant op, we can guarantee there is not already
+     *    a nonterminal calculating ab, since that would have been caught by
+     *    terminalChain
+     */
     private static Problem rebuildWithNonterminalInsteadOf(List<BoundPair> allBoundPairs, Problem spec, BoundPair chain) {
-        /* find all the bound pairs with the same labels
-         * this is only safe to do because of the ORDER of optimisations:
-         *  - if ab appears in many sccs, and a or b are nonterminals in the lowest one,
-         *    they must be terminals in the higher ones, so the terminalChain
-         *    optimisation will automatically optimise the redundant (cyclic) part.
-         *  - if ab is a redundant op, we can guarantee there is not already
-         *    a nonterminal calculating ab, since that would have been caught by
-         *    terminalChain
-         */
         List<BoundPair> relevantPairs = allBoundPairs.stream().filter(bp ->
                 bp.loSource == chain.loSource
                         && bp.hiSource == chain.hiSource
@@ -172,16 +179,16 @@ public abstract class SubexpressionTransformation implements Transform{
         }
     }
 
+    /**
+     * in normal form, a chain AB can have the forms:
+     *  - ((_,A),B)   -> (_,X)
+     *  - ((_,-B),-A) -> (_,-X)
+     *  - (A,B)       -> X
+     *  - (-B,-A)     -> -X
+     * All these transformations have the benefit of retaining normal form, so we dont need to
+     * call it repeatedly in this method
+     */
     private static Clause removeChain(Clause base, BoundPair chain, String stubName, Rule.RuleBuilder forRule){
-        /*
-         * in normal form, a chain AB can have the forms:
-         *  - ((_,A),B)   -> (_,X)
-         *  - ((_,-B),-A) -> (_,-X)
-         *  - (A,B)       -> X
-         *  - (-B,-A)     -> -X
-         * All these transformations have the benefit of retaining normal form, so we dont need to
-         * call it repeatedly in this method
-         */
         return new Clause.Visitor<Clause>(){
             @Override
             public Clause visitCompose(Clause.Compose cl) {
@@ -292,6 +299,22 @@ public abstract class SubexpressionTransformation implements Transform{
                     .map(bp -> new Pair<>(bp, bp.estimateJoinRedundancy(prof)))
                     .filter(p -> p.second > 2) // arbitrary cutoff - i increased it because 1.5 didnt work in experiments...so shonky
                     .max((p1, p2) -> p2.second.compareTo(p1.second)) // sort descending (i.e. highest redundancy factor first
+                    .map(p -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, p.first));
+        }
+    }
+
+    /**
+     * If a chain is between a very large and a very small relation
+     */
+    public static class ChomskyChain extends SubexpressionTransformation {
+        @Override
+        public Optional<Problem> applyInternal(Problem spec, Profile prof) throws CauliflowerException {
+            return allBoundPairs.stream()
+                    .filter(bp -> Clause.getUsedLabelsInOrder(bp.loLabel.usedInRule.ruleBody).size() > 2)
+                    .map(bp -> new Pair<>(bp, bp.estimateJoinDisparity(prof)))
+                    .peek(System.out::println)
+                    .filter(p -> p.second > 4) // arbitrary cutoff
+                    .max(Pair::secondaryOrder)
                     .map(p -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, p.first));
         }
     }

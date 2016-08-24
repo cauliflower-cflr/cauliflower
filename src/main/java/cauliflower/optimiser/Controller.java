@@ -48,9 +48,10 @@ public class Controller implements Task<Problem> {
                 // the ProblemBuilder
                 curSpec = OmniParser.get(getSpecFileForRound(optimisationRound));
                 Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
-                        //new SubexpressionTransformation.TerminalChain(),
-                        //new SubexpressionTransformation.RedundantChain(),
-                        //new SubexpressionTransformation.SummarisingChain(),
+                        new SubexpressionTransformation.TerminalChain(),
+                        new SubexpressionTransformation.RedundantChain(),
+                        new SubexpressionTransformation.SummarisingChain(),
+                        new SubexpressionTransformation.ChomskyChain(),
                         //new RelationFilterTransformation(),
                         new EvaluationOrderTransformation(true, true)
                 ));
