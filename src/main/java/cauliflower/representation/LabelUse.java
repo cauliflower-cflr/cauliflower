@@ -26,4 +26,9 @@ public class LabelUse extends Clause{
     public String toString(){
         return String.format("%s%s(%d)", usedLabel.name, usedField, usageIndex);
     }
+
+    @Override
+    protected <T> T visitMe(Visitor<T> vis) {
+        return vis.visitLabelUse(this);
+    }
 }

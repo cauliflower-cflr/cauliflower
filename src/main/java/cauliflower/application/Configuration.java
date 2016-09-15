@@ -33,7 +33,7 @@ public class Configuration {
     public final Adt adt;
     public final boolean compile;
     public final boolean debugGenerated;
-    public final boolean optimise;
+    public final int optimise;
     public final boolean parallel;
     public final boolean reports;
     public final boolean timers;
@@ -66,7 +66,7 @@ public class Configuration {
 
         Path fil = sampleDirs.stream().filter(p -> !Files.isDirectory(p)).findAny().orElse(null);
         if (fil != null) throw new ConfigurationException("Sample \"" + fil + "\" is not a directory.");
-        if (optimise && sampleDirs.isEmpty()) throw new ConfigurationException("When optimising, you must provide at least one sample directory for training.");
+        if (optimise > 0 && sampleDirs.isEmpty()) throw new ConfigurationException("When optimising, you must provide at least one sample directory for training.");
     }
 
     public Path getOutputDir(){
@@ -133,8 +133,8 @@ public class Configuration {
         @Parameter(names = {"-o", "--output-dir"}, description = "Set the output directory (default is \"./\").")
         private String _output = null;
 
-        @Parameter(names = {"-O", "--optimise"}, description = "Optimise the input specification.")
-        private boolean _optimise = false;
+        @Parameter(names = {"-O", "--optimise"}, description = "Optimise the input specification (this number of times).")
+        private int _optimise = 0;
 
         @Parameter(names = {"-p", "--parallel"}, description = "Generate parallel evaluation code.")
         private boolean _parallel = false;
@@ -183,8 +183,8 @@ public class Configuration {
             this.internal._compile = true;
             return this;
         }
-        public Builder optimising(){
-            this.internal._optimise = true;
+        public Builder optimising(int amt){
+            this.internal._optimise = amt;
             return this;
         }
         public Builder parallelising(){

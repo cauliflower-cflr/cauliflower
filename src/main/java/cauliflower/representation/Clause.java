@@ -19,6 +19,8 @@ public abstract class Clause {
         this.type = ty;
     }
 
+    protected abstract <T> T visitMe(Visitor<T> vis);
+
     @Override
     public String toString() {
         return new ClauseString().visit(this);
@@ -41,6 +43,11 @@ public abstract class Clause {
             this.left = l;
             this.right = r;
         }
+
+        @Override
+        protected <T> T visitMe(Visitor<T> vis) {
+            return vis.visitCompose(this);
+        }
     }
 
     public static class Intersect extends Clause {
@@ -52,6 +59,11 @@ public abstract class Clause {
             this.left = l;
             this.right = r;
         }
+
+        @Override
+        protected <T> T visitMe(Visitor<T> vis) {
+            return vis.visitIntersect(this);
+        }
     }
 
     public static class Reverse extends Clause {
@@ -60,6 +72,11 @@ public abstract class Clause {
         public Reverse(Clause s) {
             super(ClauseType.REVERSE);
             this.sub = s;
+        }
+
+        @Override
+        protected <T> T visitMe(Visitor<T> vis) {
+            return vis.visitReverse(this);
         }
     }
 
@@ -70,11 +87,21 @@ public abstract class Clause {
             super(ClauseType.NEGATE);
             this.sub = s;
         }
+
+        @Override
+        protected <T> T visitMe(Visitor<T> vis) {
+            return vis.visitNegate(this);
+        }
     }
 
     public static class Epsilon extends Clause {
         public Epsilon() {
             super(ClauseType.EPSILON);
+        }
+
+        @Override
+        protected <T> T visitMe(Visitor<T> vis) {
+            return vis.visitEpsilon(this);
         }
     }
 
@@ -95,21 +122,7 @@ public abstract class Clause {
         T visitEpsilon(Epsilon cl);
 
         default T visit(Clause cl) {
-            switch (cl.type) {
-                case COMPOSE:
-                    return visitCompose((Compose) cl);
-                case INTERSECT:
-                    return visitIntersect((Intersect) cl);
-                case REVERSE:
-                    return visitReverse((Reverse) cl);
-                case NEGATE:
-                    return visitNegate((Negate) cl);
-                case LABEL:
-                    return visitLabelUse((LabelUse) cl);
-                case EPSILON:
-                    return visitEpsilon((Epsilon) cl);
-            }
-            throw new RuntimeException("Unreachable, failed to find the visitor");
+            return cl.visitMe(this);
         }
     }
 

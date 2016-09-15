@@ -19,7 +19,7 @@ public class Cauliflower {
             Configuration conf = new Configuration(args);
             Problem prob = OmniParser.get(conf.specFile);
             Task mainTask = new Generator(conf);
-            if (conf.optimise) {
+            if (conf.optimise > 0) {
                 mainTask = new Optimiser(conf);
             } else if (conf.compile) {
                 mainTask = new Compiler(conf);

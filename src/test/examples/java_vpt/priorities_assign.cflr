@@ -7,6 +7,6 @@ VarPointsTo <- vert . heap;
 
 Assign -> Cast[t];
 VarPointsTo -> Alloc;
-VarPointsTo -> -Assign{1}, VarPointsTo;
+VarPointsTo -> -Assign, VarPointsTo{1};
 VarPointsTo -> -Load[f]{4}, VarPointsTo{3}, -VarPointsTo{1}, -Store[f]{2}, VarPointsTo{0};
 

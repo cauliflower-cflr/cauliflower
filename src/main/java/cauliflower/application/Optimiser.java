@@ -27,12 +27,12 @@ public class Optimiser implements Task<Void>{
     private final Controller controller;
 
     public Optimiser(Configuration conf){
-        this(FileSystem.constructPath(conf.getOutputDir(), conf.problemName, "cflr"), conf.sampleDirs);
+        this(FileSystem.constructPath(conf.getOutputDir(), conf.problemName, "cflr"), conf.sampleDirs, conf.optimise);
     }
 
-    public Optimiser(Path optimisedSpec, List<Path> trainingSet){
+    public Optimiser(Path optimisedSpec, List<Path> trainingSet, int rounds){
         this.optimisedSpec = optimisedSpec;
-        this.controller = new Controller(Info.optMaxRounds, trainingSet);
+        this.controller = new Controller(rounds, trainingSet);
     }
 
     public Void perform(Problem spec) throws CauliflowerException {

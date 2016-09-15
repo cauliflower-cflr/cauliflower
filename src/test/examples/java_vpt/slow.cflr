@@ -1,8 +1,11 @@
 Alloc <- vert . heap;
 Assign <- vert . vert;
+Cast[type] <- vert . vert;
 Load[field] <- vert . vert;
 Store[field] <- vert . vert;
 VarPointsTo <- vert . heap;
+
+Assign -> Cast[t];
 VarPointsTo -> Alloc;
 VarPointsTo -> -Assign, VarPointsTo;
 VarPointsTo -> -Load[f], VarPointsTo, -VarPointsTo, -Store[f], VarPointsTo;

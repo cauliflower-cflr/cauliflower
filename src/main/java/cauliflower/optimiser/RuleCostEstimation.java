@@ -41,11 +41,13 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
                     if(sinkBound == null)   currentBindings.stream().filter(bind -> bind.first.has(lu, false)).forEach(bind -> bind.second = new Binder(lu.usedLabel, false));
                     return new Pair<>(sourceBound, sinkBound);
                 }));
-        double iterCount = 1;
-        for(LabelUse lu : evalOrder){
-            timeCost += iterCount*workForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
-            iterCount *= outputsForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
-        }
+        System.out.println("=====================");
+        timeCost = new PredictiveModel().getCost(prof, evalOrder, bindings);
+//        double iterCount = 1;
+//        for(LabelUse lu : evalOrder){
+//            timeCost += iterCount*workForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
+//            iterCount *= outputsForIteration(lu, bindingsAtEval.get(lu).first, bindingsAtEval.get(lu).second);
+//        }
     }
 
     public int getPriority(LabelUse lu){

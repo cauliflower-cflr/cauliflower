@@ -20,7 +20,7 @@ public class Verbosity {
     }
 
     public Verbosity(Configuration conf){
-        this(conf.timers || conf.optimise, conf.optimise, conf.reports, conf.statuses);
+        this(conf.timers || conf.optimise > 0, conf.optimise > 0, conf.reports, conf.statuses);
     }
 
     public Verbosity(boolean timers, boolean sizes, boolean reports, boolean statuses){
