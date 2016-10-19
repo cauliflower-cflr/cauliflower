@@ -1,0 +1,22 @@
+Z 524288
+
+Alloc(v : Z, o : Z) input
+Assign(r : Z, l : Z) input
+Load(v1 : Z, v2 : Z, f : Z) input
+Store(v1 : Z, v2 : Z, f : Z) input
+Bridge(v1 : Z, v2 : Z)
+LVPT(v : Z, o : Z, f : Z)
+SVPT(v : Z, o : Z, f : Z)
+VPT(b : Z, h : Z) printtuples
+
+VPT(v, o) :- Alloc(v, o).
+VPT(lhs, o) :- Assign(rhs, lhs), VPT(rhs, o).
+VPT(lhs, o) :- Bridge(lhs, rhs), VPT(rhs, o).
+LVPT(v, o, f) :- Load(b, v, f), VPT(b, o).
+SVPT(v, o, f) :- Store(v, b, f), VPT(b, o).
+Bridge(lhs, rhs) :- LVPT(lhs, o, f), SVPT(rhs, o, f).
+
+.include "Alloc.datalog"
+.include "Assign.datalog"
+.include "Load.datalog"
+.include "Store.datalog"

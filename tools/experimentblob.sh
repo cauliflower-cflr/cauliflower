@@ -27,8 +27,10 @@ rm -rf build
 
 #./build/install/cauliflower/bin/cauliflower -O 10 src/test/examples/java_vpt/slow.cflr -n OPTI -o tools/EXPERIMENT "$@"
 
-cp build/distributions/*.zip src/test/examples/java_vpt/*.cflr tools/EXPERIMENT
+cp build/distributions/*.zip src/test/examples/java_vpt/*.cflr tools/timings tools/EXPERIMENT
 
 popd
 
 scp -r EXPERIMENT $SSH_C1:
+rm -rf EXPERIMENT
+
