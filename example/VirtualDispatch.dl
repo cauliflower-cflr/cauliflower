@@ -1,0 +1,43 @@
+// Relation between two methods showing which method overwrites another one 
+// in the class hierarchy.  Two methods overwrite, if they have the same name
+// and the same type signature and the class of method subM is a 
+// sub-type of the class/interface of method superM. 
+// Note that method subM resides in a class whereas superM can either reside
+// in a class or is defined in an interface. 
+.decl OverwritesMethod(subM:MethodSignatureRef, superM:MethodSignatureRef)
+
+OverwritesMethod(subM, superM) :-
+   MethodSignatureDescriptor(subM, descriptor),
+   MethodSignatureDescriptor(superM, descriptor),
+   MethodSignatureSimpleName(subM, simpleName), 
+   MethodSignatureSimpleName(superM, simpleName),
+   MethodSignatureType(subM, subClass), 
+   ClassType(subClass), 
+   MethodSignatureType(superM, superType), 
+   IsTypeCompatible(subClass, superType).
+
+// Check whether the class in which the virtual method resides, has a strict sub-class 
+// that overlaps the method the sub-class is a super-class of type. 
+.decl HasSubClassWithMethod(superM:MethodSignatureRef, type:Type) 
+HasSubClassWithMethod(superM, type) :- 
+   OverwritesMethod(subM, superM),
+   subM != superM, 
+   MethodSignatureType(superM, superClass),
+   MethodSignatureType(subM, subClass), 
+   IsTypeCompatible(type, subClass).
+
+// Dispatch a virtual call to the method call that matches the type of the 
+// heap object
+// To resolve a virtual dispatch call, the closest overlapping 
+// method to the type of the heap object is searched. 
+
+.decl VirtualCall(superM:MethodSignatureRef, 
+                  hobjType:Type, 
+                  invokedMethod:MethodSignatureRef)
+
+VirtualCall(superM, hobjType, invokedMethod) :- 
+   OverwritesMethod(invokedMethod, superM), 
+   MethodSignatureType(invokedMethod, containingClass),
+   MethodSignatureType(superM, superClass), 
+   IsTypeCompatible(hobjType, containingClass), 
+   !HasSubClassWithMethod(invokedMethod, hobjType).
