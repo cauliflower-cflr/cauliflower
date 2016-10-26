@@ -6,6 +6,9 @@
  * representative problem, which we canalyse
  */
 
+#define Int number
+#define SHOW printsize
+#define OUTPUT printsize output
 
 /* +-------+
    | TYPES |
@@ -15,7 +18,6 @@
 .type Var
 .type HeapAllocation
 .type Field
-.type Int
 
 .type MethodSignature
 .type Callsite
@@ -28,99 +30,36 @@
    | DECLARATIONS |
    +--------------+ */
 
+// types
 .decl DirectSuperclass(sub:Type, super:Type)  input
 .decl DirectSuperinterface(sub:Type, super:Type)  input
-
 .decl ClassType(cla:Type) input
 
+// methods
 .decl Method(sig:MethodSignature, name:MethodName, desc:MethodDescriptor, owner:Type, return:Cruft, short_desc:Cruft) input
 .decl FormalParam(index:Int, sig:MethodSignature, param:Var) input
+.decl ThisVar(sig:MethodSignature, this:Var) input
+.decl Return(instruction:Cruft, instruction_num:Int, ret:Var, sig:MethodSignature) input
+
+// invocations
 .decl ActualParam(index:Int, callsite:Callsite, param:Var) input
-.decl Return(instruction:Cruft, instruction_num:Int, ret:Var, sig:MethodSignature)
 .decl VirtualMethodInvocation(ref:Callsite, index:Int, called_method:MethodSignature, reciever:Var, caller:MethodSignature) input
 .decl SpecialMethodInvocation(ref:Callsite, index:Int, called_method:MethodSignature, reciever:Var, caller:MethodSignature) input
 .decl StaticMethodInvocation(ref:Callsite, index:Int, called_method:MethodSignature, caller:MethodSignature) input
+.decl AssignReturnValue(site:Callsite, ret:Var) input
 
 // assignments
 .decl AssignCast(instruction:Cruft, instruction_num:Int, from:Var, to:Var, ty:Type, context:MethodSignature) input
 .decl AssignLocal(instruction:Cruft, instruction_num:Int, variableAssigned:Var, variableAssignedTo:Var, containingMethod:MethodSignature)  input
+.decl VarType(variable:Var, declaredType:Type) input
 
+// allocs
 .decl AssignHeapAllocation(instruction:Cruft, instruction_num:Int, heapAllocation:HeapAllocation, variableAssignedTo:Var, containingMethod:MethodSignature)  input
 .decl NormalHeap(alloc:HeapAllocation, ty:Type) input
 
 // load and store
 .decl LoadInstanceField(instruction:Cruft, instruction_num:Int, instanceVariable:Var, field:Field, variableAssignedTo:Var, containingMethod:MethodSignature)  input
 .decl StoreInstanceField(instruction:Cruft, instruction_num:Int, storedVariable:Var, instanceVariable:Var, field:Field, containingMethod:MethodSignature)  input
-
-/* +-------+
-   | RULES |
-   +-------+ */
-
-// Relate method signatures to their descriptors
-.decl MethodSignatureDescriptor(sig:MethodSignature, desc:MethodDescriptor)
-MethodSignatureDescriptor(sig, desc) :- Method(sig, _, desc, _, _, _).
-
-// Relate method signatures to their names
-.decl MethodSignatureSimpleName(sig:MethodSignature, nam:MethodName)
-MethodSignatureSimpleName(sig, nam) :- Method(sig, nam, _, _, _, _).
-
-// Relate method signatures to their owning types
-.decl MethodSignatureType(sig:MethodSignature, ty:Type)
-MethodSignatureType(sig, ty) :- Method(sig, _, _, ty, _, _).
-
-// The immediate superclass is a superclass.
-// All intermediate superclasses are superclasses.
-.decl Superclass(sub:Type, super:Type)
-Superclass(sub,super) :- DirectSuperclass(sub,super).
-Superclass(sub,super) :- Superclass(sub,x), DirectSuperclass(x, super).
-
-// A type is compatible to itself.
-// A sub/super class relationship makes types compatible.
-// An interface relationship makes types compatible.
-.decl IsTypeCompatible(sub:Type, super:Type)
-IsTypeCompatible(sub, sub) :- IsTypeCompatible(sub, _).
-IsTypeCompatible(sub, sub) :- IsTypeCompatible(_, sub).
-IsTypeCompatible(sub, super) :- Superclass(sub,super).
-IsTypeCompatible(sub, super) :- DirectSuperinterface(sub, super).
-
-// Relation between two methods showing which method overwrites another one 
-// in the class hierarchy.  Two methods overwrite, if they have the same name
-// and the same type signature and the class of method subM is a 
-// sub-type of the class/interface of method superM. 
-// Note that method subM resides in a class whereas superM can either reside
-// in a class or is defined in an interface. 
-.decl OverwritesMethod(subM:MethodSignature, superM:MethodSignature)
-OverwritesMethod(subM, superM) :-
-    MethodSignatureDescriptor(subM, descriptor),
-    MethodSignatureDescriptor(superM, descriptor),
-    MethodSignatureSimpleName(subM, simpleName), 
-    MethodSignatureSimpleName(superM, simpleName),
-    MethodSignatureType(subM, subClass), 
-    ClassType(subClass), 
-    MethodSignatureType(superM, superType), 
-    IsTypeCompatible(subClass, superType).
-
-// Check whether the class in which the virtual method resides, has a strict sub-class 
-// that overlaps the method the sub-class is a super-class of type. 
-.decl HasSubClassWithMethod(superM:MethodSignature, type:Type) 
-HasSubClassWithMethod(superM, type) :- 
-    OverwritesMethod(subM, superM),
-    subM != superM, 
-    MethodSignatureType(superM, superClass),
-    MethodSignatureType(subM, subClass), 
-    IsTypeCompatible(type, subClass).
-
-// Dispatch a virtual call to the method call that matches the type of the 
-// heap object
-// To resolve a virtual dispatch call, the closest overlapping 
-// method to the type of the heap object is searched. 
-.decl VirtualCall(superM:MethodSignature, hobjType:Type, invokedMethod:MethodSignature) printsize
-VirtualCall(superM, hobjType, invokedMethod) :- 
-    OverwritesMethod(invokedMethod, superM), 
-    MethodSignatureType(invokedMethod, containingClass),
-    MethodSignatureType(superM, superClass), 
-    IsTypeCompatible(hobjType, containingClass), 
-    !HasSubClassWithMethod(invokedMethod, hobjType).
 
 /* +------+
    | CSVs |
@@ -136,20 +75,83 @@ RAssign(actual, formal) :-
   FormalParam(index, method, formal),
   ActualParam(index, site, actual).
 
-.decl Assign(x:Var, y:Var) printsize
+.decl Assign(lhs:Var, rhs:Var) OUTPUT
 Assign(x,y) :- 
   RAssign(y,x).
 
-.decl Alloc(x:Var, o:HeapAllocation) printsize
+// conservative assignment (and conservative dispatch)
+.decl CDispatch(s:Callsite, m:MethodSignature)
+.decl ReflexSubclass(sub:Type, super:Type)
+.decl AssignConservative(lhs:Var, rhs:Var) OUTPUT
+ReflexSubclass(cl, cl) :- ClassType(cl).
+ReflexSubclass(sub, super) :- ReflexSubclass(sub, mid), DirectSuperclass(mid, super).
+ReflexSubclass(sub, super) :- ReflexSubclass(sub, mid), DirectSuperinterface(mid, super).
+ReflexSubclass(sub, sub) :- ReflexSubclass(sub, _).
+ReflexSubclass(super, super) :- ReflexSubclass(_, super).
+CDispatch(s, m) :- Receiver(v, s, n, d), VarType(v, super), ReflexSubclass(sub, super), Definer(sub, m, n, d).
+AssignConservative(l, r) :- Assign(l, r).
+AssignConservative(l, r) :- Formal(l, m, i), CDispatch(s, m), Actual(r, s, i).
+AssignConservative(l, r) :- ReturnCallsite(l, s), CDispatch(s, m), ReturnMethod(r, m).
+
+.decl Alloc(x:Var, o:HeapAllocation) OUTPUT
 Alloc(var, heap)  :- 
   AssignHeapAllocation(_, _, heap, var, _).
 
-.decl AllocType(t:Type, o:HeapAllocation) printsize
-AllocType(t, o) :-
+.decl AllocType(o:HeapAllocation, t:Type) OUTPUT
+AllocType(o, t) :-
   AssignHeapAllocation(_, _, o, _, _), NormalHeap(o, t).
 
-.decl Store(src:Var, base:Var, field:Field) printsize
+// fields
+
+.decl Store(src:Var, base:Var, field:Field) OUTPUT
 Store(s, b, f) :- StoreInstanceField(_, _, s, b, f, _).
-.decl Load(base:Var, dst:Var, field:Field) printsize
+
+.decl Load(base:Var, dst:Var, field:Field) OUTPUT
 Load(b, d, f) :- LoadInstanceField(_, _, b, f, d, _).
+
+// parameter passing
+
+.decl Actual(v:Var, s:Callsite, i:Int) OUTPUT
+Actual(v, s, i+1) :- ActualParam(i, s, v). // in doop, param 0 is the first argument, i want 0 to be the "this" object
+Actual(v, s, 0) :- VirtualMethodInvocation(s, _, _, v, _).
+Actual(v, s, 0) :- SpecialMethodInvocation(s, _, _, v, _).
+
+.decl Formal(v:Var, m:MethodSignature, i:Int) OUTPUT
+Formal(v, m, i+1) :- FormalParam(i, m, v).
+Formal(v, m, 0) :- ThisVar(m, v).
+
+.decl ReturnMethod(v:Var, m:MethodSignature) OUTPUT
+ReturnMethod(v, m) :- Return(_, _, v, m).
+
+.decl ReturnCallsite(V:Var, s:Callsite) OUTPUT
+ReturnCallsite(v, s) :- AssignReturnValue(s, v).
+
+// virtual dispatch
+.decl Receiver(v:Var, s:Callsite, n:MethodName, d:MethodDescriptor) OUTPUT
+Receiver(v, s, n, d) :- VirtualMethodInvocation(s, _, m, v, _), Method(m, n, d, _, _, _).
+Receiver(v, s, n, d) :- SpecialMethodInvocation(s, _, m, v, _), Method(m, n, d, _, _, _).
+
+.decl Definer(t:Type, m:MethodSignature, n:MethodName, d:MethodDescriptor) OUTPUT
+Definer(t, m, n, d) :- Method(m, n, d, t, _, _).
+Definer(subT, superM, n, d) :- DirectSuperclass(subT, superT), Definer(superT, superM, n, d), !Method(_, n, d, subT, _, _).
+
+// pseudo analysis
+.decl PointsTo(v:Var, o:HeapAllocation) SHOW
+// .decl PointsToC(v:Var, o:HeapAllocation) SHOW
+.decl VDispatch(s:Callsite, m:MethodSignature) SHOW
+.decl XAssign(lhs:Var, rhs:Var) SHOW
+
+PointsTo(v, o) :- Alloc(v, o).
+PointsTo(lhs, o) :- Assign(lhs, rhs), PointsTo(rhs, o).
+PointsTo(lhs, o) :- XAssign(lhs, rhs), PointsTo(rhs, o).
+
+XAssign(lv, sv) :- Load(lb, lv, f), PointsTo(lb, alias), PointsTo(sb, alias), Store(sv, sb, f).
+XAssign(formal, actual) :- Formal(formal, m, i), VDispatch(s, m), Actual(actual, s, i).
+XAssign(sr, mr) :- ReturnCallsite(sr, s), VDispatch(s, m), ReturnMethod(mr, m).
+
+VDispatch(s, m) :- Receiver(v, s, n, d), PointsTo(v, o), AllocType(o, t), Definer(t, m, n, d).
+
+// PointsToC(v, o) :- Alloc(v, o).
+// PointsToC(lhs, o) :- AssignConservative(lhs, rhs), PointsToC(rhs, o).
+// PointsToC(lv, o) :- Load(lb, lv, f), PointsToC(lb, alias), PointsToC(sb, alias), Store(sv, sb, f), PointsToC(sv, o).
 
