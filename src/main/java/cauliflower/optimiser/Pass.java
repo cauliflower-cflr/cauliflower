@@ -29,6 +29,9 @@ public class Pass implements Task<Optional<Problem>> {
     private List<Profile> profiles;
     private Transform.Group transformations;
 
+    private long lastExeTime;
+    private long lastExeTf;
+
     /*local*/ Pass(Controller context, int roundNumber, Transform.Group transforms) throws IOException {
         round = roundNumber;
         parent = context;
@@ -42,7 +45,16 @@ public class Pass implements Task<Optional<Problem>> {
         compileExe(spec);
         generateLogs();
         Profile prof = profileLogs();
+        this.lastExeTime = prof.getTotalTime();
         return transformations.apply(spec, prof);
+    }
+
+    public long lastTotalTime() {
+        return this.lastExeTime;
+    }
+
+    public void blacklistLastTransform() {
+        transformations.blacklistLast();
     }
 
     private void compileExe(Problem spec) throws CauliflowerException{

@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Transform
@@ -29,16 +31,24 @@ public interface Transform {
 
     class Group implements Transform {
 
-        protected final boolean doAll;
-        protected final List<Transform> subTransforms;
+        protected boolean doAll;
+        protected List<Transform> subTransforms;
+        protected Transform lastTransform;
 
         public Group(boolean doAll, List<Transform> ts){
             this.doAll = doAll;
             this.subTransforms = ts;
+            this.lastTransform = null;
         }
 
         public Group(boolean doAll, Transform ... ts){
             this(doAll, Arrays.asList(ts));
+        }
+
+        public void blacklistLast(){
+            Logs.forClass(this.getClass()).trace("Blacklisting {}", lastTransform.getClass().getName());
+            subTransforms = subTransforms.stream().filter(lastTransform::equals).collect(Collectors.toList());
+            lastTransform = null;
         }
 
         @Override
@@ -48,6 +58,7 @@ public interface Transform {
                 Optional<Problem> next = tfm.apply(cur, prof);
                 if(next.isPresent()){
                     Logs.forClass(tfm.getClass()).trace("Optimised: {}", next.get());
+                    lastTransform = tfm;
                     if(doAll) cur = next.get();
                     else return next;
                 } else {

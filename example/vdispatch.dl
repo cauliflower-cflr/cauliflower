@@ -51,7 +51,7 @@
 // assignments
 .decl AssignCast(instruction:Cruft, instruction_num:Int, from:Var, to:Var, ty:Type, context:MethodSignature) input
 .decl AssignLocal(instruction:Cruft, instruction_num:Int, variableAssigned:Var, variableAssignedTo:Var, containingMethod:MethodSignature)  input
-.decl VarType(variable:Var, declaredType:Type) input
+.decl VarType(variable:Var, declaredType:Type) input OUTPUT
 
 // allocs
 .decl AssignHeapAllocation(instruction:Cruft, instruction_num:Int, heapAllocation:HeapAllocation, variableAssignedTo:Var, containingMethod:MethodSignature)  input
@@ -81,8 +81,8 @@ Assign(x,y) :-
 
 // conservative assignment (and conservative dispatch)
 .decl CDispatch(s:Callsite, m:MethodSignature)
-.decl ReflexSubclass(sub:Type, super:Type)
-.decl AssignConservative(lhs:Var, rhs:Var) OUTPUT
+.decl ReflexSubclass(sub:Type, super:Type) OUTPUT
+.decl AssignConservative(lhs:Var, rhs:Var) SHOW
 ReflexSubclass(cl, cl) :- ClassType(cl).
 ReflexSubclass(sub, super) :- ReflexSubclass(sub, mid), DirectSuperclass(mid, super).
 ReflexSubclass(sub, super) :- ReflexSubclass(sub, mid), DirectSuperinterface(mid, super).
@@ -137,7 +137,6 @@ Definer(subT, superM, n, d) :- DirectSuperclass(subT, superT), Definer(superT, s
 
 // pseudo analysis
 .decl PointsTo(v:Var, o:HeapAllocation) SHOW
-// .decl PointsToC(v:Var, o:HeapAllocation) SHOW
 .decl VDispatch(s:Callsite, m:MethodSignature) SHOW
 .decl XAssign(lhs:Var, rhs:Var) SHOW
 
@@ -151,7 +150,14 @@ XAssign(sr, mr) :- ReturnCallsite(sr, s), VDispatch(s, m), ReturnMethod(mr, m).
 
 VDispatch(s, m) :- Receiver(v, s, n, d), PointsTo(v, o), AllocType(o, t), Definer(t, m, n, d).
 
-// PointsToC(v, o) :- Alloc(v, o).
-// PointsToC(lhs, o) :- AssignConservative(lhs, rhs), PointsToC(rhs, o).
-// PointsToC(lv, o) :- Load(lb, lv, f), PointsToC(lb, alias), PointsToC(sb, alias), Store(sv, sb, f), PointsToC(sv, o).
+// conservative points to
+.decl PointsToC(v:Var, o:HeapAllocation) SHOW
+.decl LPT(v:Var, h:HeapAllocation, f:Field)
+.decl SPT(v:Var, h:HeapAllocation, f:Field)
+
+PointsToC(v, o) :- Alloc(v, o).
+PointsToC(lhs, o) :- AssignConservative(lhs, rhs), PointsToC(rhs, o).
+LPT(v, h, f) :- Load(lb, v, f), PointsToC(lb, h).
+SPT(v, h, f) :- Store(v, sb, f), PointsToC(sb, h).
+PointsToC(lv, o) :- LPT(lv, alias, f), SPT(sv, alias, f), PointsToC(sv, o).
 

@@ -28,6 +28,7 @@ public class Profile {
     public static final Pattern SIZE_PARTS = Pattern.compile("SIZE final .* [0-9]* [0-9]* [0-9]*");
     public static final Pattern DOM_FIELD = Pattern.compile("f:.*=[0-9]*");
     public static final Pattern DOM_VERTEX = Pattern.compile("v:.*=[0-9]*");
+    public static final Pattern SOLVE_TIME = Pattern.compile("solve semi.*=[0-9.]*");
 
     Map<String, Long> data = new HashMap<>();
 
@@ -50,6 +51,8 @@ public class Profile {
                 data.put("t:" + ps[2], Long.parseLong(ps[5]));
             } else if (DOM_VERTEX.matcher(l).matches() || DOM_FIELD.matcher(l).matches()){
                 data.put("d" + l.substring(0, l.indexOf("=")), Long.parseLong(l.substring(l.lastIndexOf("=") + 1)));
+            } else if (SOLVE_TIME.matcher(l).matches()){
+                data.put("SOLVE", (long)(Math.floor(Double.parseDouble(l.substring(l.lastIndexOf("=") + 1))*1000)));
             }
         });
     }
@@ -89,6 +92,9 @@ public class Profile {
     public long getVertexDomainSize(Domain d){
         String s = "dv:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
+    }
+    public long getTotalTime() {
+        return data.containsKey("SOLVE") ? data.get("SOLVE") : Long.MAX_VALUE;
     }
 
     /*

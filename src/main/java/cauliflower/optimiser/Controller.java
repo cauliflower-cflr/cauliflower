@@ -40,6 +40,8 @@ public class Controller implements Task<Problem> {
             this.workingDir = null;
             this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
             int optimisationRound = 0;
+            long bestTime = Long.MAX_VALUE;
+            Problem bestSpec = curSpec;
             while (optimisationRound < maxRounds) {
                 Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
                 new CauliflowerSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
@@ -56,8 +58,17 @@ public class Controller implements Task<Problem> {
                         new EvaluationOrderTransformation(true, true)
                 ));
                 Optional<Problem> nextSpec = pass.perform(curSpec);
-                if (!nextSpec.isPresent()) break;
-                curSpec = nextSpec.get();
+                if(pass.lastTotalTime() <= bestTime) {
+                    bestTime = pass.lastTotalTime();
+                    Logs.forClass(this.getClass()).trace("Test time is: {}", bestTime);
+                    bestSpec = curSpec;
+                    if (!nextSpec.isPresent()) break;
+                    curSpec = nextSpec.get();
+                } else {
+                    Logs.forClass(this.getClass()).trace("Time is worse, blacklisting the last transform");
+                    curSpec = bestSpec;
+                    pass.blacklistLastTransform();
+                }
                 optimisationRound++;
             }
         } catch(IOException exc){
