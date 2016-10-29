@@ -32,7 +32,7 @@ echo "db =" $DB
 bloxbatch -db $DB -create -overwrite -blocks base
 bloxbatch -db $DB -addBlock -file $LB_SIZE
 bloxbatch -db $DB -import $LB_IMPORT
-timeout $2 /usr/bin/time bloxbatch -db $DB -addBlock -file $LB_LOGIC
+timeout $2 /usr/bin/time bloxbatch -db $DB -addBlock -file $LB_LOGIC || echo "TIMEOUT"
 
 bloxbatch -db $DB -popCount `bloxbatch -db $DB -list 2>&1 | grep -v ":" | sed 's/ //g' | tr '\n' ',' | sed 's/,$//'`
 
