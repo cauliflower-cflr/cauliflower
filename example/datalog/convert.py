@@ -76,7 +76,7 @@ def convert():
     output="."
     conv=bddb()
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "fh", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "fho:", ["help"])
     except getopt.error, msg:
         print msg
         print "for help use --help"
@@ -87,6 +87,8 @@ def convert():
             sys.exit(0)
         if o == "-f":
             conv=fact()
+        if o == "-o":
+            output=a
     go(args[0], patterns, conv, output)
 
 if __name__ == "__main__":

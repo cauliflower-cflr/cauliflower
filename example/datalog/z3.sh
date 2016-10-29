@@ -1,19 +1,16 @@
 #! /usr/bin/env bash
 
 #=========================================================================#
-#                              csv_to_edb.sh                              #
+#                                  z3.sh                                  #
 #                                                                         #
 # Author: Nic H.                                                          #
-# Date: 2016-Oct-19                                                       #
+# Date: 2016-Oct-29                                                       #
 #=========================================================================#
 
 set -e
 set -u
 
-for FI in $1/*.csv; do
-    NM=$(basename "$FI")
-    NM=${NM%.csv}
-    echo $FI $NM
-    sed -e '$a\' $FI | sed -e "s/^/$NM(/" -e "s/$/)./" > ./$NM.datalog
-done
-
+pushd "$(dirname $0)"
+python ./convert.py "$1"
+(timeout $2 ~/soft/z3/build/z3 -st -v:0 -dl ./z3.datalog || echo "TIMEOUT") | grep -v "(.*=.*))$" 
+trap popd EXIT

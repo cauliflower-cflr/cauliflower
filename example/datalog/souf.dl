@@ -1,0 +1,19 @@
+.type V
+.type H
+.type F
+
+.decl Alloc(v : V, o : H) input
+.decl Assign(r : V, l : V) input
+.decl Load(v1 : V, v2 : V, f : F) input
+.decl Store(v1 : V, v2 : V, f : F) input
+.decl Bridge(v1 : V, v2 : V)
+.decl LVPT(v : V, o : H, f : F)
+.decl SVPT(v : V, o : H, f : F)
+.decl VPT(b : V, h : H) printsize
+
+VPT(v, o) :- Alloc(v, o).
+VPT(lhs, o) :- Assign(rhs, lhs), VPT(rhs, o).
+VPT(lhs, o) :- Bridge(lhs, rhs), VPT(rhs, o).
+LVPT(v, o, f) :- Load(b, v, f), VPT(b, o).
+SVPT(v, o, f) :- Store(v, b, f), VPT(b, o).
+Bridge(lhs, rhs) :- LVPT(lhs, o, f), SVPT(rhs, o, f).

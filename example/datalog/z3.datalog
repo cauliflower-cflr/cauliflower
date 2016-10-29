@@ -1,13 +1,13 @@
-Z 524288 Z.map
+.include "sizes.datalog"
 
-Alloc(v : Z, o : Z) input
-Assign(r : Z, l : Z) input
-Load(v1 : Z, v2 : Z, f : Z) input
-Store(v1 : Z, v2 : Z, f : Z) input
-Bridge(v1 : Z, v2 : Z)
-LVPT(v : Z, o : Z, f : Z)
-SVPT(v : Z, o : Z, f : Z)
-VPT(b : Z, h : Z) printtuples
+Alloc(v : V, o : H) input
+Assign(r : V, l : V) input
+Load(v1 : V, v2 : V, f : F) input
+Store(v1 : V, v2 : V, f : F) input
+Bridge(v1 : V, v2 : V)
+LVPT(v : V, o : H, f : F)
+SVPT(v : V, o : H, f : F)
+VPT(b : V, h : H) printtuples
 
 VPT(v, o) :- Alloc(v, o).
 VPT(lhs, o) :- Assign(rhs, lhs), VPT(rhs, o).

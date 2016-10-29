@@ -1,0 +1,31 @@
+
+NewAssign(lhs, rhs) <-
+    Assign(rhs, lhs).
+NewLoad(v, f, b) <-
+    Load(b, v, f).
+NewStore(v, f, b) <-
+    Store(v, b, f).
+
+
+TPV(o, v) <-
+    Alloc(v, o).
+
+TPV(o, lhs) <-
+    NewAssign(lhs, rhs),
+    TPV(o, rhs).
+
+TPV(o, lhs) <-
+    Bridge(lhs, rhs),
+    TPV(o, rhs).
+
+LVPT(v, o, f) <-
+    NewLoad(v, f, b),
+    TPV(o, b).
+
+SVPT(v, o, f) <-
+    NewStore(v, f, b),
+    TPV(o, b).
+
+Bridge(lhs, rhs) <-
+    LVPT(lhs, o, f),
+    SVPT(rhs, o, f).
