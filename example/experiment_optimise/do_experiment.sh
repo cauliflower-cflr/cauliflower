@@ -28,18 +28,22 @@ function run() {
         if [ ! -z "$OPT" ]; then
             "$CAUL" -n optimised -o "$EXE" -O "$OPT" "$SPEC" $(choose_benches "$@")
             SPEC="$EXE/optimised.cflr"
+            mv ./cauliflower.log "$EXE/opti.log"
         fi
         "$CAUL" -n solver -o "$EXE" -c -r "$SPEC"
+        mv ./cauliflower.log "$EXE/compl.log"
     fi
     for DIR in "$@"; do
         for EG_LOG in `find $DIR -name "log.txt"`; do
-            EG="$(dirname "$EG_LOG")"
-            NM="$(basename "$EG")"
-            echo
-            echo " = $EXE - $NM = "
-            echo
-            [ -f "$EXE/$NM" ] || timeout 600 "$EXE/solver" "$EG" 2>&1 | tee "$EXE/$NM" || echo "solve semi-naive=TIMEOUT" > "$EXE/$NM"
-            [ -s "$EXE/$NM" ] || echo "solve semi-naive=TIMEOUT" > "$EXE/$NM"
+            for RUN in `seq 1 3`; do
+                EG="$(dirname "$EG_LOG")"
+                NM="$(basename "$EG").$RUN"
+                echo
+                echo " = $EXE - $NM = "
+                echo
+                [ -f "$EXE/$NM" ] || timeout 600 "$EXE/solver" "$EG" 2>&1 | tee "$EXE/$NM" || echo "solve semi-naive=TIMEOUT" > "$EXE/$NM"
+                [ -s "$EXE/$NM" ] || echo "solve semi-naive=TIMEOUT" > "$EXE/$NM"
+            done
         done
     done
 }

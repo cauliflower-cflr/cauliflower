@@ -1,4 +1,4 @@
-Z 524288
+Z 524288 Z.map
 
 Alloc(v : Z, o : Z) input
 Assign(r : Z, l : Z) input
