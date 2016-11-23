@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.Stack;
 import java.util.stream.Stream;
 
 /**
@@ -35,47 +36,54 @@ public class Controller implements Task<Problem> {
 
     @Override
     public Problem perform(Problem inputSpec) throws CauliflowerException {
-        Problem curSpec = inputSpec;
+        Stack<Problem> specStack = new Stack<>();
+        Stack<Profile> profStack = new Stack<>();
         try {
             this.workingDir = null;
             this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
-            int optimisationRound = 0;
-            long bestTime = Long.MAX_VALUE;
-            Problem bestSpec = curSpec;
-            while (optimisationRound < maxRounds) {
+            // initial options for transformation
+            Transform.Group allTransforms = new Transform.Group(false,
+                    new SubexpressionTransformation.TerminalChain(),
+                    new SubexpressionTransformation.RedundantChain(),
+                    new SubexpressionTransformation.SummarisingChain(),
+                    new SubexpressionTransformation.ChomskyChain(),
+                    //new RelationFilterTransformation(),
+                    new EvaluationOrderTransformation(true, true));
+
+            specStack.push(inputSpec);
+            long timeToBeat = Long.MAX_VALUE;
+            while (specStack.size() <= maxRounds) {
+                int optimisationRound = profStack.size();
                 Logs.forClass(this.getClass()).trace("Round {}", optimisationRound);
-                new CauliflowerSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(curSpec);
-                // re-read the specification from file, this should not be necessary, but i do it because
-                // the parser creates nicer looking internal representations than my optimisers do using
-                // the ProblemBuilder
-                curSpec = OmniParser.get(getSpecFileForRound(optimisationRound));
-                Pass pass = new Pass(this, optimisationRound, new Transform.Group(false,
-                        new SubexpressionTransformation.TerminalChain(),
-                        new SubexpressionTransformation.RedundantChain(),
-                        new SubexpressionTransformation.SummarisingChain(),
-                        new SubexpressionTransformation.ChomskyChain(),
-                        //new RelationFilterTransformation(),
-                        new EvaluationOrderTransformation(true, true)
-                ));
-                Optional<Problem> nextSpec = pass.perform(curSpec);
-                if(pass.lastTotalTime() <= bestTime) {
-                    bestTime = pass.lastTotalTime();
-                    Logs.forClass(this.getClass()).trace("Test time is: {}", bestTime);
-                    bestSpec = curSpec;
-                    if (!nextSpec.isPresent()) break;
-                    curSpec = nextSpec.get();
+
+                // generate the profile of this round
+                if(specStack.size() > optimisationRound){
+                    profStack.push(new Pass(this, optimisationRound).perform(specStack.peek()));
                 } else {
-                    Logs.forClass(this.getClass()).trace("Time is worse, blacklisting the last transform");
-                    curSpec = bestSpec;
-                    pass.blacklistLastTransform();
+                    Logs.forClass(this.getClass()).trace("profile already present, skipping runs");
                 }
-                optimisationRound++;
+
+                Profile lastProf = profStack.peek();
+                if(lastProf.getTotalTime() <= timeToBeat){
+                    timeToBeat = lastProf.getTotalTime();
+                    Optional<Problem> nextSpec = allTransforms.apply(specStack.peek(), lastProf);
+                    if(!nextSpec.isPresent()) break;
+                    // re-read the specification from file, this should not be necessary, but i do it because
+                    // the parser creates nicer looking internal representations than my optimisers do using
+                    // the ProblemBuilder
+                    new CauliflowerSpecification(getSpecFileForRound(optimisationRound), new Verbosity()).perform(nextSpec.get()); // this writes the spec to file
+                    specStack.push(OmniParser.get(getSpecFileForRound(optimisationRound)));
+                } else {
+                    Logs.forClass(this.getClass()).debug("Time is worse ({} vs {}), blacklisting the last transform", lastProf.getTotalTime(), timeToBeat);
+                    specStack.pop();
+                    profStack.pop();
+                    allTransforms.blacklistLast();
+                }
             }
         } catch(IOException exc){
             except(exc);
         }
-        //TODO return the best spec, not the most recent one
-        return curSpec;
+        return specStack.pop();
     }
 
     /*local*/ Stream<Path> trainingSetStream(){

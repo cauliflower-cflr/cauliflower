@@ -56,9 +56,26 @@ function choose_benches() {
     done
 }
 
+function detail() {
+    mkdir -p "META"
+    for DIR in "$@"; do
+        for EG_LOG in `find $DIR -name "log.txt"`; do
+            EG="$(dirname "$EG_LOG")"
+            NM="$(basename "$EG")"
+            if [ ! -f "META/$NM" ]; then
+                echo $NM
+                wc -l "$EG"/*.csv | tee "META/$NM"
+                sed -e 's/^\([^,]*\),\([^,]*\)$/\1\n\2/' -e 's/^\([^,]*\),\([^,]*\),.*$/\1\n\2/' "$EG"/*.csv | sort -u | wc >> "META/$NM"
+            fi
+        done
+    done
+}
+
 ROOT="$(dirname $0)/../.."
 CAUL="$ROOT/build/install/cauliflower/bin/cauliflower"
 EXMP="$ROOT/src/test/examples/"
+
+detail "$@"
 
 # build the executables
 "$ROOT"/gradlew  -p "$ROOT" installDist
@@ -69,4 +86,14 @@ run VOP9 "$EXMP/dispatch/virtual_slow.cflr"      "9"  "$@"
 run CONS "$EXMP/dispatch/conservative_slow.cflr" ""   "$@"
 run COP1 "$EXMP/dispatch/conservative_slow.cflr" "1"  "$@"
 run COP9 "$EXMP/dispatch/conservative_slow.cflr" "9"  "$@"
+
+
+function allmap() {
+    filemap -r -f X=V ./META/__Y__ " *__T__  *[0-9][0-9]* [0-9][0-9]*$"
+    filemap -r -f X=E ./META/__Y__ ' *__T__  *total'
+    filemap -r ./__X__/__Y__.____ "solve semi.*=__T__" | filereduce --collect T:avg
+}
+
+allmap | filereduce --table X:Y:T:benchmark:,: > RESULT.csv
+cat RESULT.csv | column -s "," -t
 

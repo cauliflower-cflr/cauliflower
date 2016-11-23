@@ -17,44 +17,31 @@ import java.util.stream.Collectors;
 
 /**
  * Pass
+ * Used to create a profile of the current specification
  * <p>
  * Author: nic
  * Date: 8/07/16
  */
-public class Pass implements Task<Optional<Problem>> {
+public class Pass implements Task<Profile> {
 
     private final int round;
     private final Controller parent;
     private final Path executable;
     private List<Profile> profiles;
-    private Transform.Group transformations;
 
-    private long lastExeTime;
-    private long lastExeTf;
-
-    /*local*/ Pass(Controller context, int roundNumber, Transform.Group transforms) throws IOException {
+    /*local*/ Pass(Controller context, int roundNumber) throws IOException {
         round = roundNumber;
         parent = context;
         executable = parent.getExeFileForRound(round);
         profiles = null;
-        transformations = transforms;
     }
 
     @Override
-    public Optional<Problem> perform(Problem spec) throws CauliflowerException {
+    public Profile perform(Problem spec) throws CauliflowerException {
         compileExe(spec);
         generateLogs();
         Profile prof = profileLogs();
-        this.lastExeTime = prof.getTotalTime();
-        return transformations.apply(spec, prof);
-    }
-
-    public long lastTotalTime() {
-        return this.lastExeTime;
-    }
-
-    public void blacklistLastTransform() {
-        transformations.blacklistLast();
+        return prof;
     }
 
     private void compileExe(Problem spec) throws CauliflowerException{

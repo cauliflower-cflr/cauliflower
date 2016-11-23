@@ -46,8 +46,13 @@ public interface Transform {
         }
 
         public void blacklistLast(){
-            Logs.forClass(this.getClass()).trace("Blacklisting {}", lastTransform.getClass().getName());
-            subTransforms = subTransforms.stream().filter(lastTransform::equals).collect(Collectors.toList());
+            subTransforms = subTransforms.stream().filter(c -> !c.getClass().equals(lastTransform.getClass())).collect(Collectors.toList());
+            Logs.forClass(this.getClass()).trace("Blacklisting {} -> {}",
+                    lastTransform.getClass().getSimpleName(),
+                    subTransforms.stream()
+                            .map(Transform::getClass)
+                            .map(Class::getSimpleName)
+                            .collect(Collectors.joining(",")));
             lastTransform = null;
         }
 
@@ -55,6 +60,7 @@ public interface Transform {
         public Optional<Problem> apply(Problem spec, Profile prof) throws CauliflowerException {
             Problem cur = spec;
             for(Transform tfm : subTransforms){
+                Logs.forClass(this.getClass()).trace("Attempting {}", tfm.getClass().getSimpleName());
                 Optional<Problem> next = tfm.apply(cur, prof);
                 if(next.isPresent()){
                     Logs.forClass(tfm.getClass()).trace("Optimised: {}", next.get());

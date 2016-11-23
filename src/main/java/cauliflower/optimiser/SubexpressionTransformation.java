@@ -263,7 +263,7 @@ public abstract class SubexpressionTransformation implements Transform{
                     .collect(Collectors.groupingBy(BoundPair::getNonterminalName))
                     .entrySet().stream()
                     .map(Map.Entry::getValue)
-                    // TODO pick the best one, not just the one with the most occurrances
+                    // TODO pick the best one, not just the one with the most occurrences
                     .max((s1,s2)->s1.size() - s2.size())
                     .map(s -> s.get(0))
                     .map(bp -> rebuildWithNonterminalInsteadOf(allBoundPairs, spec, bp));
