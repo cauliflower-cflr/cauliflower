@@ -43,12 +43,13 @@ public class Controller implements Task<Problem> {
             this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
             // initial options for transformation
             Transform.Group allTransforms = new Transform.Group(false,
-                    new SubexpressionTransformation.TerminalChain(),
+                    /*new SubexpressionTransformation.TerminalChain(),
                     new SubexpressionTransformation.RedundantChain(),
-                    new SubexpressionTransformation.SummarisingChain(),
-                    new SubexpressionTransformation.ChomskyChain(),
-                    //new RelationFilterTransformation(),
-                    new EvaluationOrderTransformation(true, true));
+                    new SubexpressionTransformation.SummarisingChain(),*/
+                    /*new SubexpressionTransformation.ChomskyChain()*/
+                    /*new RelationFilterTransformation()*/
+                    new EvaluationOrderTransformation(true, true)
+            );
 
             specStack.push(inputSpec);
             long timeToBeat = Long.MAX_VALUE;

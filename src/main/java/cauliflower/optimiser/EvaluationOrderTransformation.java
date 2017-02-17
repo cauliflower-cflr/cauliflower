@@ -6,10 +6,12 @@ import cauliflower.util.Logs;
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * EvaluationOrderTransformation: reorders the highest-level compositions/reversals for a rule
@@ -29,6 +31,25 @@ public class EvaluationOrderTransformation implements Transform{
         this.exhaustiveMode = exhaustive;
     }
 
+    private Stream<List<Integer>> getPriorityPermutationsForSize(int size){
+        if(size <= 6) {
+            return Streamer.streamPermutations(size);
+        } else if(size <= 12) {
+            return  Streamer.streamJoinedPermutations(size).map(this::permutationToPriority);
+        } else{
+            throw new RuntimeException("TODO, figure out how to handle truly massive joins");
+        }
+    }
+
+    // The streamer util returns index permutations, we translate those into priorities
+    private List<Integer> permutationToPriority(List<Integer> perm){
+        ArrayList<Integer> ret = new ArrayList<>(perm.size());
+        for(int i=0; i<perm.size(); i++) ret.add(-1);
+        int pri = perm.size()-1;
+        for(int i : perm) ret.set(i, pri--);
+        return ret;
+    }
+
     @Override
     public Optional<Problem> apply(Problem spec, Profile prof) {
         //spec.vertexDomains.stream().forEach(d -> System.out.printf("%s, %d\n", d.name, prof.getVertexDomainSize(d)));
@@ -45,13 +66,15 @@ public class EvaluationOrderTransformation implements Transform{
                     int cur = 1;
                     for(int i=2; i<=bodyUses.size() && cur < MAX_PERMUTATIONS; i++) cur *= i;
                     cur = Math.min(cur, MAX_PERMUTATIONS);
-                    return IntStream.range(0, cur)
+                    return getPriorityPermutationsForSize(bodyUses.size())
                             .parallel()
-                            .mapToObj(i -> Streamer.permuteIndices(i, bodyUses.size()))
+//                    return IntStream.range(0, cur)
+//                            .parallel()
+//                            .mapToObj(i -> Streamer.permuteIndices(i, bodyUses.size()))
                             .map(lst -> new RuleCostEstimation(prof, bodyUses, lst, bindings))
                             .sequential()
                             .sorted(RuleCostEstimation::compareTo)
-                            .peek(rce -> System.out.println(rce.timeCost + " == " + rce.evalOrder))
+                            .peek(rce -> System.out.println(rce.timeCost + " == " + rce.evalOrder + ", " + rce.priorities))
                             .min(RuleCostEstimation::compareTo)
                             .filter(rco -> !rco.hasSameEvalOrder(r.ruleBody))
                             .map(rco -> new Pair<Rule, RuleCostEstimation>(r, rco));

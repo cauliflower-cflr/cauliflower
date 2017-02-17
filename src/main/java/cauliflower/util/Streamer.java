@@ -3,10 +3,7 @@ package cauliflower.util;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.stream.*;
 
 public class Streamer {
 
@@ -115,4 +112,54 @@ public class Streamer {
         return permuteInternal(permutation, IntStream.range(0, count).boxed().collect(Collectors.toCollection(LinkedList::new)));
     }
 
+    /**
+     * @param size the number of items in the desired index stream
+     * @return a stream of all the permutations of the numbers 0 to (size-1), like [0,1,2],[0,2,1],[1,0,2]...
+     */
+    public static Stream<List<Integer>> streamPermutations(int size){
+        return LongStream.range(0, factorial(size)).mapToObj(l -> permuteIndices(l, size));
+    }
+
+    /**
+     * When the number of permutations is too large, we restrict to left-deep permutations a'la Selinger's technique
+     * TODO actually enumerate the LDP's and dont just filter all permutations
+     * @param size the number of items in the desired index stream
+     * @return a stream of all the joined permutations of the numbers 0 to (size-1), like [0,1,2],[1,0,2],[1,2,0]...
+     */
+    public static Stream<List<Integer>> streamJoinedPermutations(int size){
+        return streamPermutations(size).filter(Streamer::isJoinedPermutation);
+    }
+    private static boolean isJoinedPermutation(List<Integer> perm){
+        int l=-1, h=-1;
+        for(int i: perm){
+            if(l == -1){
+                l = i;
+                h = i;
+            } else if(i == l-1){
+                l = i;
+            } else if(i == h+1){
+                h = i;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @param i The number you want the factorial of
+     * @return the factorial of i, or throws a runtime exception if overflow would occur
+     */
+    public static long factorial(int i){
+        if(i > 20) throw new RuntimeException("Factorial of " + i + " is too big");
+        long ret = 1;
+        for(int j=2; j<=i; j++) ret *= j;
+        return ret;
+    }
+
+    public static void main(String[] args){
+        streamPermutations(3).forEach(System.out::println);
+        System.out.println();
+        streamJoinedPermutations(5).forEach(System.out::println);
+    }
 }

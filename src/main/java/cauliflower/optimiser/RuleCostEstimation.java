@@ -22,13 +22,15 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
     public double timeCost;
 
     private final Profile profile;
+    public final List<Integer> priorities;
     public final List<LabelUse> evalOrder;
     private Map<LabelUse, Integer> evalPriorities;
     private final List<Pair<ProblemAnalysis.Bound, Binder>> currentBindings;
     private final Map<LabelUse, Pair<Binder, Binder>> bindingsAtEval;
 
-    public RuleCostEstimation(Profile prof, List<LabelUse> leftToRight, List<Integer> priorities, ProblemAnalysis.Bounds bindings) {
+    public RuleCostEstimation(Profile prof, List<LabelUse> leftToRight, List<Integer> priors, ProblemAnalysis.Bounds bindings) {
         this.profile = prof;
+        this.priorities = priors;
         this.evalOrder = ProblemAnalysis.getEvaluationOrder(leftToRight, priorities);
         evalPriorities = Streamer.zip(leftToRight.stream(), priorities.stream(), Pair::new).collect(Collectors.toMap(p -> p.first, p -> p.second));
         currentBindings = bindings.all.stream().map(b -> new Pair<>(b, (Binder)null)).collect(Collectors.toList());

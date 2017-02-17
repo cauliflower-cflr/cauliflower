@@ -80,12 +80,15 @@ detail "$@"
 # build the executables
 "$ROOT"/gradlew  -p "$ROOT" installDist
 
-run VIRT "$EXMP/dispatch/virtual_slow.cflr"      ""   "$@"
-run VOP1 "$EXMP/dispatch/virtual_slow.cflr"      "1"  "$@"
-run VOP9 "$EXMP/dispatch/virtual_slow.cflr"      "9"  "$@"
-run CONS "$EXMP/dispatch/conservative_slow.cflr" ""   "$@"
-run COP1 "$EXMP/dispatch/conservative_slow.cflr" "1"  "$@"
-run COP9 "$EXMP/dispatch/conservative_slow.cflr" "9"  "$@"
+run VIRT "$EXMP/dispatch/virtual_slow.cflr"                ""  "$@"
+run VOP1 "$EXMP/dispatch/virtual_slow.cflr"                "1" "$@"
+run VOP9 "$EXMP/dispatch/virtual_slow.cflr"                "9" "$@"
+run CONS "$EXMP/dispatch/conservative_slow.cflr"           ""  "$@"
+run COP1 "$EXMP/dispatch/conservative_slow.cflr"           "1" "$@"
+run COP9 "$EXMP/dispatch/conservative_slow.cflr"           "9" "$@"
+run VRED "$ROOT/example/experiment_eachopt/REDUNDANT.cflr" ""  "$@"
+run VFIL "$ROOT/example/experiment_eachopt/FILTER.cflr" ""  "$@"
+run VORD "$ROOT/example/experiment_eachopt/ORDER.cflr"     ""  "$@"
 
 
 function allmap() {
