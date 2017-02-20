@@ -7,6 +7,7 @@ import cauliflower.representation.ProblemAnalysis;
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
 
-    public double timeCost;
+    public BigDecimal timeCost;
 
     private final Profile profile;
     public final List<Integer> priorities;
@@ -139,7 +140,7 @@ public class RuleCostEstimation implements Comparable<RuleCostEstimation>{
 
     @Override
     public int compareTo(RuleCostEstimation other) {
-        return (int)(timeCost - other.timeCost);
+        return timeCost.compareTo(other.timeCost);
     }
 
     @Override

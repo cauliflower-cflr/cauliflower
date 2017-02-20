@@ -98,5 +98,5 @@ function allmap() {
 }
 
 allmap | filereduce --table X:Y:T:benchmark:,: > RESULT.csv
-cat RESULT.csv | column -s "," -t
+cat RESULT.csv | sed -e 's/,,/,-,/g' -e 's/,,/,-,/g' -e 's/,$/,-/' | column -s "," -t
 

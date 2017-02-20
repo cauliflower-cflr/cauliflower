@@ -156,10 +156,4 @@ public class Streamer {
         for(int j=2; j<=i; j++) ret *= j;
         return ret;
     }
-
-    public static void main(String[] args){
-        streamPermutations(3).forEach(System.out::println);
-        System.out.println();
-        streamJoinedPermutations(5).forEach(System.out::println);
-    }
 }

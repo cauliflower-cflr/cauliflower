@@ -3,8 +3,8 @@ package cauliflower.optimiser;
 import cauliflower.representation.LabelUse;
 import cauliflower.representation.ProblemAnalysis;
 
+import java.math.BigDecimal;
 import java.util.*;
-import java.util.function.DoubleBinaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -12,6 +12,9 @@ import java.util.stream.Stream;
  * Used to predict the cost of a rule evaluation
  */
 public class PredictiveModel {
+
+    private static final int ROUNDING = BigDecimal.ROUND_HALF_UP;
+    private static final int SCALE = 20;
 
     interface ApproximationFactory <A> {
         A forRelation(LabelUse l);
@@ -24,20 +27,20 @@ public class PredictiveModel {
 
     private class Approxim {
 
-        private final double srcProp, dstProp;
-        private final double srcVol, dstVol;
-        private final double size;
+        private final BigDecimal srcProp, dstProp;
+        private final BigDecimal srcVol, dstVol;
+        private final BigDecimal size;
         private final Set<LabelUse> members;
 
         /**
          * get an approximation of a single relation
          */
         public Approxim(Profile prof, LabelUse l){
-            size = prof.getRelationSize(l.usedLabel);
-            srcVol = prof.getRelationSources(l.usedLabel);
-            dstVol = prof.getRelationSinks(l.usedLabel);
-            srcProp = srcVol/((double)prof.getVertexDomainSize(l.usedLabel.srcDomain));
-            dstProp = dstVol/((double)prof.getVertexDomainSize(l.usedLabel.dstDomain));
+            size = BigDecimal.valueOf(prof.getRelationSize(l.usedLabel));
+            srcVol = BigDecimal.valueOf(prof.getRelationSources(l.usedLabel));
+            dstVol = BigDecimal.valueOf(prof.getRelationSinks(l.usedLabel));
+            srcProp = divideAndCap(srcVol, BigDecimal.valueOf(prof.getVertexDomainSize(l.usedLabel.srcDomain)));
+            dstProp = divideAndCap(dstVol, BigDecimal.valueOf(prof.getVertexDomainSize(l.usedLabel.dstDomain)));
             members = Collections.singleton(l);
         }
 
@@ -61,12 +64,12 @@ public class PredictiveModel {
             members = Stream.concat(l.members.stream(), r.members.stream()).collect(Collectors.toSet());
             //size = l.size*r.size*l.dstProp*r.srcProp; // every pair with every pair is only true for the hourglass
             //size = l.size*r.srcProp*(r.size/r.srcVol); // this one's not symmetric
-            size = (l.size*r.size)/((l.dstVol/l.dstProp));//*(r.srcVol/r.srcProp)); // this one had better work
-            double joinShrinkage = l.dstProp*r.srcProp;
-            srcVol = l.srcVol*joinShrinkage;
-            dstVol = r.dstVol*joinShrinkage;
-            srcProp = l.srcProp*joinShrinkage;
-            dstProp = r.dstProp*joinShrinkage;
+            size = l.size.multiply(r.size).divide(l.dstVol.divide(l.dstProp, SCALE, ROUNDING), SCALE, ROUNDING);//*(r.srcVol/r.srcProp)); // this one had better work
+            BigDecimal joinShrinkage = l.dstProp.multiply(r.srcProp);
+            srcVol = l.srcVol.multiply(joinShrinkage).setScale(SCALE, ROUNDING);
+            dstVol = r.dstVol.multiply(joinShrinkage).setScale(SCALE, ROUNDING);
+            srcProp = l.srcProp.multiply(joinShrinkage).setScale(SCALE, ROUNDING);
+            dstProp = r.dstProp.multiply(joinShrinkage).setScale(SCALE, ROUNDING);
         }
 
         /**
@@ -76,17 +79,17 @@ public class PredictiveModel {
 
         //}
 
-        public double disconnectionsOnMyLeft(Approxim toMyLeft){
-            return toMyLeft.size * (1-srcProp);
+        public BigDecimal disconnectionsOnMyLeft(Approxim toMyLeft){
+            return toMyLeft.size.multiply(BigDecimal.ONE.subtract(srcProp));
         }
 
-        public double disconnectionsOnMyRight(Approxim toMyRight){
-            return toMyRight.size * (1-dstProp);
+        public BigDecimal disconnectionsOnMyRight(Approxim toMyRight){
+            return toMyRight.size.multiply(BigDecimal.ONE.subtract(dstProp));
         }
 
         @Override
         public String toString() {
-            return String.format("%.1f[%.3f{%.1f}-%.3f{%.1f}]{%s}", size,
+            return String.format("%.1f[%s{%.1f}-%.3f{%.1f}]{%s }", size,
                     srcProp,
                     srcVol,
                     dstProp,
@@ -173,17 +176,17 @@ public class PredictiveModel {
             spaces = Stream.concat(spaces.stream(), Stream.of(newApp)).collect(Collectors.toList());
         }
 
-        public double accumulateSpace(){
-            double ret = 1;
-            for(Approxim a : spaces) ret *= a.size;
+        public BigDecimal accumulateSpace(){
+            BigDecimal ret = BigDecimal.ONE;
+            for(Approxim a : spaces) ret = ret.multiply(a.size);
             return ret;
         }
 
     }
 
-    public double getCost(Profile prof, List<LabelUse> evalOrder, ProblemAnalysis.Bounds bindings){
+    public BigDecimal getCost(Profile prof, List<LabelUse> evalOrder, ProblemAnalysis.Bounds bindings){
         //TODO this only works for linear chains, think about how to make it intersection/negation safe
-        if (bindings.all.stream().anyMatch(bnd -> bnd.boundEndpoints.size() > 2)) return -1;
+        if (bindings.all.stream().anyMatch(bnd -> bnd.boundEndpoints.size() > 2)) return BigDecimal.valueOf(-1);
 
         // determine which label-uses in the chain are backwards
         Map<LabelUse, Boolean> appearsBackwards = new HashMap<>();
@@ -215,15 +218,15 @@ public class PredictiveModel {
         }
         System.out.println(disjoint);
 
-        double totalCost = 0;
+        BigDecimal totalCost = BigDecimal.ZERO;
         Multispace msp = new Multispace();
         for(Approxim apx : disjoint){
             LabelUse lu = apx.members.stream().findFirst().get();
             Approxim left = msp.removeIfPresent(lefts.get(lu)).orElse(null);
             Approxim right = msp.removeIfPresent(rights.get(lu)).orElse(null);
 
-            double cost = 0;
-            double extraneousSpace = msp.accumulateSpace();
+            BigDecimal cost = BigDecimal.ZERO;
+            BigDecimal extraneousSpace = msp.accumulateSpace();
             if(left == null){
                 if(right == null){
                     //accumulate no costs, just grow the space
@@ -240,13 +243,21 @@ public class PredictiveModel {
                     msp.add(new Approxim(left, apx));
                 } else {
                     // both sides, need to check the mathematics because this is simpler than what i though it ought to be
-                    cost = apx.disconnectionsOnMyLeft(left) + apx.disconnectionsOnMyRight(right);
+                    cost = apx.disconnectionsOnMyLeft(left).add(apx.disconnectionsOnMyRight(right));
                     msp.add(new Approxim(new Approxim(left, apx), right));
                 }
             }
-            totalCost += extraneousSpace*cost;
+            totalCost = totalCost.add(extraneousSpace.multiply(cost));
         }
         return totalCost;
+    }
+
+    private static BigDecimal divideAndCap(BigDecimal num, BigDecimal denom){
+        if(num.compareTo(denom) >= 0){
+            return BigDecimal.ONE;
+        } else {
+            return num.divide(denom, SCALE, ROUNDING);
+        }
     }
 
 }

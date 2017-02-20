@@ -7,10 +7,7 @@ import cauliflower.util.Streamer;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -31,6 +28,14 @@ public class Profile {
     public static final Pattern SOLVE_TIME = Pattern.compile("solve semi.*=[0-9.]*");
 
     Map<String, Long> data = new HashMap<>();
+
+    public static Optional<Profile> nonThrowingNew(Path logPath){
+        try{
+            return Optional.of(new Profile(logPath));
+        } catch(IOException exc){
+            return Optional.empty();
+        }
+    }
 
     public Profile(Path logPath) throws IOException {
         FileSystem.getLineStream(logPath).forEach(l -> {
@@ -55,6 +60,11 @@ public class Profile {
                 data.put("SOLVE", (long)(Math.floor(Double.parseDouble(l.substring(l.lastIndexOf("=") + 1))*1000)));
             }
         });
+    }
+
+    @Override
+    public String toString() {
+        return data.toString();
     }
 
     // this constructor used to make the aggregate profiles
