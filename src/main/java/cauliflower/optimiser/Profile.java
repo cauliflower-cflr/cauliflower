@@ -137,4 +137,8 @@ public class Profile {
         });
         return ret;
     }
+
+    public static Profile duplicate(Profile prof){
+        return sumOfProfiles(Collections.singletonList(prof));
+    }
 }

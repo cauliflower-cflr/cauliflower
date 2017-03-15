@@ -8,6 +8,7 @@ import cauliflower.util.Logs;
 import cauliflower.util.Pair;
 import cauliflower.util.Streamer;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.ToDoubleBiFunction;
@@ -38,7 +39,7 @@ public class RelationFilterTransformation implements Transform {
     // TODO allow filtering relations which have fields
     private final boolean allowsSingletonFilters = Info.optAllowSingletonFilters; // needs some more advanced profiling to decide if this is smart
 
-    public static final double MINIMUM_BENEFIT = 1.5;
+    public static final BigDecimal MINIMUM_BENEFIT = BigDecimal.valueOf(1.15);
 
     private Problem spec;
     private Map<Rule, ProblemAnalysis.Bounds> bindings;
@@ -59,21 +60,57 @@ public class RelationFilterTransformation implements Transform {
                         .filter(lu -> bindsWithTerminal(lu, true) || bindsWithTerminal(lu, false)) // and binds to at least one terminal
                         .collect(Collectors.toList()))
                 .flatMap(Streamer::choices)
+                .parallel()
                 .filter(l -> !l.isEmpty())
-                .filter(l -> allowsSingletonFilters || l.size() > 1)
                 .filter(l -> l.stream().allMatch(lu -> bindsWithTerminal(lu, true)) || l.stream().allMatch(lu -> bindsWithTerminal(lu, false)))
-                .map(l -> new Pair<>(l, benefitOfFilter(l)))
-                .max(Pair::secondaryOrder)
-                .filter(p -> p.second > MINIMUM_BENEFIT)
-                .map(Pair::getFirst)
-                .map(this::filterThese)
-                .filter(p -> p!=null);
+                .filter(l -> allowsSingletonFilters || l.size() > 1)
+                .map(this::getFilteredComparison)
+                //.sorted(Pair::primaryOrder)
+                //.peek(p -> System.out.println(p.first))
+                .max(Pair::primaryOrder)
+                .filter(p -> p.first.compareTo(MINIMUM_BENEFIT) > 0)
+                .map(Pair::getSecond);
     }
 
     private void init(Problem speci, Profile profil){
         this.spec = speci;
         this.prof = profil;
         this.bindings = ProblemAnalysis.getRuleStream(spec).collect(Collectors.toMap(r -> r, ProblemAnalysis::getBindings));
+    }
+
+    private Pair<BigDecimal, Problem> getFilteredComparison(List<LabelUse> filt){
+        try {
+            // Determine the costs of the OLD rules that will have the filter applied
+            BigDecimal originalCost = filt.stream()
+                    .map(lu -> lu.usedInRule)
+                    .distinct()
+                    .map(r -> new PredictiveModel().getCost(prof, ProblemAnalysis.getEvaluationOrder(r), ProblemAnalysis.getBindings(r)))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add, BigDecimal::add);
+            // Spoof a relation that represents the filter
+            Problem comparison = this.filterThese(filt);
+            Label unfilterLabel = filt.get(0).usedLabel;
+            Label filterLabel = comparison.labels.get(getRelationNames(filt, true, false));
+            Profile pretend = Profile.duplicate(prof);
+            double factor = benefitOfFilter(filt);
+            pretend.setRelationSources(filterLabel, (long)(prof.getRelationSources(unfilterLabel)/factor));
+            pretend.setRelationSinks(filterLabel, (long)(prof.getRelationSinks(unfilterLabel)/factor));
+            pretend.setRelationSize(filterLabel, (long)(prof.getRelationSize(unfilterLabel)/factor));
+            // Determine the costs of the NEW rules that do contain the filter
+            BigDecimal newCost = ProblemAnalysis.getRuleStream(comparison)
+                    .filter(r -> Clause.getUsedLabelsInOrder(r.ruleBody).stream().map(l -> l.usedLabel).anyMatch(filterLabel::equals))
+                    .map(r -> new PredictiveModel().getCost(pretend, ProblemAnalysis.getEvaluationOrder(r), ProblemAnalysis.getBindings(r)))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add, BigDecimal::add);
+            // Determine the costs of the filter itself
+            BigDecimal fcost = BigDecimal.ZERO;
+//            Rule filterRule = ProblemAnalysis.getRuleStream(comparison)
+//                    .filter(r -> r.ruleHead.usedLabel.equals(filterLabel))
+//                    .findAny().get();
+//            BigDecimal fcost = new PredictiveModel().getCost(pretend, ProblemAnalysis.getEvaluationOrder(filterRule), ProblemAnalysis.getBindings(filterRule));
+            // Comparative advantage is OLD/(NEW+FILTER)
+            return new Pair<>(originalCost.divide(newCost, 20, BigDecimal.ROUND_DOWN), comparison);
+        } catch (CFLRException e) {
+            throw new RuntimeException("SHOULD BE IMPOSSIBLE");
+        }
     }
 
     /**
@@ -95,7 +132,7 @@ public class RelationFilterTransformation implements Transform {
                         conj.second.stream().mapToDouble(b -> factorizer.applyAsDouble(b, false)).reduce(1.0, (d1, d2) -> d1*d2)))
                 //also optimistically assumes that unioning the filters only brings the covered fraction a fraction-th closer to full
                 .reduce(new double[]{0.0, 0.0},
-                        (co, p) -> new double[]{learnTowardsUnit(co[0], p.first), learnTowardsUnit(co[0], p.first)},
+                        (co, p) -> new double[]{learnTowardsUnit(co[0], p.first), learnTowardsUnit(co[1], p.second)},
                         (co1, co2) -> new double[]{learnTowardsUnit(co1[0], co2[0]), learnTowardsUnit(co1[1], co2[1])});
         // most optimistically of all, assume the src/sink binders shrink each other perfectly
         return 1.0/(srcSink[0]*srcSink[1]);
@@ -135,21 +172,26 @@ public class RelationFilterTransformation implements Transform {
 
     }
 
+    public static String getRelationNames(List<LabelUse> filtered, boolean isFilter, boolean isSource){
+        return (isFilter ? "filter_" : "limiter_" + (isSource ? "S_" : "T_"))
+                + filtered.get(0).usedLabel.name
+                + filtered.stream().map(lu -> "_" + lu.usageIndex).collect(Collectors.joining());
+    }
+
     private Problem filterThese(List<LabelUse> filtered) {
         try {
-            Logs.forClass(this.getClass()).debug("Filtering {}", filtered);
             List<Pair<List<ProblemAnalysis.Binding>, List<ProblemAnalysis.Binding>>> limiters = disjunctionOfConjunctionsOfLimiters(filtered).collect(Collectors.toList());
             Label usedL = filtered.get(0).usedLabel;
-            String baseName = usedL.name + filtered.stream().map(lu -> "_" + lu.usageIndex).collect(Collectors.joining());
-            String filterName = "filter_" + baseName;
+
+            String filterName = getRelationNames(filtered, true, false);
             ProblemBuilder ret = new ProblemBuilder()
                     .withAllLabels(spec)
                     .withType(filterName, usedL.srcDomain.name, usedL.dstDomain.name, Collections.emptyList());
             Rule.RuleBuilder filterBuilder = ret.buildRule();
             filterBuilder.setHead(filterBuilder.useLabel(filterName, 0, Collections.emptyList())); // fields in filters not currently supported
 
-            Clause lBody = getFilterSideBody(limiters.stream().map(Pair::getFirst).collect(Collectors.toList()), "limiter_S_" + baseName, usedL.srcDomain.name, filterBuilder, ret);
-            Clause rBody = getFilterSideBody(limiters.stream().map(Pair::getSecond).collect(Collectors.toList()), "limiter_T_" + baseName, usedL.dstDomain.name, filterBuilder, ret);
+            Clause lBody = getFilterSideBody(limiters.stream().map(Pair::getFirst).collect(Collectors.toList()), getRelationNames(filtered, false, true), usedL.srcDomain.name, filterBuilder, ret);
+            Clause rBody = getFilterSideBody(limiters.stream().map(Pair::getSecond).collect(Collectors.toList()), getRelationNames(filtered, false, false), usedL.dstDomain.name, filterBuilder, ret);
             Clause body = filterBuilder.useLabel(usedL.name, -1, Collections.emptyList()); // give the large filtered relation a very low priority
             if(lBody != null) body = new Clause.Compose(lBody, body);
             if(rBody != null) body = new Clause.Compose(body, rBody);

@@ -25,7 +25,7 @@ public class PredictiveModel {
         double disconnectionsOnTheRight(A me, A myRight);
     }
 
-    private class Approxim {
+    public static class Approxim {
 
         private final BigDecimal srcProp, dstProp;
         private final BigDecimal srcVol, dstVol;
@@ -60,7 +60,7 @@ public class PredictiveModel {
          * get an approximation by joining two approximations together
          */
         public Approxim(Approxim l, Approxim r){
-            System.out.println(l + " X " + r);
+            //System.out.println(l + " X " + r);
             members = Stream.concat(l.members.stream(), r.members.stream()).collect(Collectors.toSet());
             //size = l.size*r.size*l.dstProp*r.srcProp; // every pair with every pair is only true for the hourglass
             //size = l.size*r.srcProp*(r.size/r.srcVol); // this one's not symmetric
@@ -216,7 +216,7 @@ public class PredictiveModel {
             if(appearsBackwards.get(lu)) alu = new Approxim(alu);
             disjoint.add(alu);
         }
-        System.out.println(disjoint);
+        //System.out.println(disjoint);
 
         BigDecimal totalCost = BigDecimal.ZERO;
         Multispace msp = new Multispace();

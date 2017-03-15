@@ -252,6 +252,9 @@ public class ProblemAnalysis {
     /**
      * Returns a list of labeluses ordered according to their evaluation priority
      */
+    public static List<LabelUse> getEvaluationOrder(Rule r){
+        return getEvaluationOrder(Clause.getUsedLabelsInOrder(r.ruleBody));
+    }
     public static List<LabelUse> getEvaluationOrder(List<LabelUse> leftToRightOrder){
         return getEvaluationOrder(leftToRightOrder, leftToRightOrder.stream().map(lu -> lu.priority).collect(Collectors.toList()));
     }

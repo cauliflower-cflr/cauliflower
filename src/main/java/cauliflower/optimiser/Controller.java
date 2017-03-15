@@ -47,8 +47,8 @@ public class Controller implements Task<Problem> {
                     new SubexpressionTransformation.RedundantChain(),
                     new SubexpressionTransformation.SummarisingChain(),*/
                     /*new SubexpressionTransformation.ChomskyChain()*/
-                    /*new RelationFilterTransformation()*/
-                    new EvaluationOrderTransformation(true, true)
+                    new RelationFilterTransformation()
+                    /*new EvaluationOrderTransformation(true, true)*/
             );
 
             specStack.push(inputSpec);
