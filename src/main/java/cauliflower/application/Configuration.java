@@ -3,6 +3,7 @@ package cauliflower.application;
 
 import cauliflower.Main;
 import cauliflower.generator.Adt;
+import cauliflower.optimiser.Passes;
 import cauliflower.util.FileSystem;
 import cauliflower.util.Logs;
 import com.beust.jcommander.JCommander;
@@ -30,6 +31,7 @@ public class Configuration {
     public final String problemName;
     private final Path outputDir;
     public final List<Path> sampleDirs;
+    public final List<Passes> optimisationPasses;
     public final Adt adt;
     public final boolean compile;
     public final boolean debugGenerated;
@@ -53,6 +55,7 @@ public class Configuration {
                 .skip(1)
                 .map(s -> Paths.get(s))
                 .collect(Collectors.toList());
+        this.optimisationPasses = ci._optPasses;
         this.adt = ci._adt;
         this.compile = ci._compile;
         this.debugGenerated = ci._debugGenerated;
@@ -135,6 +138,9 @@ public class Configuration {
 
         @Parameter(names = {"-O", "--optimise"}, description = "Optimise the input specification (this number of times).")
         private int _optimise = 0;
+
+        @Parameter(names = {"--pass"}, description = "Specify passes for the optimiser.")
+        private List<Passes> _optPasses = Arrays.asList(Passes.values());
 
         @Parameter(names = {"-p", "--parallel"}, description = "Generate parallel evaluation code.")
         private boolean _parallel = false;

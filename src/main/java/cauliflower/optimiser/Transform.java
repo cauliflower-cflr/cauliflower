@@ -5,10 +5,7 @@ import cauliflower.representation.Problem;
 import cauliflower.util.Logs;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -45,6 +42,10 @@ public interface Transform {
             this(doAll, Arrays.asList(ts));
         }
 
+        public static Group makeGroupFromPasses(boolean doAll, List<Passes> ts) {
+            return new Group(doAll, ts.stream().map(Passes::getTransform).collect(Collectors.toList()));
+        }
+
         public void blacklistLast(){
             subTransforms = subTransforms.stream().filter(c -> !c.getClass().equals(lastTransform.getClass())).collect(Collectors.toList());
             Logs.forClass(this.getClass()).trace("Blacklisting {} -> {}",
@@ -54,6 +55,14 @@ public interface Transform {
                             .map(Class::getSimpleName)
                             .collect(Collectors.joining(",")));
             lastTransform = null;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("<%s>[%s]", doAll ? "all" : "some", subTransforms.stream()
+                    .map(Transform::getClass)
+                    .map(Class::getSimpleName)
+                    .collect(Collectors.joining(",")));
         }
 
         @Override

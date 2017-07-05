@@ -109,6 +109,7 @@ public class RelationFilterTransformation implements Transform {
             // Comparative advantage is OLD/(NEW+FILTER)
             return new Pair<>(originalCost.divide(newCost, 20, BigDecimal.ROUND_DOWN), comparison);
         } catch (CFLRException e) {
+            e.printStackTrace();
             throw new RuntimeException("SHOULD BE IMPOSSIBLE");
         }
     }

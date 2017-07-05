@@ -139,8 +139,10 @@ public class TestOptimiser {
         Label a = p.labels.get("a");
         Label b = p.labels.get("b");
         Label c = p.labels.get("c");
+        Domain d = p.vertexDomains.get("x");
 
         Profile prof = Profile.emptyProfile();
+        prof.setVertexDomainSize(d, 1100);
         //a is huge
         prof.setRelationSources(a, 1000);
         prof.setRelationSize(a, 5000);

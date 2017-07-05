@@ -3,6 +3,7 @@ package cauliflower.application;
 import cauliflower.generator.CauliflowerSpecification;
 import cauliflower.generator.Verbosity;
 import cauliflower.optimiser.Controller;
+import cauliflower.optimiser.Passes;
 import cauliflower.representation.Problem;
 import cauliflower.util.FileSystem;
 import cauliflower.util.Logs;
@@ -27,12 +28,12 @@ public class Optimiser implements Task<Void>{
     private final Controller controller;
 
     public Optimiser(Configuration conf){
-        this(FileSystem.constructPath(conf.getOutputDir(), conf.problemName, "cflr"), conf.sampleDirs, conf.optimise);
+        this(FileSystem.constructPath(conf.getOutputDir(), conf.problemName, "cflr"), conf.sampleDirs, conf.optimise, conf.optimisationPasses);
     }
 
-    public Optimiser(Path optimisedSpec, List<Path> trainingSet, int rounds){
+    public Optimiser(Path optimisedSpec, List<Path> trainingSet, int rounds, List<Passes> passes){
         this.optimisedSpec = optimisedSpec;
-        this.controller = new Controller(rounds, trainingSet);
+        this.controller = new Controller(rounds, trainingSet, passes);
     }
 
     public Void perform(Problem spec) throws CauliflowerException {
@@ -48,5 +49,4 @@ public class Optimiser implements Task<Void>{
         }
         return null;
     }
-
 }

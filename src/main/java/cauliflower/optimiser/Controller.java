@@ -27,11 +27,13 @@ public class Controller implements Task<Problem> {
 
     private final int maxRounds;
     private final List<Path> trainingSet;
+    private final List<Passes> passes;
     private Path workingDir;
 
-    public Controller(int maxRounds, List<Path> trainingSet) {
+    public Controller(int maxRounds, List<Path> trainingSet, List<Passes> passes) {
         this.maxRounds = maxRounds;
         this.trainingSet = trainingSet;
+        this.passes = passes;
     }
 
     @Override
@@ -42,14 +44,8 @@ public class Controller implements Task<Problem> {
             this.workingDir = null;
             this.workingDir = Files.createTempDirectory("cauli_opt_");// + inputSpec.getFileName().toString());
             // initial options for transformation
-            Transform.Group allTransforms = new Transform.Group(false,
-                    new SubexpressionTransformation.TerminalChain(),
-                    new SubexpressionTransformation.RedundantChain(),
-                    new SubexpressionTransformation.SummarisingChain(),
-                    new SubexpressionTransformation.ChomskyChain(),
-                    new RelationFilterTransformation(),
-                    new EvaluationOrderTransformation(true, true)
-            );
+            Transform.Group allTransforms = Transform.Group.makeGroupFromPasses(false, passes);
+            Logs.forClass(this.getClass()).debug("Transforms are: {}", allTransforms);
 
             specStack.push(inputSpec);
             long timeToBeat = Long.MAX_VALUE;

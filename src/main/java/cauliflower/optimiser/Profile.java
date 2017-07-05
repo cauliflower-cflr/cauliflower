@@ -95,9 +95,15 @@ public class Profile {
         String s = "t:" + l.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
+    public void setFieldDomainSize(Domain d, long s) {
+        data.put("df:" + d.name, s);
+    }
     public long getFieldDomainSize(Domain d){
         String s = "df:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
+    }
+    public void setVertexDomainSize(Domain d, long s) {
+        data.put("dv:" + d.name, s);
     }
     public long getVertexDomainSize(Domain d){
         String s = "dv:" + d.name;

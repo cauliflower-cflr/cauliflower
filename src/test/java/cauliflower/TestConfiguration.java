@@ -2,10 +2,13 @@ package cauliflower;
 
 import cauliflower.application.Configuration;
 import cauliflower.generator.Adt;
+import cauliflower.optimiser.Passes;
 import org.junit.Test;
 
-import java.nio.file.Paths;
+import java.util.Arrays;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
 public class TestConfiguration {
@@ -89,6 +92,25 @@ public class TestConfiguration {
         assertEquals("bar.cflr", new Configuration("--name", "bar.cflr", "foo.cflr").problemName);
         assertEquals("x/y/z/bar", new Configuration("-n", "x/y/z/bar", "foo.cflr").problemName);
         assertEquals("x/y/z/bar.cflr", new Configuration("-n", "x/y/z/bar.cflr", "foo.cflr").problemName);
+    }
+
+    @Test
+    public void testPassesDefault() throws Configuration.HelpException, Configuration.ConfigurationException {
+        assertThat(new Configuration("foo.cflr").optimisationPasses, is(equalTo(Arrays.asList(
+                Passes.promote_terminals,
+                Passes.promote_redundant,
+                Passes.promote_summary,
+                Passes.promote_chomsky,
+                Passes.filter,
+                Passes.order))));
+    }
+
+    @Test
+    public void testPassesSplit() throws Configuration.HelpException, Configuration.ConfigurationException {
+        assertThat(new Configuration(
+                "--pass", "order",
+                "--pass", "filter",
+                "foo.cflr").optimisationPasses,is(equalTo(Arrays.asList(Passes.order, Passes.filter))));
     }
 
 }
