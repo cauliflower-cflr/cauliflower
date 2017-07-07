@@ -109,6 +109,13 @@ public class Profile {
         String s = "dv:" + d.name;
         return data.containsKey(s) ? data.get(s) : 0;
     }
+
+    /**
+     * @param s time in milliseconds
+     */
+    public void setTotalTime(long s){
+        data.put("SOLVE", s);
+    }
     public long getTotalTime() {
         return data.containsKey("SOLVE") ? data.get("SOLVE") : Long.MAX_VALUE;
     }

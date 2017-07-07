@@ -1,0 +1,60 @@
+.type desc
+.type field
+.type heap
+.type index
+.type meth
+.type site
+.type type
+.type vari
+
+#define RCSV(r) r.csv
+#define STR(s) #s
+#define XSTR(S) STR(S)
+#define BI(rel,t1,t2) \
+    .decl rel(a0:t1,a1:t2) \
+    .input rel(IO=file,filename=XSTR(RCSV(rel)),delimiter=",") \
+    .printsize rel
+#define TRI(rel,t1,t2,t3) \
+    .decl rel(a0:t1,a1:t2,a2:t3) \
+    .input rel(IO=file,filename=XSTR(RCSV(rel)),delimiter=",") \
+    .printsize rel
+
+TRI(Actual,        vari, site, index)
+TRI(Definer,       type, meth, desc)
+TRI(Formal,        vari, meth, index)
+TRI(Load,          vari, vari, field)
+TRI(Receiver,      vari, site, desc)
+TRI(Store,         vari, vari, field)
+BI(AllocType,      heap, type)
+BI(Alloc,          vari, heap)
+BI(Assign,         vari, vari)
+BI(ReflexSubclass, type, type)
+BI(ReturnCallsite, vari, site)
+BI(ReturnMethod,   vari, meth)
+BI(VarType,        vari, type)
+
+.decl VPT(a0:vari, a1:heap)
+.printsize VPT
+
+VPT(v,o) :- Alloc(v,o).
+VPT(a,c) :- Assign(a,b),VPT(b,c).
+VPT(a,f) :- Load(b,a,F),
+            VPT(b,c),
+            VPT(d,c),
+            Store(e,d,F),
+            VPT(e,f).
+VPT(a,h) :- Formal(a,b,I),
+            Definer(c,b,D),
+            AllocType(d,c),
+            VPT(e,d),
+            Receiver(e,f,D),
+            Actual(g,f,I),
+            VPT(g,h).
+VPT(a,h) :- ReturnCallsite(a,b),
+            Receiver(c,b,D),
+            VPT(c,d),
+            AllocType(d,e),
+            Definer(e,f,D),
+            ReturnMethod(g,f),
+            VPT(g,h).
+

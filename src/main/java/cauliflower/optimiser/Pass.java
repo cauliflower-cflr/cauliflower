@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -25,11 +26,13 @@ import java.util.stream.Collectors;
 public class Pass implements Task<Profile> {
 
     private final int round;
+    private final long timeout;
     private final Controller parent;
     private final Path executable;
     private List<Profile> profiles;
 
-    /*local*/ Pass(Controller context, int roundNumber) throws IOException {
+    /*local*/ Pass(Controller context, int roundNumber, long timeout) throws IOException {
+        this.timeout = timeout;
         round = roundNumber;
         parent = context;
         executable = parent.getExeFileForRound(round);
@@ -56,7 +59,7 @@ public class Pass implements Task<Profile> {
                     try {
                         return generateLog(p.first, p.second);
                     } catch (Exception e) {
-                        Logs.forClass(Pass.class).error("Creating log " + p.second + " failed", e);
+                        Logs.forClass(Pass.class).warn("Creating log " + p.second + " failed", e);
                         return null;
                     }
                 })
@@ -65,7 +68,7 @@ public class Pass implements Task<Profile> {
     }
 
     private Profile generateLog(Path trainingDir, Path logFile) throws IOException, InterruptedException {
-        Logs.forClass(Pass.class).debug("Logging {} from {}", logFile, trainingDir);
+        Logs.forClass(Pass.class).debug("Logging {} from {} (timeout {})", logFile, trainingDir, timeout);
         ProcessBuilder pb = new ProcessBuilder(executable.toString(), trainingDir.toString())
                 .redirectErrorStream(true).redirectOutput(logFile.toFile());
         pb.environment().put("OMP_NUM_THREADS", "1"); // force profiling for a single core
@@ -73,9 +76,16 @@ public class Pass implements Task<Profile> {
         int count = 0;
         while (code != 0 && count < 5) {
             Process proc = pb.start();
-            code = proc.waitFor();
+            boolean finished_on_time = proc.waitFor(timeout, TimeUnit.MILLISECONDS);
+            if(!finished_on_time) {
+                proc.destroyForcibly();
+                code = -1;
+                Logs.forClass(Pass.class).trace("attempt {} times out", count);
+            } else {
+                code = proc.exitValue();
+                Logs.forClass(Pass.class).trace("attempt {} has exit code {}", count, code);
+            }
             count++;
-            Logs.forClass(Pass.class).trace("attempt {} has exit code {}", count, code);
         }
         if (code != 0){
             throw new IOException("Failed to generate a log for " + trainingDir.toString());

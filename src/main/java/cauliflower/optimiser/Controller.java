@@ -25,6 +25,8 @@ import java.util.stream.Stream;
  */
 public class Controller implements Task<Problem> {
 
+    public static final int MAX_OPTIMISE_PASS_TIMEOUT = 1000*60*60; // aka 1 hour
+
     private final int maxRounds;
     private final List<Path> trainingSet;
     private final List<Passes> passes;
@@ -55,7 +57,19 @@ public class Controller implements Task<Problem> {
 
                 // generate the profile of this round
                 if(specStack.size() > optimisationRound){
-                    profStack.push(new Pass(this, optimisationRound).perform(specStack.peek()));
+                    long subprocessTimeout = timeToBeat;
+                    if(subprocessTimeout > MAX_OPTIMISE_PASS_TIMEOUT) subprocessTimeout = MAX_OPTIMISE_PASS_TIMEOUT;
+                    else subprocessTimeout += 10000; // you get 10 seconds more than the max
+                    try {
+                        profStack.push(new Pass(this, optimisationRound, subprocessTimeout).perform(specStack.peek()));
+                    } catch(CauliflowerException exc) {
+                        // We can fail to find a profile if they all time out
+                        // signal this by creating a spoof profile with a massive time
+                        if(profStack.size() == 0) throw exc; // of course this really is a problem for the first run
+                        Profile spoof = Profile.emptyProfile();
+                        spoof.setTotalTime(subprocessTimeout);
+                        profStack.push(spoof);
+                    }
                 } else {
                     Logs.forClass(this.getClass()).trace("profile already present, skipping runs");
                 }
